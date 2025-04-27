@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  AGENCY
+  ADMIN
+  USER
+}
+
+enum WeekType {
+  NONE
+  INITIATION
+  PROGRESSION
+  DOUBLE
+}
+
+enum BookingType {
+  INITIATION
+  PROGRESSION
+  AUTONOMIE
+}
+
+model Week {
+  id         String    @id @default(cuid())
+  year       Int
+  weekNumber Int
+  startDate  DateTime  @unique
+  endDate    DateTime
+  places     Int       @default(6)
+  type       WeekType  @default(NONE)
+  bookings   Booking[]
+}
+
+model Booking {
+  id         String      @id @default(cuid())
+  startDate  DateTime    @unique
+  endDate    DateTime
+  type       BookingType @default(INITIATION)
+  weekId     String
+  week       Week        @relation(fields: [weekId], references: [id])
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id])
+}
+
+model Customer {
+  id         String    @id @default(cuid())
+  name       String
+  email      String    @unique
+  phone      String
+  address    String
+  postalCode String
+  city       String
+  country    String
+  siret      String    @unique
+  bookings   Booking[]
+}
+
+model User {
+  id        String    @id @unique
+  email     String    @unique
+  name      String
+  avatarUrl String
+  role      Role      @default(USER)
+  companies Company[] @relation("UserCompanies")
+}
+
+model Company {
+  id      String @id @default(cuid())
+  name    String
+  siret   String
+  country String
+  users   User[] @relation("UserCompanies")
+}
