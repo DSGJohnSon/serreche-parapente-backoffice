@@ -28,6 +28,7 @@ export const useCreateCompany = () => {
         toast.error(response.message);
       }
       queryClient.invalidateQueries({ queryKey: ["companies"] });
+      router.refresh();
     },
     onError: (error: Error) => {
       toast.error(error.message);

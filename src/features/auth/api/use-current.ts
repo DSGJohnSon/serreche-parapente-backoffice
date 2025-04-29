@@ -1,23 +1,26 @@
 import { client } from "@/lib/rpc";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const useCurrent = () => {
   const query = useQuery({
     queryKey: ["current"],
     queryFn: async () => {
-      const response = await client.api.auth.current.$get();
+      const res = await client.api.auth.current.$get();
 
-      if (!response.ok) {
+      if (!res.ok) {
+        toast.error("Error fetching current user");
         return null;
       }
 
-      const { success, user } = await response.json();
+      const response = await res.json();
 
-      if (!success) {
+      if (!response.success) {
+        // toast.error(response.message);
         return null;
       }
 
-      return user;
+      return response.data;
     },
   });
 

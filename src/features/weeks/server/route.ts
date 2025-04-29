@@ -24,15 +24,18 @@ const app = new Hono()
     if (month) {
       where.month = parseInt(month, 10);
     }
+    try {
+      const result = await prisma.week.findMany({
+        where,
+        include: {
+          bookings: true,
+        },
+      });
 
-    const result = await prisma.week.findMany({
-      where,
-      include: {
-        bookings: true,
-      },
-    });
-
-    return c.json({ data: result });
+      return c.json({ success: true, message: "", data: result });
+    } catch (error) {
+      return c.json({ success: false, message: "Erreur lors de la récupération des semaines", data: null });
+    }
   })
   // Get all weeks database with optional year, month, and bookings inclusion
   // -----

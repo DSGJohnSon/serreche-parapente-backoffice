@@ -16,6 +16,7 @@ import {
 import { useGetCompaniesByUserId } from "@/features/companies/api/use-get-companies";
 import { User } from "@prisma/client";
 import { NavMain } from "./nav-main";
+import { NavAdmin } from "./nav-admin";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: User;
@@ -44,8 +45,9 @@ export function AppSidebar({
         )}
       </SidebarHeader>
       <SidebarSeparator className="border-b" />
-      <SidebarContent>
+      <SidebarContent className="flex flex-col h-full justify-content">
         <NavMain />
+        <NavAdmin />
       </SidebarContent>
       <SidebarSeparator className="border-b" />
       <SidebarFooter>

@@ -15,10 +15,13 @@ export const useLogout = () => {
       const response = await client.api.auth.logout["$post"]();
       return await response.json();
     },
-    onSuccess: () => {
-      toast.success("Déconnexion réussie !");
+    onSuccess: (response) => {
+      toast.success(response.message);
       queryClient.invalidateQueries({ queryKey: ["current"] });
       router.refresh();
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 

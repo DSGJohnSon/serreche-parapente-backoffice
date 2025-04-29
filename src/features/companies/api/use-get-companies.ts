@@ -3,6 +3,7 @@
 import { client } from "@/lib/rpc";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { InferRequestType, InferResponseType } from "hono";
+import { toast } from "sonner";
 
 //*------------------*//
 //Get all companies
@@ -11,12 +12,17 @@ export const useGetAllCompanies = () => {
   const query = useQuery({
     queryKey: ["companies"],
     queryFn: async () => {
-      const response = await client.api.companies.getAll["$get"]();
-      if (!response.ok) {
+      const res = await client.api.companies.getAll["$get"]();
+      if (!res.ok) {
         return null;
       }
-      const { data } = await response.json();
-      return { data };
+
+      const { success, message, data } = await res.json();
+      if (success) {
+        toast.error(message);
+        return null;
+      }
+      return data;
     },
   });
 
@@ -30,18 +36,20 @@ export const useGetCompanyById = (id: string) => {
   const query = useQuery({
     queryKey: ["company", id],
     queryFn: async () => {
-      const response = await client.api.companies.getById[":companyId"]["$get"](
-        {
-          param: {
-            companyId: id,
-          },
-        }
-      );
-      if (!response.ok) {
+      const res = await client.api.companies.getById[":companyId"]["$get"]({
+        param: {
+          companyId: id,
+        },
+      });
+      if (!res.ok) {
         return null;
       }
 
-      const { data } = await response.json();
+      const { success, message, data } = await res.json();
+      if (!success) {
+        toast.error(message);
+        return null;
+      }
       return data;
     },
   });
@@ -55,18 +63,20 @@ export const useGetCompaniesByUserId = (id: string) => {
   const query = useQuery({
     queryKey: ["companyByUserId", id],
     queryFn: async () => {
-      const response = await client.api.companies.getByUserId[":userId"][
-        "$get"
-      ]({
+      const res = await client.api.companies.getByUserId[":userId"]["$get"]({
         param: {
           userId: id,
         },
       });
-      if (!response.ok) {
+      if (!res.ok) {
         return null;
       }
 
-      const { data } = await response.json();
+      const { success, message, data } = await res.json();
+      if (!success) {
+        toast.error(message);
+        return null;
+      }
       return data;
     },
   });
@@ -91,6 +101,16 @@ export const useGetCompaniesByIds = () => {
     mutationFn: async (json) => {
       const response = await client.api.companies.getByIds["$post"]({ json });
       return await response.json();
+    },
+    onSuccess: (response) => {
+      if (response.success) {
+        toast.success(response.message);
+      } else {
+        toast.error(response.message);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
     },
   });
 

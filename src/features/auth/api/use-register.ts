@@ -23,11 +23,11 @@ export const useRegister = () => {
     onSuccess: (response) => {
       if (response.success) {
         toast.success(response.message);
+        queryClient.invalidateQueries({ queryKey: ["current"] });
+        router.refresh();
       } else {
         toast.error(response.message);
       }
-      queryClient.invalidateQueries({ queryKey: ["current"] });
-      router.refresh();
     },
     onError: (error: Error) => {
       toast.error(error.message);

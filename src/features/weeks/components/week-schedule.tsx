@@ -159,7 +159,7 @@ export function WeeklySchedule({
   useEffect(() => {
     console.log("weeksData:", weeksData);
     setInitialData(
-      weeksData?.data.map((week) => ({
+      weeksData?.map((week) => ({
         ...week,
         bookings: week.bookings.map((booking) => ({
           ...booking,
