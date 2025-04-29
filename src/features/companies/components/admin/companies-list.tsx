@@ -14,7 +14,7 @@ function CompaniesList() {
         <CompaniesListSkeleton />
       ) : (
         <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {companies?.data.map((company) => (
+          {companies?.map((company) => (
             <li
               key={company.id}
               className="py-2 px-4 rounded-md hover:bg-foreground/5 border border-input space-y-2">

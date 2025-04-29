@@ -23,7 +23,7 @@ function CompaniesAdd() {
           <SheetTitle>Add a Company</SheetTitle>
         </SheetHeader>
         <Separator className="my-8" />
-        {/* <CompaniesAddForm onFormSubmit={() => {}} /> */}
+        <CompaniesAddForm />
       </SheetContent>
     </Sheet>
   );

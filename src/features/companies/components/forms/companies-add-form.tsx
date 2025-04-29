@@ -39,15 +39,9 @@ type usersOptionsProps = {
 function CompaniesAddForm({
   defaultUsersInCompany,
   disableUsersSelect, //Permits to disable the user selection for the "new company" form (used by user and not admin)
-  onFormSubmit,
 }: {
   defaultUsersInCompany?: string[];
   disableUsersSelect?: boolean;
-  onFormSubmit: (data: {
-    success: boolean;
-    message: string;
-    data: Company[];
-  }) => void;
 }) {
   const { mutate, isPending } = useCreateCompany();
   const { data: users, isLoading: isLoadingUsers } = useGetAllUsers();
@@ -55,7 +49,7 @@ function CompaniesAddForm({
 
   useEffect(() => {
     let temp: usersOptionsProps[] = [];
-    if (users) {
+    if (users && users.data) {
       temp = users.data.map((user) => ({
         value: user.id,
         label: `${user.name} - (${user.email})`,
@@ -77,7 +71,6 @@ function CompaniesAddForm({
     mutate(values, {
       onSuccess: (data) => {
         form.reset();
-        onFormSubmit({ ...data, data: [data.data] });
       },
     });
   }

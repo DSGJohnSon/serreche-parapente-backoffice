@@ -22,7 +22,7 @@ function UsersList() {
         <UsersListSkeleton />
       ) : (
         <ul className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          {users?.data.map((user) => (
+          {users?.data?.map((user) => (
             <li
               key={user.id}
               className="py-2 px-4 rounded-md hover:bg-foreground/5 border border-input space-y-2">

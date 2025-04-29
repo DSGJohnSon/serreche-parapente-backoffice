@@ -23,15 +23,6 @@ function CreateCompanyModal() {
     setOpen(isOpen);
   };
 
-  const handleFormSubmit = () => {
-    queryClient.invalidateQueries({
-      queryKey: ["companyByUserId", user],
-    });
-    setTimeout(() => {
-      setOpen(false);
-    }, 1000);
-  };
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
@@ -44,7 +35,6 @@ function CreateCompanyModal() {
         </DialogHeader>
 
         <CompaniesAddForm
-          onFormSubmit={handleFormSubmit}
           defaultUsersInCompany={[user.id]}
           disableUsersSelect={true}
         />
