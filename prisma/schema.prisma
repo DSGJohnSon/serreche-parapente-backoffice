@@ -52,7 +52,7 @@ model Stage {
 //Réservation d'une semaine de stage de parapente (Lien entre Stage et Customer)
 model StageBooking {
   id         String    @id @default(cuid())
-  type       StageType @default(INITIATION)
+  type       StageBookingType @default(INITIATION)
   stageId    String
   stage      Stage     @relation(fields: [stageId], references: [id])
   customerId String

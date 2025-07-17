@@ -33,6 +33,39 @@ const app = new Hono()
       }
     }
   )
+  .get(
+    "getById/:id",
+    // sessionMiddleware,
+    async (c) => {
+      try {
+        const id = c.req.param("id");
+        if (!id) {
+          return c.json({
+            success: false,
+            message: "ID is required",
+            data: null,
+          });
+        }
+        const result = await prisma.customer.findUnique({
+          where: { id },
+          include: {
+            stages: {
+              include: {
+                stage: true,
+              },
+            },
+          },
+        });
+        return c.json({ success: true, message: "", data: result });
+      } catch (error) {
+        return c.json({
+          success: false,
+          message: "Error fetching customer",
+          data: null,
+        });
+      }
+    }
+  )
   //
   //Create new customer
   .post(

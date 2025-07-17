@@ -17,6 +17,7 @@ import {
 } from "@/app/(post-auth)/dashboard/customers/customers";
 import { Customer, StageBooking } from "@prisma/client";
 import CopyTextComponent from "@/components/copy-text-component";
+import Link from "next/link";
 
 interface CustomerTableProps {
   customers: (Customer & {
@@ -192,21 +193,27 @@ export function CustomerTable({
                 )}
                 {visibleColumns.name && (
                   <TableCell className="font-medium">
-                    {customer.firstName} {customer.lastName}
+                    <Link
+                      href={`/dashboard/customers/${customer.id}`}
+                      className="underline"
+                    >
+                      {customer.firstName} {customer.lastName}
+                    </Link>
                   </TableCell>
                 )}
                 {visibleColumns.email && (
                   <TableCell>{customer.email}</TableCell>
                 )}
                 {visibleColumns.height && (
-                    <TableCell>
+                  <TableCell>
                     {customer.height
                       ? (customer.height / 100).toLocaleString("fr-FR", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                      : ""}  m
-                    </TableCell>
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })
+                      : ""}{" "}
+                    m
+                  </TableCell>
                 )}
                 {visibleColumns.weight && (
                   <TableCell>{customer.weight} kg</TableCell>

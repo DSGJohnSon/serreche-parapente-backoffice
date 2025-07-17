@@ -25,3 +25,28 @@ export const useGetAllCustomers = () => {
 
   return query;
 };
+
+/*------------------*/
+// Get customer by ID
+/*------------------*/
+
+export const useGetCustomerById = (id: string) => {
+  const query = useQuery({
+    queryKey: ["customer", id],
+    queryFn: async () => {
+      const res = await client.api.customers.getById[":id"].$get({ param: { id } });
+      if (!res.ok) {
+        return null;
+      }
+
+      const { success, message, data } = await res.json();
+      if (!success) {
+        toast.error(message);
+        return null;
+      }
+      return data;
+    },
+  });
+
+  return query;
+};
