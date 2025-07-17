@@ -1,53 +1,58 @@
 "use client";
 
 import * as React from "react";
-import { GalleryVerticalEnd } from "lucide-react";
 
 import { NavUser } from "@/components/sidebar/user/nav-user";
-import { TeamSwitcher } from "@/features/companies/components/user/team-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import { useGetCompaniesByUserId } from "@/features/companies/api/use-get-companies";
 import { User } from "@prisma/client";
 import { NavMain } from "./nav-main";
-import { NavAdmin } from "./nav-admin";
+import Image from "next/image";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
+import { LucideHouse } from "lucide-react";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: User;
-  activeCompanyId: string;
 }
 
-export function AppSidebar({
-  user,
-  activeCompanyId,
-  ...props
-}: AppSidebarProps) {
-  const { data: companies, isLoading: isLoadingCompanies } =
-    useGetCompaniesByUserId(user.id);
-
+export function AppSidebar({ user, ...props }: AppSidebarProps) {
+  const pathname = usePathname();
+  const slugToKnowIfActive = pathname.split("/").slice(2, 3);
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        {isLoadingCompanies || !companies || companies === null ? (
-          <GalleryVerticalEnd className="size-8" />
-        ) : (
-          <TeamSwitcher
-            companies={companies}
-            activeCompanyId={activeCompanyId}
-            isLoading={isLoadingCompanies}
-          />
-        )}
+        <Link
+          href="/"
+          title="Serre Chevalier Parapente"
+          className="flex items-center gap-2 font-medium"
+        >
+          <div className="flex h-8 w-8 items-center justify-center bg-slate-900 dark:bg-white p-1 rounded-full">
+            <Image
+              src={"/logo-light-nobg.webp"}
+              alt="Logo Serre Chevalier Parapente"
+              className="dark:invert"
+              width={48}
+              height={48}
+            />
+          </div>
+          Serre Chevalier Parapente
+        </Link>
       </SidebarHeader>
       <SidebarSeparator className="border-b" />
       <SidebarContent className="flex flex-col h-full justify-content">
         <NavMain />
-        <NavAdmin />
       </SidebarContent>
       <SidebarSeparator className="border-b" />
       <SidebarFooter>

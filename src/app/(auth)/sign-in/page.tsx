@@ -7,7 +7,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "GoDigital - Se connecter",
+  title: "Stage de Parapente - BackOffice | Login",
   description: "",
 };
 
@@ -15,7 +15,6 @@ export default async function Page() {
   const user = await getCurrent();
   if (user instanceof AuthError) return;
   if (user) {
-    if (user.role === "ADMIN") return redirect("/admin/dashboard");
     redirect("/");
   }
 
@@ -25,17 +24,18 @@ export default async function Page() {
         <div className="flex justify-center gap-2 md:justify-start">
           <Link
             href="/"
-            title="Go Digital"
+            title="Serre Chevalier Parapente"
             className="flex items-center gap-2 font-medium">
-            <div className="flex h-6 w-6 items-center justify-center">
+            <div className="flex h-8 w-8 items-center justify-center bg-slate-900 dark:bg-white p-1 rounded-full">
               <Image
-                src={"/favicon/android-chrome-512x512.png"}
-                alt="Logo Prysm"
+                src={"/logo-light-nobg.webp"}
+                alt="Logo Serre Chevalier Parapente"
+                className="dark:invert"
                 width={48}
                 height={48}
               />
             </div>
-            Go Digital
+            Serre Chevalier Parapente
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-center">
@@ -47,7 +47,7 @@ export default async function Page() {
       <div className="relative hidden bg-muted lg:block m-4 rounded-2xl overflow-hidden">
         <Image
           src="/placeholder-auth.webp"
-          alt="Image"
+          alt=""
           width={1920}
           height={1080}
           className="absolute inset-0 h-full w-full object-cover"

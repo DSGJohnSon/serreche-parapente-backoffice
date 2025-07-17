@@ -26,7 +26,7 @@ export const sessionMiddleware = createMiddleware(async (c, next) => {
 export const adminSessionMiddleware = createMiddleware(async (c, next) => {
   const session = getCookie(c, AUTH_COOKIE);
   if (!session) {
-    return c.json({ error: "Unauthorized" }, 401);
+    return c.json({ error: "Unauthorized, admin only" }, 401);
   }
 
   const {
@@ -34,7 +34,8 @@ export const adminSessionMiddleware = createMiddleware(async (c, next) => {
     error,
   } = await supabase.auth.getUser(session);
 
-  if (user === null || error) return c.json({ error: "Unauthorized" }, 401);
+  if (user === null || error)
+    return c.json({ error: "Unauthorized, admin only" }, 401);
 
   const userToVerify = await prisma.user.findUnique({
     where: {
@@ -43,7 +44,7 @@ export const adminSessionMiddleware = createMiddleware(async (c, next) => {
   });
 
   if (userToVerify === null || userToVerify.role !== "ADMIN")
-    return c.json({ error: "Unauthorized" }, 401);
+    return c.json({ error: "Unauthorized, admin only" }, 401);
 
   await next();
 });

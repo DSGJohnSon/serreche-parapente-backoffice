@@ -50,8 +50,8 @@ export function LoginForm({
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl text-center">Connexion</CardTitle>
-          <CardDescription className="text-center">
-            Connectez-vous à votre compte pour accéder à votre dashboard client.
+          <CardDescription className="text-center text-balance">
+            Connectez-vous à votre compte pour accéder à votre dashboard.
           </CardDescription>
         </CardHeader>
         <Separator />

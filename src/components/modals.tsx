@@ -1,6 +1,7 @@
 "use client";
 
-import CreateCompanyModal from "@/features/companies/components/modals/create-company-modal";
+import CreateCustomerModal from "@/features/customers/modals/create-customer-modal";
+import AddMonitorModal from "@/features/users/modals/add-monitor-modal";
 import { useEffect, useState } from "react";
 
 function Modals() {
@@ -16,7 +17,8 @@ function Modals() {
 
   return (
     <>
-      <CreateCompanyModal />
+      <CreateCustomerModal />
+      <AddMonitorModal />
     </>
   );
 }

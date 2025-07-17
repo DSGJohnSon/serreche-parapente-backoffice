@@ -55,7 +55,6 @@ export default function CopyTextComponent({
           "items-center gap-1 text-emerald-500",
           isCopied ? "flex" : "hidden"
         )}>
-        Copié !
         <LucideCheck
           className={cn(CopyToClipboardComponentVariant({ size }), className)}
         />

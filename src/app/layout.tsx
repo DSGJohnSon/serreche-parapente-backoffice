@@ -11,7 +11,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "GoDigital",
+  title: "Stage de Parapente - BackOffice",
   description: "",
 };
 

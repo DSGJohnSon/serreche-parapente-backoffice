@@ -1,15 +1,19 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { GetUsersByIdsSchema } from "../schemas";
-import { sessionMiddleware } from "@/lib/session-middleware";
+import {
+  adminSessionMiddleware,
+  sessionMiddleware,
+} from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
+import { Role } from "@prisma/client";
+import { ChangeUserRoleSchema } from "../schemas";
 
 const app = new Hono()
   //*------------------*//
   //ALL GET REQUESTS API
   //*------------------*//
   //Get all users of the database
-  .get("getAll", sessionMiddleware, async (c) => {
+  .get("getAll", adminSessionMiddleware, async (c) => {
     try {
       const result = await prisma.user.findMany();
       return c.json({ success: true, message: "", data: result });
@@ -23,7 +27,7 @@ const app = new Hono()
   })
   //
   //Get one user by id
-  .get("getById/:userId", sessionMiddleware, async (c) => {
+  .get("getById/:userId", adminSessionMiddleware, async (c) => {
     const { userId } = c.req.param();
     if (!userId) {
       return c.json({
@@ -34,11 +38,40 @@ const app = new Hono()
     }
 
     try {
-      const result = await prisma.user.findUnique({
+      const result = await prisma.user.findMany({
         where: {
           id: userId,
         },
       });
+      return c.json({ success: true, message: "", data: result });
+    } catch (error) {
+      return c.json({
+        success: false,
+        message: "Error fetching users by id",
+        data: null,
+      });
+    }
+  })
+  //
+  //Get all users by type
+  .get("getByRole/:role", adminSessionMiddleware, async (c) => {
+    const { role } = c.req.param();
+    const typedRole = role as Role;
+    if (!role || !Object.values(Role).includes(typedRole)) {
+      return c.json({
+        success: false,
+        message: "Role ('ADMIN', 'MONITEUR', 'CUSTOMER') is required",
+        data: null,
+      });
+    }
+
+    try {
+      const result = await prisma.user.findMany({
+        where: {
+          role: typedRole,
+        },
+      });
+
       return c.json({ success: true, message: "", data: result });
     } catch (error) {
       return c.json({
@@ -49,45 +82,40 @@ const app = new Hono()
     }
   })
   //
-  //Get all users by ids
+  // Change user role
   .post(
-    "getByIds",
-    sessionMiddleware,
-    zValidator("json", GetUsersByIdsSchema),
+    "/changeRole",
+    // adminSessionMiddleware,
+    zValidator("json", ChangeUserRoleSchema),
     async (c) => {
-      const { userIds } = c.req.valid("json");
-      if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      const { userId, role } = c.req.valid("json");
+      if (!userId || !role) {
         return c.json({
           success: false,
-          message: "User IDs are required",
-          data: null,
-        });
-      }
-      if (userIds.some((id) => typeof id !== "string")) {
-        return c.json({
-          success: false,
-          message: "Invalid User IDs",
+          message: "Un user et un role sont requis",
           data: null,
         });
       }
 
       try {
-        const result = await prisma.user.findMany({
-          where: {
-            id: {
-              in: userIds,
-            },
-          },
+        const result = await prisma.user.update({
+          where: { id: userId },
+          data: { role: role as Role },
         });
-        return c.json({ success: true, message: "", data: result });
+
+        return c.json({
+          success: true,
+          message: `Compte de ${result.name} mis à jour vers le role "MONITEUR"`,
+          data: result,
+        });
       } catch (error) {
         return c.json({
           success: false,
-          message: "Error fetching users",
+          message: "Error updating user",
           data: null,
         });
       }
     }
   );
-
+//
 export default app;

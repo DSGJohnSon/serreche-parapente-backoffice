@@ -42,19 +42,19 @@ export function NavUser({ user }: { user: User }) {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
               <Avatar className="h-8 w-8 rounded-lg bg-foreground">
                 <AvatarImage
-                  src={userToDisplay.data?.avatarUrl}
-                  alt={userToDisplay.data?.name}
+                  src={userToDisplay.data?.[0]?.avatarUrl}
+                  alt={userToDisplay.data?.[0]?.name}
                 />
                 <AvatarFallback className="rounded-lg">
-                  {user.name.charAt(0)}
+                  {userToDisplay.data?.[0]?.name?.charAt(0) ?? user.name.charAt(0)}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">
-                  {userToDisplay.data?.name}
+                  {userToDisplay.data?.[0]?.name}
                 </span>
                 <span className="truncate text-xs">
-                  {userToDisplay.data?.email}
+                  {userToDisplay.data?.[0]?.email}
                 </span>
               </div>
               <ChevronRight className="ml-auto size-4" />
@@ -69,17 +69,17 @@ export function NavUser({ user }: { user: User }) {
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg bg-foreground">
                   <AvatarImage
-                    src={userToDisplay.data?.avatarUrl}
-                    alt={userToDisplay.data?.name}
+                    src={userToDisplay.data?.[0]?.avatarUrl}
+                    alt={userToDisplay.data?.[0]?.name}
                   />
                   <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">
-                    {userToDisplay.data?.name}
+                    {userToDisplay.data?.[0]?.name}
                   </span>
                   <span className="truncate text-xs">
-                    {userToDisplay.data?.email}
+                    {userToDisplay.data?.[0]?.email}
                   </span>
                 </div>
               </div>

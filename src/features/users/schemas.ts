@@ -1,5 +1,7 @@
 import { z } from "zod";
 
-export const GetUsersByIdsSchema = z.object({
-  userIds: z.array(z.string()),
+export const ChangeUserRoleSchema = z.object({
+  userId: z.string(),
+  role: z.enum(["ADMIN", "MONITEUR", "CUSTOMER"]),
 });
+

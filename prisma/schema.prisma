@@ -15,72 +15,78 @@ datasource db {
 }
 
 enum Role {
-  AGENCY
   ADMIN
-  USER
+  MONITEUR
+  CUSTOMER
 }
 
-enum WeekType {
+enum StageType {
   NONE
   INITIATION
   PROGRESSION
   DOUBLE
 }
 
-enum BookingType {
+enum StageBookingType {
   INITIATION
   PROGRESSION
   AUTONOMIE
 }
 
-model Week {
+//Semaine de stages de parapente
+model Stage {
   id         String    @id @default(cuid())
   year       Int
   weekNumber Int
   startDate  DateTime  @unique
   endDate    DateTime
   places     Int       @default(6)
-  type       WeekType  @default(NONE)
-  bookings   Booking[]
+  type       StageType @default(NONE)
+
+  bookings StageBooking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-model Booking {
-  id         String      @id @default(cuid())
-  startDate  DateTime    @unique
-  endDate    DateTime
-  type       BookingType @default(INITIATION)
-  weekId     String
-  week       Week        @relation(fields: [weekId], references: [id])
-  customerId String
-  customer   Customer    @relation(fields: [customerId], references: [id])
-}
-
-model Customer {
+//Réservation d'une semaine de stage de parapente (Lien entre Stage et Customer)
+model StageBooking {
   id         String    @id @default(cuid())
-  name       String
-  email      String    @unique
+  type       StageType @default(INITIATION)
+  stageId    String
+  stage      Stage     @relation(fields: [stageId], references: [id])
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+//CLient
+model Customer {
+  id         String         @id @default(cuid())
+  firstName  String
+  lastName   String
+  birthDate  DateTime?
+  email      String         @unique
   phone      String
-  address    String
+  adress    String
   postalCode String
   city       String
   country    String
-  siret      String    @unique
-  bookings   Booking[]
+  weight     Float
+  height     Float
+  stages     StageBooking[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 }
 
+//Admin
 model User {
-  id        String    @id @unique
-  email     String    @unique
+  id        String   @id @unique
+  email     String   @unique
   name      String
   avatarUrl String
-  role      Role      @default(USER)
-  companies Company[] @relation("UserCompanies")
-}
-
-model Company {
-  id      String @id @default(cuid())
-  name    String
-  siret   String
-  country String
-  users   User[] @relation("UserCompanies")
+  role      Role     @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

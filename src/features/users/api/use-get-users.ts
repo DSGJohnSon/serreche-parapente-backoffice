@@ -1,8 +1,8 @@
 "use client";
 
 import { client } from "@/lib/rpc";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { InferRequestType, InferResponseType } from "hono";
+import { Role } from "@prisma/client";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 //*------------------*//
@@ -56,35 +56,36 @@ export const useGetUserById = (id: string) => {
 };
 
 //*------------------*//
-//Get all users by ids
+//Get all users by role
 //*------------------*//
-type useGetUsersByIdsResponseType = InferResponseType<
-  (typeof client.api.users.getByIds)["$post"]
->;
-type useGetUsersByIdsRequestType = InferRequestType<
-  (typeof client.api.users.getByIds)["$post"]
->["json"];
-export const useGetUsersByIds = () => {
-  const mutation = useMutation<
-    useGetUsersByIdsResponseType,
-    Error,
-    useGetUsersByIdsRequestType
-  >({
-    mutationFn: async (json) => {
-      const response = await client.api.users.getByIds["$post"]({ json });
-      return await response.json();
-    },
-    onSuccess: (response) => {
-      if (response.success) {
-        toast.success(response.message);
-      } else {
-        toast.error(response.message);
+export const useGetUsersByRole = (role: Role) => {
+  const query = useQuery({
+    queryKey: ["users", role],
+    queryFn: async () => {
+      const res = await client.api.users.getByRole[":role"]["$get"]({
+        param: {
+          role,
+        },
+      });
+      if (!res.ok) {
+        return null;
       }
-    },
-    onError: (error: Error) => {
-      toast.error(JSON.stringify(error));
+
+      const { success, message, data } = await res.json();
+      if (!success) {
+        toast.error(message);
+        return null;
+      }
+
+      // Transform the data to ensure createdAt and updatedAt are Date objects
+      const transformedData = data?.map((user) => ({
+        ...user,
+        createdAt: new Date(user.createdAt),
+        updatedAt: new Date(user.updatedAt),
+      }));
+
+      return transformedData;
     },
   });
-
-  return mutation;
+  return query;
 };
