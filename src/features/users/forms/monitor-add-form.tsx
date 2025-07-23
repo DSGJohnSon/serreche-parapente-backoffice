@@ -28,7 +28,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUpdateUserRole } from "../api/use-update-user-role";
-import { useAddMonitorModal } from "../store/use-add-monitor";
 
 type usersOptionsProps = {
   value: string;
@@ -38,7 +37,6 @@ type usersOptionsProps = {
 
 function MonitorAddForm() {
   const { mutate, isPending } = useUpdateUserRole();
-  const [open, setOpen] = useAddMonitorModal();
 
   const { data: users, isLoading: isLoadingUsers } = useGetAllUsers();
   const [usersOptions, setUsersOptions] = useState<usersOptionsProps[]>([]);
@@ -67,7 +65,6 @@ function MonitorAddForm() {
     mutate(values, {
       onSuccess: (data) => {
         form.reset();
-        setOpen(false);
       },
     });
   }

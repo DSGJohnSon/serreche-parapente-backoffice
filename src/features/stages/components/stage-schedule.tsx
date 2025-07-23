@@ -381,7 +381,6 @@ export function WeeklySchedule({
       value !== "NONE" &&
       value !== weekToUpdate.type
     ) {
-
       // Utilisez le hook useCreateWeek pour créer la semaine en BDD
       updateWeek(
         {
@@ -531,49 +530,49 @@ export function WeeklySchedule({
   }, [filteredWeeks, viewMode]);
 
   const router = useRouter();
-  
-    if (isLoadingStages) {
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center p-4 rounded-md border border-slate-400 gap-4">
-          <div className="flex items-center justify-between h-12 w-full">
-            <Skeleton className="w-[40%] h-full" />
-            <Skeleton className="w-[40%] h-full" />
-          </div>
-          <div className="flex items-center justify-between h-12 w-full space-x-16">
-            <Skeleton className="w-10 h-10 aspect-square" />
-            <Skeleton className="w-full h-full max-w-[250px]" />
-            <Skeleton className="w-10 h-10 aspect-square" />
-          </div>
-          <div className="w-full h-full">
-            <Skeleton className="w-full h-full" />
-          </div>
+
+  if (isLoadingStages) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center p-4 rounded-md border border-slate-400 gap-4">
+        <div className="flex items-center justify-between h-12 w-full">
+          <Skeleton className="w-[40%] h-full" />
+          <Skeleton className="w-[40%] h-full" />
         </div>
-      );
-    }
-    if (!filteredWeeks) {
-      return (
-        <div className="bg-slate-200 text-slate-800 rounded-md p-8 flex flex-col items-center justify-center border border-slate-400 gap-4">
-          <LucideFrown />
-          <div className="flex flex-col items-center">
-            <p>Impossible de charger le planning.</p>
-            <p className="text-xs">
-              Ceci peut être dû à une erreur de connexion avec la base donneées.
-            </p>
-            <Button
-              variant={"secondary"}
-              size={"lg"}
-              className="mt-4"
-              onClick={() => {
-                router.refresh();
-              }}
-            >
-              <LucideRefreshCcw />
-              Rafraichir la page
-            </Button>
-          </div>
+        <div className="flex items-center justify-between h-12 w-full space-x-16">
+          <Skeleton className="w-10 h-10 aspect-square" />
+          <Skeleton className="w-full h-full max-w-[250px]" />
+          <Skeleton className="w-10 h-10 aspect-square" />
         </div>
-      );
-    }
+        <div className="w-full h-full">
+          <Skeleton className="w-full h-full" />
+        </div>
+      </div>
+    );
+  }
+  if (!filteredWeeks) {
+    return (
+      <div className="bg-slate-200 text-slate-800 rounded-md p-8 flex flex-col items-center justify-center border border-slate-400 gap-4">
+        <LucideFrown />
+        <div className="flex flex-col items-center">
+          <p>Impossible de charger le planning.</p>
+          <p className="text-xs">
+            Ceci peut être dû à une erreur de connexion avec la base donneées.
+          </p>
+          <Button
+            variant={"secondary"}
+            size={"lg"}
+            className="mt-4"
+            onClick={() => {
+              router.refresh();
+            }}
+          >
+            <LucideRefreshCcw />
+            Rafraichir la page
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card className="w-full">
@@ -676,33 +675,52 @@ export function WeeklySchedule({
                             Semaine {week.weekNumber}
                           </p>
                         </div>
+                        <div className="flex items-center gap-2">
+
+                        <Button
+                          variant={"default"}
+                          size={"sm"}
+                          asChild
+                          disabled={creationPending || updatePending}
+                          >
+                          <Link
+                            href={`/${pathname
+                              .split("/")
+                              .slice(1, 4)
+                              .join("/")}/${week.id}`}
+                              >
+                            Détails du stage
+                            <LucideExternalLink className="size-3" />
+                          </Link>
+                        </Button>
                         <Select
                           value={week.type}
                           disabled={creationPending || updatePending}
                           onValueChange={(value) =>
                             handleOptionChange(value, week)
                           }
-                        >
+                          >
                           <SelectTrigger
                             className={cn(
                               "w-[180px]",
                               colors ? colors.selectBg : "",
                               colors ? colors.text : ""
                             )}
-                          >
+                            >
                             <SelectValue placeholder="Sélectionnez une option" />
                           </SelectTrigger>
                           <SelectContent>
                             {scheduleOptions.map((option) => (
                               <SelectItem
-                                key={option.value}
-                                value={option.value}
+                              key={option.value}
+                              value={option.value}
                               >
                                 {option.label}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                            </div>
                       </div>
                     </Card>
                   );
@@ -761,7 +779,7 @@ export function WeeklySchedule({
                                     href={`/${pathname
                                       .split("/")
                                       .slice(1, 4)
-                                      .join("/")}/stages/${week.id}`}
+                                      .join("/")}/${week.id}`}
                                     className="mt-2"
                                   >
                                     Détails du stage

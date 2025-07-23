@@ -4,7 +4,6 @@ import "./globals.css";
 import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import Modals from "@/components/modals";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -48,7 +47,6 @@ export default function RootLayout({
           enableSystem={true}
           defaultTheme="system">
           <QueryProvider>
-            <Modals />
             {children}
             <Toaster />
           </QueryProvider>

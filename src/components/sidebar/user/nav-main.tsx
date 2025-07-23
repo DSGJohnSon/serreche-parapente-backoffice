@@ -3,10 +3,13 @@
 import {
   LucideCalendarCheck,
   LucideCalendarDays,
+  LucideEuro,
   LucideExternalLink,
+  LucideGift,
   LucideGraduationCap,
   LucideHouse,
   LucidePencilLine,
+  LucideTicket,
   LucideUsers2,
   LucideUsersRound,
 } from "lucide-react";
@@ -36,7 +39,9 @@ export function NavMain() {
           <SidebarMenuItem
             className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-              isDashboard ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white" : ""
+              isDashboard
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
             )}
           >
             <Link href={`/dashboard`}>
@@ -49,12 +54,12 @@ export function NavMain() {
           <SidebarMenuItem
             className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-              slugToKnowIfActive[0] === "stages" ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white" : ""
+              slugToKnowIfActive[0] === "stages"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
             )}
           >
-            <Link
-              href={`/${pathname.split("/").slice(1, 2).join("/")}/stages`}
-            >
+            <Link href={`/${pathname.split("/").slice(1, 2).join("/")}/stages`}>
               <SidebarMenuButton tooltip={"Planning Stages"}>
                 <LucideCalendarDays className="size-4" />
                 <span>Planning Stages</span>
@@ -64,7 +69,9 @@ export function NavMain() {
           <SidebarMenuItem
             className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-              slugToKnowIfActive[0] === "biplaces" ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white" : ""
+              slugToKnowIfActive[0] === "biplaces"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
             )}
           >
             <Link
@@ -84,7 +91,9 @@ export function NavMain() {
           <SidebarMenuItem
             className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-              slugToKnowIfActive[0] === "reservations" ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white" : ""
+              slugToKnowIfActive[0] === "reservations"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
             )}
           >
             <Link
@@ -102,7 +111,9 @@ export function NavMain() {
           <SidebarMenuItem
             className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-              slugToKnowIfActive[0] === "customers" ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white" : ""
+              slugToKnowIfActive[0] === "customers"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
             )}
           >
             <Link
@@ -116,8 +127,64 @@ export function NavMain() {
           </SidebarMenuItem>
           <SidebarMenuItem
             className={cn(
+              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+              slugToKnowIfActive[0] === "bons-cadeaux"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
+            )}
+          >
+            <Link
+              href={`/${pathname.split("/").slice(1, 2).join("/")}/bons-cadeaux`}
+            >
+              <SidebarMenuButton tooltip={"Clients"}>
+                <LucideGift className="size-4" />
+                <span>Bons Cadeaux</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem
+            className={cn(
+              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+              slugToKnowIfActive[0] === "promotions"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
+            )}
+          >
+            <Link
+              href={`/${pathname.split("/").slice(1, 2).join("/")}/promotions"`}
+            >
+              <SidebarMenuButton tooltip={"Clients"}>
+                <LucideTicket className="size-4" />
+                <span>Code Promo</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+      <SidebarGroup>
+        <SidebarGroupLabel>Contenu</SidebarGroupLabel>
+        <SidebarMenu>
+          <SidebarMenuItem
+            className={cn(
+              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+              slugToKnowIfActive[0] === "reservations"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
+            )}
+          >
+            <Link href={`/${pathname.split("/").slice(1, 2).join("/")}/tarifs`}>
+              <SidebarMenuButton tooltip={"Réservations"}>
+                <LucideEuro className="size-4" />
+                <span>Tarifs</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem
+            className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition group/external-link",
-              slugToKnowIfActive[0] === "blog" ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white" : ""
+              slugToKnowIfActive[0] === "blog"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
             )}
           >
             <Link href={`/${pathname.split("/").slice(1, 2).join("/")}/blog`}>
@@ -172,10 +239,7 @@ export function NavMain() {
             )}
           >
             <Link
-              href={`/${pathname
-                .split("/")
-                .slice(1, 2)
-                .join("/")}/monitors`}
+              href={`/${pathname.split("/").slice(1, 2).join("/")}/monitors`}
             >
               <SidebarMenuButton tooltip={"Moniteurs"}>
                 <LucideGraduationCap className="size-4" />

@@ -4,6 +4,7 @@ import auth from "@/features/auth/server/route";
 import users from "@/features/users/server/route";
 import customers from "@/features/customers/server/route";
 import stages from "@/features/stages/server/route";
+import reservationStages from "@/features/reservations/stages/server/route";
 import { cors } from "hono/cors";
 
 const app = new Hono().basePath("/api");
@@ -32,6 +33,7 @@ const routes = app
   .route("/users", users)
   .route("/customers", customers)
   .route("/stages", stages)
+  .route("/reservationStages", reservationStages)
 
 export const GET = handle(app);
 export const POST = handle(app);

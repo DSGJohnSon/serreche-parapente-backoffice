@@ -37,6 +37,39 @@ const app = new Hono()
       return c.json({ success: false, message: "Erreur lors de la récupération des semaines", data: null });
     }
   })
+  .get(
+    "getById/:id",
+    // sessionMiddleware,
+    async (c) => {
+      try {
+        const id = c.req.param("id");
+        if (!id) {
+          return c.json({
+            success: false,
+            message: "ID is required",
+            data: null,
+          });
+        }
+        const result = await prisma.stage.findUnique({
+          where: { id },
+          include: {
+            bookings: {
+              include: {
+                customer: true
+              },
+            },
+          },
+        });
+        return c.json({ success: true, message: "", data: result });
+      } catch (error) {
+        return c.json({
+          success: false,
+          message: "Error fetching customer",
+          data: null,
+        });
+      }
+    }
+  )
   // Get all stages database with optional year, month, and bookings inclusion
   // -----
   // INPUT: optional query parameters `year`, `month`, and `includeBookings`
