@@ -48,6 +48,17 @@ model Stage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+//Créneau de bapteme
+model Bapteme {
+  id         String    @id @default(cuid())
+  date       DateTime  @unique
+  duration  Int       @default(120) // Durée en minutes
+  places     Int       @default(6)
+  price      Float     @default(100.0) // Prix en euros
+  moniteurId String
+  moniteur   User      @relation(fields: [moniteurId], references: [id])
+  bookings   BaptemeBooking[]
+}
 
 //Réservation d'une semaine de stage de parapente (Lien entre Stage et Customer)
 model StageBooking {
@@ -55,6 +66,16 @@ model StageBooking {
   type       StageBookingType @default(INITIATION)
   stageId    String
   stage      Stage     @relation(fields: [stageId], references: [id])
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+//Réservation d'un créneau de bapteme (Lien entre Bapteme et Customer)
+model BaptemeBooking {
+  id         String    @id @default(cuid())
+  baptemeId  String
+  bapteme    Bapteme   @relation(fields: [baptemeId], references: [id])
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id])
   createdAt  DateTime  @default(now())
@@ -76,8 +97,10 @@ model Customer {
   weight     Float
   height     Float
   stages     StageBooking[]
+  BaptemeBooking BaptemeBooking[]
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
+
 }
 
 //Admin
@@ -89,4 +112,6 @@ model User {
   role      Role     @default(CUSTOMER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  Bapteme Bapteme[]
 }
