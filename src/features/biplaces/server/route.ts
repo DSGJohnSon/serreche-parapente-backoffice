@@ -58,7 +58,7 @@ const app = new Hono()
     sessionMiddleware,
     async (c) => {
       try {
-        const { date, duration, places, moniteurId } = c.req.valid("json");
+        const { date, duration, places, moniteurId, price } = c.req.valid("json");
         const dateObj = new Date(date);
 
         const result = await prisma.bapteme.create({
@@ -67,6 +67,7 @@ const app = new Hono()
             duration,
             places,
             moniteurId,
+            price,
           },
         });
         return c.json({
@@ -120,11 +121,12 @@ const app = new Hono()
     sessionMiddleware,
     async (c) => {
       try {
-        const { date, duration, places, moniteurId } = c.req.valid("json");
-        const dateObj = new Date(date);
+        const { originalDate, date, duration, places, moniteurId, price } = c.req.valid("json");
+        const originalDateObj = new Date(originalDate);
+        const newDateObj = new Date(date);
 
         const previousData = await prisma.bapteme.findUnique({
-          where: { date: dateObj },
+          where: { date: originalDateObj },
           include: { bookings: true },
         });
 
@@ -144,8 +146,8 @@ const app = new Hono()
         }
 
         const result = await prisma.bapteme.update({
-          where: { date: dateObj },
-          data: { duration, places, moniteurId },
+          where: { date: originalDateObj },
+          data: { date: newDateObj, duration, places, moniteurId, price },
         });
         return c.json({
           success: true,

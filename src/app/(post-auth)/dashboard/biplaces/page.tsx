@@ -2,124 +2,120 @@
 
 import { CalendarScheduleBaptemes } from "./calendar-schedule-baptemes";
 import { AddBaptemeDialog } from "./add-bapteme-dialog";
+import { BaptemeDetailsDialog } from "./bapteme-details-dialog";
 import { useState } from "react";
-import { Bapteme } from "@prisma/client";
+import { Bapteme, User } from "@prisma/client";
+import { useGetAllBaptemes } from "@/features/biplaces/api/use-get-bapteme";
+import { useCreateBapteme } from "@/features/biplaces/api/use-create-bapteme";
 
-// Mock data for demonstration
-const mockBaptemes: Bapteme[] = [
-  {
-    id: "1",
-    date: new Date(2025, 0, 23, 10, 0), // January 23, 2025 at 10:00
-    duration: 120,
-    places: 6,
-    moniteurId: "user1",
-    price: 120.0,
-  },
-  {
-    id: "2",
-    date: new Date(2025, 0, 23, 14, 30), // January 23, 2025 at 14:30
-    duration: 90,
-    places: 4,
-    moniteurId: "user2",
-    price: 120.0,
-  },
-  {
-    id: "3",
-    date: new Date(2025, 0, 24, 9, 0), // January 24, 2025 at 9:00
-    duration: 150,
-    places: 8,
-    moniteurId: "user1",
-    price: 120.0,
-  },
-  {
-    id: "4",
-    date: new Date(2025, 0, 24, 15, 0), // January 24, 2025 at 15:00
-    duration: 120,
-    places: 6,
-    moniteurId: "user3",
-    price: 120.0,
-  },
-  {
-    id: "5",
-    date: new Date(2025, 0, 25, 11, 0), // January 25, 2025 at 11:00
-    duration: 180,
-    places: 10,
-    moniteurId: "user2",
-    price: 120.0,
-  },
-  {
-    id: "6",
-    date: new Date(2025, 0, 26, 8, 30), // January 26, 2025 at 8:30
-    duration: 120,
-    places: 6,
-    moniteurId: "user1",
-    price: 120.0,
-  },
-  {
-    id: "7",
-    date: new Date(2025, 0, 26, 13, 0), // January 26, 2025 at 13:00
-    duration: 90,
-    places: 4,
-    moniteurId: "user3",
-    price: 120.0,
-  },
-  {
-    id: "8",
-    date: new Date(2025, 0, 27, 10, 30), // January 27, 2025 at 10:30
-    duration: 120,
-    places: 8,
-    moniteurId: "user2",
-    price: 120.0,
-  },
-  {
-    id: "9",
-    date: new Date(2025, 0, 28, 14, 0), // January 28, 2025 at 14:00
-    duration: 150,
-    places: 6,
-    moniteurId: "user1",
-    price: 120.0,
-  },
-  {
-    id: "10",
-    date: new Date(2025, 0, 29, 9, 15), // January 29, 2025 at 9:15
-    duration: 105,
-    places: 5,
-    moniteurId: "user3",
-    price: 120.0,
-  },
-];
+interface BaptemeWithMoniteur extends Bapteme {
+  moniteur: User;
+}
 
 export default function Page() {
-  const [baptemes, setBaptemes] = useState<Bapteme[]>(mockBaptemes);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedHour, setSelectedHour] = useState<number>(10); // Default hour
+  const [selectedBapteme, setSelectedBapteme] = useState<BaptemeWithMoniteur | null>(null);
+
+  // Fetch baptemes from API
+  const { data: baptemesData, isLoading } = useGetAllBaptemes();
+  const createBapteme = useCreateBapteme();
+
+  // Transform API data to match the expected Bapteme type with additional info
+  const baptemes = baptemesData?.map((bapteme) => ({
+    id: bapteme.id,
+    date: new Date(bapteme.date),
+    duration: bapteme.duration,
+    places: bapteme.places,
+    price: bapteme.price,
+    moniteurId: bapteme.moniteurId,
+    moniteur: {
+      ...bapteme.moniteur,
+      createdAt: new Date(bapteme.moniteur.createdAt),
+      updatedAt: new Date(bapteme.moniteur.updatedAt),
+    },
+    bookings: bapteme.bookings.map(booking => ({
+      ...booking,
+      createdAt: new Date(booking.createdAt),
+      updatedAt: new Date(booking.updatedAt),
+    })),
+    placesRestantes: bapteme.places - bapteme.bookings.length,
+  })) || [];
+
+  // Keep the full data with moniteur for details dialog
+  const baptemesWithMoniteur: BaptemeWithMoniteur[] = baptemesData?.map((bapteme) => ({
+    id: bapteme.id,
+    date: new Date(bapteme.date),
+    duration: bapteme.duration,
+    places: bapteme.places,
+    price: bapteme.price,
+    moniteurId: bapteme.moniteurId,
+    moniteur: {
+      id: bapteme.moniteur.id,
+      email: bapteme.moniteur.email,
+      name: bapteme.moniteur.name,
+      avatarUrl: bapteme.moniteur.avatarUrl,
+      role: bapteme.moniteur.role,
+      createdAt: new Date(bapteme.moniteur.createdAt),
+      updatedAt: new Date(bapteme.moniteur.updatedAt),
+    },
+  })) || [];
 
   const handleBaptemeClick = (bapteme: Bapteme) => {
-    console.log("Bapteme clicked:", bapteme);
-    // Here you would typically open a detailed view or edit modal
+    // Find the full bapteme data with moniteur info
+    const fullBapteme = baptemesWithMoniteur.find(b => b.id === bapteme.id);
+    if (fullBapteme) {
+      setSelectedBapteme(fullBapteme);
+      setShowDetailsDialog(true);
+    }
   };
 
-  const handleDayClick = (date: Date) => {
-    console.log("Day clicked:", date);
+  const handleDayClick = (date: Date, hour?: number) => {
+    console.log("Day clicked:", date, "Hour:", hour);
     setSelectedDate(date);
+    if (hour !== undefined) {
+      setSelectedHour(hour);
+    }
     setShowAddForm(true);
   };
 
   const handleAddBapteme = () => {
     console.log("Add new bapteme");
     setSelectedDate(new Date());
+    setSelectedHour(10); // Default to 10h
     setShowAddForm(true);
   };
 
   const handleCreateBapteme = (newBapteme: Omit<Bapteme, "id">) => {
-    const bapteme: Bapteme = {
-      ...newBapteme,
-      id: `bapteme_${Date.now()}`,
+    // Convert to the format expected by the API
+    const baptemeData = {
+      date: newBapteme.date.toISOString(),
+      duration: newBapteme.duration,
+      places: newBapteme.places,
+      price: newBapteme.price,
+      moniteurId: newBapteme.moniteurId,
     };
-    setBaptemes((prev) => [...prev, bapteme]);
-    setShowAddForm(false);
-    setSelectedDate(null);
+
+    createBapteme.mutate(baptemeData, {
+      onSuccess: () => {
+        setShowAddForm(false);
+        setSelectedDate(null);
+      },
+    });
   };
+
+  // Show loading state while fetching data
+  if (isLoading) {
+    return (
+      <main className="flex flex-1 flex-col gap-4 p-16">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-muted-foreground">Chargement des baptêmes...</div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-16">
@@ -134,7 +130,14 @@ export default function Page() {
         open={showAddForm}
         onOpenChange={setShowAddForm}
         selectedDate={selectedDate}
+        selectedHour={selectedHour}
         onCreateBapteme={handleCreateBapteme}
+      />
+
+      <BaptemeDetailsDialog
+        open={showDetailsDialog}
+        onOpenChange={setShowDetailsDialog}
+        bapteme={selectedBapteme}
       />
     </main>
   );

@@ -15,9 +15,15 @@ export const CreateBaptemeSchema = z.object({
   moniteurId: z.string().min(1, {
     message: "L'identifiant du moniteur est requis.",
   }),
+  price: z.number().min(0, {
+    message: "Le prix doit être supérieur ou égal à 0.",
+  }),
 });
 
 export const UpdateBaptemeSchema = z.object({
+  originalDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "La date originale doit être une date valide.",
+  }),
   date: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "La date doit être une date valide.",
   }),
@@ -29,6 +35,9 @@ export const UpdateBaptemeSchema = z.object({
   }),
   moniteurId: z.string().min(1, {
     message: "L'identifiant du moniteur est requis.",
+  }),
+  price: z.number().min(0, {
+    message: "Le prix doit être supérieur ou égal à 0.",
   }),
 });
 

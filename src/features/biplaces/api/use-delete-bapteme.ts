@@ -1,36 +1,35 @@
-import { client } from "@/lib/rpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { InferRequestType, InferResponseType } from "hono";
-import { useRouter } from "next/navigation";
+import { client } from "@/lib/rpc";
 import { toast } from "sonner";
 
-type ResponseType = InferResponseType<
-  (typeof client.api.baptemes.delete)["$post"]
->;
-type RequestType = InferRequestType<
-  (typeof client.api.baptemes.delete)["$post"]
->["json"];
-
 export const useDeleteBapteme = () => {
-  const router = useRouter();
   const queryClient = useQueryClient();
 
-  const mutation = useMutation<ResponseType, Error, RequestType>({
-    mutationFn: async (json) => {
-      const response = await client.api.baptemes.delete["$post"]({ json });
-      return await response.json();
-    },
-    onSuccess: (response) => {
-      if (response.success) {
-        toast.success(response.message);
-        queryClient.invalidateQueries({ queryKey: ["baptemes"] });
-        router.refresh();
-      } else {
-        toast.error(response.message);
+  const mutation = useMutation({
+    mutationFn: async (data: { date: string }) => {
+      const response = await client.api.baptemes.delete.$post({
+        json: data,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete bapteme");
       }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || "Failed to delete bapteme");
+      }
+
+      return result.data;
+    },
+    onSuccess: (data) => {
+      toast.success("Baptême supprimé avec succès");
+      // Invalidate and refetch baptemes
+      queryClient.invalidateQueries({ queryKey: ["baptemes"] });
     },
     onError: (error: Error) => {
-      toast.error(JSON.stringify(error));
+      toast.error(error.message || "Erreur lors de la suppression du baptême");
     },
   });
 

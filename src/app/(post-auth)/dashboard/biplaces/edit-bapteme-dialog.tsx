@@ -28,29 +28,43 @@ import {
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bapteme } from "@prisma/client";
 import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUpdateBapteme } from "@/features/biplaces/api/use-update-bapteme";
 
-interface AddBaptemeDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedDate: Date | null;
-  selectedHour?: number;
-  onCreateBapteme: (bapteme: Omit<Bapteme, "id">) => void;
+interface BaptemeData {
+  id: string;
+  date: Date;
+  duration: number;
+  places: number;
+  moniteurId: string;
+  price: number;
+  monitor?: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+    role: string;
+  };
+  bookings?: any[];
 }
 
-export function AddBaptemeDialog({
+interface EditBaptemeDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  bapteme: BaptemeData | null;
+}
+
+export function EditBaptemeDialog({
   open,
   onOpenChange,
-  selectedDate,
-  selectedHour,
-  onCreateBapteme,
-}: AddBaptemeDialogProps) {
-  const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
-  
+  bapteme,
+}: EditBaptemeDialogProps) {
+  const { data: moniteurs, isLoading: isLoadingMoniteurs } =
+    useGetMoniteursAndAdmins();
+  const updateBapteme = useUpdateBapteme();
+
   const [formData, setFormData] = useState({
-    date: selectedDate || new Date(),
+    date: new Date(),
     time: "10:00",
     duration: 120,
     places: 6,
@@ -60,23 +74,41 @@ export function AddBaptemeDialog({
   const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
-    if (selectedDate) {
-      setFormData((prev) => ({ ...prev, date: selectedDate }));
-    }
-  }, [selectedDate]);
+    if (bapteme && open) {
+      const baptemeDate = new Date(bapteme.date);
+      const timeString = `${baptemeDate
+        .getHours()
+        .toString()
+        .padStart(2, "0")}:${baptemeDate
+        .getMinutes()
+        .toString()
+        .padStart(2, "0")}`;
 
-  useEffect(() => {
-    if (selectedHour !== undefined) {
-      const timeString = `${selectedHour.toString().padStart(2, "0")}:00`;
-      setFormData((prev) => ({ ...prev, time: timeString }));
+      setFormData({
+        date: baptemeDate,
+        time: timeString,
+        duration: bapteme.duration,
+        places: bapteme.places,
+        moniteurId: bapteme.moniteurId,
+        price: bapteme.price,
+      });
     }
-  }, [selectedHour]);
+  }, [bapteme, open]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Calculer le nombre minimum de places (nombre de réservations existantes)
+  const minPlaces = bapteme?.bookings?.length || 0;
+  const isLoading = updateBapteme.isPending;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.moniteurId) {
-      alert("Veuillez sélectionner un moniteur");
+    if (!bapteme || !formData.moniteurId) {
+      return;
+    }
+
+    // Vérifier que le nombre de places n'est pas inférieur au nombre de réservations
+    if (formData.places < minPlaces) {
+      alert(`Impossible de réduire le nombre de places à ${formData.places}. Il y a déjà ${minPlaces} réservation(s) pour ce baptême.`);
       return;
     }
 
@@ -84,72 +116,44 @@ export function AddBaptemeDialog({
     const baptemeDate = new Date(formData.date);
     baptemeDate.setHours(hours, minutes, 0, 0);
 
-    const selectedMoniteur = moniteurs?.find(
-      (m) => m.id === formData.moniteurId
-    );
+    const originalDate = new Date(bapteme.date);
 
-    if (!selectedMoniteur) {
-      alert("Moniteur non trouvé");
-      return;
-    }
+    try {
+      await updateBapteme.mutateAsync({
+        originalDate: originalDate.toISOString(),
+        date: baptemeDate.toISOString(),
+        duration: formData.duration,
+        places: formData.places,
+        moniteurId: formData.moniteurId,
+        price: formData.price,
+      });
 
-    const newBapteme: Omit<Bapteme, "id"> = {
-      date: baptemeDate,
-      duration: formData.duration,
-      places: formData.places,
-      moniteurId: formData.moniteurId,
-      price: formData.price,
-    };
-
-    onCreateBapteme(newBapteme);
-
-    // Reset form
-    setFormData({
-      date: new Date(),
-      time: "10:00",
-      duration: 120,
-      places: 6,
-      moniteurId: "",
-      price: 100.0,
-    });
-  };
-
-  const handleDateSelect = (date: Date | undefined) => {
-    if (date) {
-      setFormData((prev) => ({ ...prev, date }));
-      setShowCalendar(false);
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour:", error);
     }
   };
+
+  if (!bapteme) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouveau Baptême</DialogTitle>
+          <DialogTitle>Modifier le Baptême</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="date">Date</Label>
-            <Popover open={showCalendar} onOpenChange={setShowCalendar}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal bg-transparent"
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {format(formData.date, "EEEE d MMMM yyyy", { locale: fr })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={formData.date}
-                  onSelect={handleDateSelect}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Button
+              variant="outline"
+              className="w-full justify-start text-left font-normal bg-transparent opacity-50 cursor-not-allowed"
+              disabled
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {format(formData.date, "EEEE d MMMM yyyy", { locale: fr })}
+            </Button>
           </div>
 
           <div className="space-y-2">
@@ -161,6 +165,7 @@ export function AddBaptemeDialog({
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, time: e.target.value }))
               }
+              disabled
               required
             />
           </div>
@@ -175,6 +180,7 @@ export function AddBaptemeDialog({
                   duration: Number.parseInt(value),
                 }))
               }
+              disabled
             >
               <SelectTrigger>
                 <SelectValue />
@@ -194,17 +200,23 @@ export function AddBaptemeDialog({
             <Input
               id="places"
               type="number"
-              min="1"
+              min={minPlaces}
               max="20"
               value={formData.places}
               onChange={(e) =>
                 setFormData((prev) => ({
                   ...prev,
-                  places: Number.parseInt(e.target.value) || 1,
+                  places: Number.parseInt(e.target.value) || minPlaces,
                 }))
               }
+              disabled={isLoading}
               required
             />
+            {minPlaces > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Minimum {minPlaces} place(s) (réservations existantes)
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -221,6 +233,7 @@ export function AddBaptemeDialog({
                   price: Number.parseFloat(e.target.value) || 0,
                 }))
               }
+              disabled={isLoading}
               required
             />
           </div>
@@ -232,6 +245,7 @@ export function AddBaptemeDialog({
               onValueChange={(value) =>
                 setFormData((prev) => ({ ...prev, moniteurId: value }))
               }
+              disabled={isLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Sélectionner un moniteur" />
@@ -246,14 +260,21 @@ export function AddBaptemeDialog({
                     <SelectItem key={moniteur.id} value={moniteur.id}>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={moniteur.avatarUrl} alt={moniteur.name} />
+                          <AvatarImage
+                            src={moniteur.avatarUrl}
+                            alt={moniteur.name}
+                          />
                           <AvatarFallback className="text-xs">
-                            {moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            {moniteur.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <span>{moniteur.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          ({moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})
+                          ({moniteur.role === "ADMIN" ? "Admin" : "Moniteur"})
                         </span>
                       </div>
                     </SelectItem>
@@ -272,10 +293,13 @@ export function AddBaptemeDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={updateBapteme.isPending}
             >
               Annuler
             </Button>
-            <Button type="submit">Créer le Baptême</Button>
+            <Button type="submit" disabled={updateBapteme.isPending}>
+              {updateBapteme.isPending ? "Modification..." : "Modifier"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

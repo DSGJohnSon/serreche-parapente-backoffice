@@ -2,12 +2,6 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -16,6 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ChevronLeft, ChevronRight, Plus, CalendarIcon } from "lucide-react";
 import {
   format,
@@ -34,12 +34,18 @@ import {
   addMinutes,
 } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bapteme } from "@prisma/client";
+import { Bapteme, User, BaptemeBooking } from "@prisma/client";
+
+interface BaptemeWithDetails extends Bapteme {
+  moniteur: User;
+  bookings: BaptemeBooking[];
+  placesRestantes: number;
+}
 
 interface BaptemeCalendarProps {
-  baptemes: Bapteme[];
-  onBaptemeClick: (bapteme: Bapteme) => void;
-  onDayClick: (date: Date) => void;
+  baptemes: any[];
+  onBaptemeClick: (bapteme: any) => void;
+  onDayClick: (date: Date, hour?: number) => void;
   onAddBapteme: () => void;
 }
 
@@ -53,7 +59,6 @@ export function CalendarScheduleBaptemes({
 }: BaptemeCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("week");
-  const [selectedBapteme, setSelectedBapteme] = useState<Bapteme | null>(null);
 
   const goToToday = () => {
     setCurrentDate(new Date());
@@ -108,14 +113,129 @@ export function CalendarScheduleBaptemes({
     return endTime;
   };
 
-  const handleBaptemeClick = (bapteme: Bapteme) => {
-    setSelectedBapteme(bapteme);
-    onBaptemeClick(bapteme);
-  };
-
   const renderWeekView = () => {
     const weekDays = eachDayOfInterval({ start, end });
     const hours = Array.from({ length: 24 }, (_, i) => i);
+    const HOUR_HEIGHT = 60; // Height of each hour slot in pixels
+
+    // Function to check if two baptemes overlap
+    const baptemesOverlap = (bapteme1: Bapteme, bapteme2: Bapteme) => {
+      const start1 = new Date(bapteme1.date);
+      const end1 = addMinutes(start1, bapteme1.duration);
+      const start2 = new Date(bapteme2.date);
+      const end2 = addMinutes(start2, bapteme2.duration);
+
+      return start1 < end2 && start2 < end1;
+    };
+
+    // Generate a consistent blue shade for each bapteme based on its ID
+    const getBaptemeColor = (baptemeId: string, index: number) => {
+      // Create a simple hash from the ID
+      let hash = 0;
+      for (let i = 0; i < baptemeId.length; i++) {
+        hash = baptemeId.charCodeAt(i) + ((hash << 5) - hash);
+      }
+
+      // Add index variation to ensure different colors even for similar IDs
+      hash = hash + index * 137; // 137 is a prime number for better distribution
+
+      // Generate blue variations (hue around 210-250, saturation 65-85%, lightness 45-65%)
+      const hue = 210 + (Math.abs(hash) % 40); // 210-250 (wider range)
+      const saturation = 65 + (Math.abs(hash >> 8) % 20); // 65-85%
+      const lightness = 45 + (Math.abs(hash >> 16) % 20); // 45-65%
+
+      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    };
+
+    // Calculate position, height, z-index and horizontal offset for each bapteme
+    const getBaptemeStyle = (
+      bapteme: Bapteme,
+      dayBaptemes: Bapteme[],
+      baptemeIndex: number
+    ) => {
+      const baptemeStart = new Date(bapteme.date);
+      const baptemeEnd = addMinutes(baptemeStart, bapteme.duration);
+
+      const startHour = baptemeStart.getHours();
+      const startMinutes = baptemeStart.getMinutes();
+      const durationInHours = bapteme.duration / 60;
+
+      const topOffset =
+        startHour * HOUR_HEIGHT + (startMinutes * HOUR_HEIGHT) / 60;
+      const height = durationInHours * HOUR_HEIGHT;
+
+      // Calculate z-index: use lower values to avoid dialog issues
+      // Earlier baptemes have lower z-index (appear behind)
+      const timeValue =
+        baptemeStart.getHours() * 60 + baptemeStart.getMinutes();
+      const zIndex = 1 + Math.floor(timeValue / 60); // 1-24 range
+
+      // Calculate horizontal offset and width for overlapping baptemes
+      let leftOffset = 4; // Default left margin
+      let widthPercentage = 85; // Base width (85% to leave space for clicking)
+
+      // Find overlapping baptemes (including those with same start time)
+      const overlappingBaptemes = dayBaptemes.filter(
+        (other) => other.id !== bapteme.id && baptemesOverlap(bapteme, other)
+      );
+
+      // Sort overlapping baptemes by start time, then by ID for consistency
+      const sortedOverlapping = overlappingBaptemes.sort((a, b) => {
+        const timeA = new Date(a.date).getTime();
+        const timeB = new Date(b.date).getTime();
+        if (timeA === timeB) {
+          return a.id.localeCompare(b.id); // Consistent ordering for same time
+        }
+        return timeA - timeB;
+      });
+
+      // Find how many baptemes start before or at the same time as this one
+      const baptemesBeforeOrSame = sortedOverlapping.filter((other) => {
+        const otherTime = new Date(other.date).getTime();
+        const currentTime = baptemeStart.getTime();
+        return (
+          otherTime < currentTime ||
+          (otherTime === currentTime && other.id < bapteme.id)
+        );
+      });
+
+      // Calculate offset and width based on position in the stack (up to 5 levels)
+      const stackPosition = baptemesBeforeOrSame.length;
+      const maxLevels = 5;
+
+      if (stackPosition > 0) {
+        // Each level: 12% offset to the right, 8% reduction in width
+        const offsetPerLevel = 12; // 12% offset per level
+        const widthReductionPerLevel = 8; // 8% width reduction per level
+
+        const actualLevel = Math.min(stackPosition, maxLevels);
+        const totalOffset = actualLevel * offsetPerLevel;
+        const totalWidthReduction = actualLevel * widthReductionPerLevel;
+
+        // Calculate left offset (convert percentage to approximate pixels)
+        leftOffset = 4 + totalOffset * 0.01 * 100;
+
+        // Calculate width: base width minus reduction, ensuring it stays within 85% boundary
+        widthPercentage = Math.max(25, 85 - totalWidthReduction); // Minimum 25% width
+
+        // Ensure the right edge doesn't exceed 85% of the container
+        const rightEdgePercentage = totalOffset + widthPercentage;
+        if (rightEdgePercentage > 85) {
+          widthPercentage = 85 - totalOffset;
+          widthPercentage = Math.max(15, widthPercentage); // Minimum 15% width
+        }
+      }
+
+      return {
+        position: "absolute" as const,
+        top: `${topOffset}px`,
+        height: `${height}px`,
+        left: `${leftOffset}px`,
+        width: `${widthPercentage}%`,
+        zIndex: zIndex,
+        backgroundColor: getBaptemeColor(bapteme.id, baptemeIndex),
+      };
+    };
 
     return (
       <div className="flex flex-col h-full">
@@ -144,59 +264,75 @@ export function CalendarScheduleBaptemes({
 
         {/* Week grid */}
         <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-8">
-            {hours.map((hour) => (
-              <React.Fragment key={hour}>
-                <div className="p-2 text-xs text-muted-foreground border-b border-r">
-                  {hour.toString().padStart(2, "0")}:00
-                </div>
-                {weekDays.map((day) => {
-                  const dayBaptemes = getBaptemesForDay(day).filter(
-                    (bapteme) => {
-                      const baptemeHour = new Date(bapteme.date).getHours();
-                      return baptemeHour === hour;
-                    }
-                  );
+          <TooltipProvider>
+            <div className="grid grid-cols-8 relative">
+              {/* Hour labels and empty cells */}
+              {hours.map((hour) => (
+                <React.Fragment key={hour}>
+                  <div
+                    className="p-2 text-xs text-muted-foreground border-b border-r"
+                    style={{ height: `${HOUR_HEIGHT}px` }}
+                  >
+                    {hour.toString().padStart(2, "0")}:00
+                  </div>
+                  {weekDays.map((day, dayIndex) => {
+                    const dayName = format(day, "EEEE", { locale: fr });
+                    const tooltipText = `Ajouter un baptême ${dayName} à ${hour
+                      .toString()
+                      .padStart(2, "0")}h`;
 
-                  return (
-                    <div
-                      key={`${day.toISOString()}-${hour}`}
-                      className="min-h-[60px] border-b border-l p-1 cursor-pointer hover:bg-muted/30"
-                      onClick={() =>
-                        onDayClick(
-                          new Date(
-                            day.getFullYear(),
-                            day.getMonth(),
-                            day.getDate(),
-                            hour
-                          )
-                        )
-                      }
-                    >
-                      {dayBaptemes.map((bapteme) => (
-                        <div
-                          key={bapteme.id}
-                          className="mb-1 p-1 bg-primary/20 rounded text-xs cursor-pointer hover:bg-primary/30"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleBaptemeClick(bapteme);
-                          }}
-                        >
-                          <div className="font-medium">
-                            {formatTime(new Date(bapteme.date))} -{" "}
-                            {formatTime(getEndTime(bapteme))}
+                    return (
+                      <Tooltip key={`${day.toISOString()}-${hour}`}>
+                        <TooltipTrigger asChild>
+                          <div
+                            className="border-b border-l cursor-pointer hover:bg-muted/30 relative"
+                            style={{ height: `${HOUR_HEIGHT}px` }}
+                            onClick={() => onDayClick(day, hour)}
+                          >
+                            {/* Only render baptemes on the first hour they appear */}
+                            {hour === 0 &&
+                              (() => {
+                                const dayBaptemes = getBaptemesForDay(day);
+                                return dayBaptemes.map((bapteme, index) => (
+                                  <div
+                                    key={bapteme.id}
+                                    style={getBaptemeStyle(
+                                      bapteme,
+                                      dayBaptemes,
+                                      index
+                                    )}
+                                    className="text-white rounded-md p-2 text-xs cursor-pointer hover:opacity-90 shadow-sm border border-white/20 transition-opacity"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onBaptemeClick(bapteme);
+                                    }}
+                                  >
+                                    <div className="font-medium text-white text-xs">
+                                      {formatTime(new Date(bapteme.date))} -{" "}
+                                      {formatTime(getEndTime(bapteme))}
+                                    </div>
+                                    <div className="text-white/90 text-xs font-medium">
+                                      {bapteme.moniteur.name}
+                                    </div>
+                                    <div className="text-white/80 text-xs">
+                                      {bapteme.placesRestantes}/{bapteme.places}{" "}
+                                      places
+                                    </div>
+                                  </div>
+                                ));
+                              })()}
                           </div>
-                          <div className="text-muted-foreground">
-                            {bapteme.places} places
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{tooltipText}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+          </TooltipProvider>
         </div>
       </div>
     );
@@ -257,11 +393,17 @@ export function CalendarScheduleBaptemes({
                       className="text-xs p-1 bg-primary/20 rounded cursor-pointer hover:bg-primary/30 truncate"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleBaptemeClick(bapteme);
+                        onBaptemeClick(bapteme);
                       }}
                     >
-                      {formatTime(new Date(bapteme.date))} -{" "}
-                      {formatTime(getEndTime(bapteme))}
+                      <div className="font-medium">
+                        {formatTime(new Date(bapteme.date))} -{" "}
+                        {formatTime(getEndTime(bapteme))}
+                      </div>
+                      <div className="text-xs opacity-80">
+                        {bapteme.moniteur.name} • {bapteme.placesRestantes}/
+                        {bapteme.places}
+                      </div>
                     </div>
                   ))}
                   {dayBaptemes.length > 3 && (
@@ -283,9 +425,6 @@ export function CalendarScheduleBaptemes({
       {/* Calendar header */}
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold">
-            {format(currentDate, "MMMM yyyy", { locale: fr })}
-          </h1>
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={navigatePrevious}>
               <ChevronLeft className="h-4 w-4" />
@@ -298,6 +437,9 @@ export function CalendarScheduleBaptemes({
               Aujourd&apos;hui
             </Button>
           </div>
+          <h1 className="text-2xl font-bold capitalize">
+            {format(currentDate, "MMMM yyyy", { locale: fr })}
+          </h1>
         </div>
 
         <div className="flex items-center space-x-4">
@@ -325,61 +467,6 @@ export function CalendarScheduleBaptemes({
       <div className="flex-1 overflow-hidden">
         {view === "week" ? renderWeekView() : renderMonthView()}
       </div>
-
-      {/* Bapteme details dialog */}
-      <Dialog
-        open={!!selectedBapteme}
-        onOpenChange={() => setSelectedBapteme(null)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Détails du Baptême</DialogTitle>
-          </DialogHeader>
-          {selectedBapteme && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Date et heure
-                </label>
-                <p className="text-lg">
-                  {format(
-                    new Date(selectedBapteme.date),
-                    "EEEE d MMMM yyyy à HH:mm",
-                    { locale: fr }
-                  )}
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Durée
-                </label>
-                <p>{selectedBapteme.duration} minutes</p>
-                <p className="text-sm text-muted-foreground">
-                  Fin prévue: {formatTime(getEndTime(selectedBapteme))}
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Places disponibles
-                </label>
-                <p>{selectedBapteme.places} places</p>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Moniteur
-                </label>
-                <p>{selectedBapteme.moniteurId}</p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedBapteme.moniteurId}
-                </p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
