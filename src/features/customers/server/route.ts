@@ -54,6 +54,28 @@ const app = new Hono()
                 stage: true,
               },
             },
+            giftCards: {
+              include: {
+                usedByCustomer: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+            giftCardsUsed: {
+              include: {
+                customer: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
           },
         });
         return c.json({ success: true, message: "", data: result });

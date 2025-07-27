@@ -82,6 +82,21 @@ model BaptemeBooking {
   updatedAt  DateTime  @updatedAt
 }
 
+model GiftCard {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  amount     Float     @default(0.0) // Montant en euros
+  isUsed     Boolean   @default(false)
+  customerId String?
+  customer   Customer? @relation(name: "GiftCardBuyer", fields: [customerId], references: [id])
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  usedAt     DateTime?
+  usedBy     String?   // ID du client qui a utilisé la carte-cadeau
+  usedByCustomer Customer? @relation(name: "GiftCardUser", fields: [usedBy], references: [id])
+}
+
 //CLient
 model Customer {
   id         String         @id @default(cuid())
@@ -98,6 +113,8 @@ model Customer {
   height     Float
   stages     StageBooking[]
   BaptemeBooking BaptemeBooking[]
+  giftCards  GiftCard[]     @relation(name: "GiftCardBuyer")
+  giftCardsUsed GiftCard[]  @relation(name: "GiftCardUser")
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 

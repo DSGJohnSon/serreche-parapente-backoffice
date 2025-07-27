@@ -11,8 +11,10 @@ import {
 import { Button } from "./ui/button";
 import {
   LucideBookmarkPlus,
+  LucideCalendar,
   LucideGraduationCap,
   LucidePlus,
+  LucideTicketPlus,
   LucideUserPlus,
 } from "lucide-react";
 import { set } from "date-fns";
@@ -36,16 +38,29 @@ function AddFloatingButton({ className }: { className?: string }) {
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-pointer">
           <Link
-            href={"/dashboard/add?type=monitor"}
+            href={"/dashboard/add?type=bapteme-biplace"}
             className="flex items-center gap-2"
             onClick={() => {
               setIsOpen(false);
             }}
           >
-            <LucideUserPlus className="h-4 w-4" />
-            Moniteur
+            <LucideCalendar className="h-4 w-4" />
+            Bapteme BiPlace
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
+          <Link
+            href={"/dashboard/add?type=reservation-stage"}
+            className="flex items-center gap-2"
+            onClick={() => {
+              setIsOpen(false);
+            }}
+          >
+            <LucideBookmarkPlus className="h-4 w-4" />
+            Réservation d&apos;un Stage
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-pointer">
           <Link
             href={"/dashboard/add?type=customer"}
@@ -60,14 +75,27 @@ function AddFloatingButton({ className }: { className?: string }) {
         </DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer">
           <Link
-            href={"/dashboard/add?type=reservation-stage"}
+            href={"/dashboard/add?type=gift-card"}
             className="flex items-center gap-2"
             onClick={() => {
               setIsOpen(false);
             }}
           >
-            <LucideBookmarkPlus className="h-4 w-4" />
-            Réservation d&apos;un Stage
+            <LucideTicketPlus className="h-4 w-4" />
+            Bon Cadeau
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer">
+          <Link
+            href={"/dashboard/add?type=monitor"}
+            className="flex items-center gap-2"
+            onClick={() => {
+              setIsOpen(false);
+            }}
+          >
+            <LucideUserPlus className="h-4 w-4" />
+            Moniteur
           </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>

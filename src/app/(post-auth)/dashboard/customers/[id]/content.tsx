@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ReservationsList } from "./reservation-list";
+import { GiftCardsList } from "./giftcards-list";
 
 export default function CustomerDetails({ id }: { id: string }) {
   const { data: customer, isLoading, error } = useGetCustomerById(id);
@@ -212,6 +213,16 @@ export default function CustomerDetails({ id }: { id: string }) {
         </CardContent>
       </Card>
       <ReservationsList bookings={transformedBookings} />
+      
+      {/* Gift Cards Section */}
+      {customer.giftCards && customer.giftCardsUsed && (
+        <div className="mt-8">
+          <GiftCardsList
+            purchasedGiftCards={customer.giftCards || []}
+            usedGiftCards={customer.giftCardsUsed || []}
+          />
+        </div>
+      )}
     </>
   );
 }

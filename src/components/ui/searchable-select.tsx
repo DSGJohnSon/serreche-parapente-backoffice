@@ -85,7 +85,7 @@ export const SearchableSelect: React.FC<{
   }, [isPopoverOpen]);
 
   return (
-    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+    <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} modal>
       <PopoverTrigger asChild>
         {children({
           options,
@@ -108,7 +108,7 @@ export const SearchableSelect: React.FC<{
         {...restProps}
       >
         <Command>
-          <CommandInput placeholder="Search..." />
+          <CommandInput placeholder="Search..."/>
           <CommandList className="max-h-[unset] overflow-y-hidden">
             <CommandEmpty>No results found.</CommandEmpty>
             <CommandGroup className="max-h-[20rem] min-h-[10rem] overflow-y-auto">

@@ -7,35 +7,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BaptemeEditForm } from "@/features/biplaces/forms/bapteme-edit-form";
+import { GiftCardAddForm } from "@/features/giftcards/forms/giftcard-add-form";
 
-interface BaptemeData {
-  id: string;
-  date: Date;
-  duration: number;
-  places: number;
-  moniteurId: string;
-  price: number;
-  monitor?: {
-    id: string;
-    name: string;
-    avatarUrl: string | null;
-    role: string;
-  };
-  bookings?: any[];
-}
-
-interface EditBaptemeDialogProps {
+interface AddGiftCardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  bapteme: BaptemeData | null;
 }
 
-export function EditBaptemeDialog({
+export function AddGiftCardDialog({
   open,
   onOpenChange,
-  bapteme,
-}: EditBaptemeDialogProps) {
+}: AddGiftCardDialogProps) {
   const handleSuccess = () => {
     onOpenChange(false);
   };
@@ -44,17 +26,14 @@ export function EditBaptemeDialog({
     onOpenChange(false);
   };
 
-  if (!bapteme) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Modifier le Baptême</DialogTitle>
+          <DialogTitle>Ajouter un Bon Cadeau</DialogTitle>
         </DialogHeader>
 
-        <BaptemeEditForm
-          bapteme={bapteme}
+        <GiftCardAddForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
         />

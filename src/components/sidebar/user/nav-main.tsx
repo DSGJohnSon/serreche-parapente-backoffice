@@ -134,7 +134,10 @@ export function NavMain() {
             )}
           >
             <Link
-              href={`/${pathname.split("/").slice(1, 2).join("/")}/bons-cadeaux`}
+              href={`/${pathname
+                .split("/")
+                .slice(1, 2)
+                .join("/")}/bons-cadeaux`}
             >
               <SidebarMenuButton tooltip={"Clients"}>
                 <LucideGift className="size-4" />
@@ -144,18 +147,23 @@ export function NavMain() {
           </SidebarMenuItem>
           <SidebarMenuItem
             className={cn(
-              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-              slugToKnowIfActive[0] === "promotions"
-                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                : ""
+              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition group/external-link"
             )}
           >
-            <Link
-              href={`/${pathname.split("/").slice(1, 2).join("/")}/promotions"`}
-            >
-              <SidebarMenuButton tooltip={"Clients"}>
-                <LucideTicket className="size-4" />
-                <span>Code Promo</span>
+            <Link href={"https://dashboard.stripe.com/coupons"} target="_blank">
+              <SidebarMenuButton
+                tooltip={"Codes Promo - External"}
+                className="justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <LucideTicket className="size-4" />
+                  <span>Codes Promo</span>
+                </div>
+                <LucideExternalLink
+                  className={cn(
+                    "transition opacity-0 group-hover/external-link:opacity-50"
+                  )}
+                />
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
@@ -182,12 +190,10 @@ export function NavMain() {
           <SidebarMenuItem
             className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition group/external-link",
-              slugToKnowIfActive[0] === "blog"
-                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                : ""
+              
             )}
           >
-            <Link href={`/${pathname.split("/").slice(1, 2).join("/")}/blog`}>
+            <Link href={`https://www.sanity.io/@o3ZClfzZI/studio/b8mm7m4emqxwjg4ztwkvcvmv/default/studio/structure`} target="_blank">
               <SidebarMenuButton
                 tooltip={"Blog - External"}
                 className="justify-between"

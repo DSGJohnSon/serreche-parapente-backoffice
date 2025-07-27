@@ -6,6 +6,7 @@ import customers from "@/features/customers/server/route";
 import stages from "@/features/stages/server/route";
 import reservationStages from "@/features/reservations/stages/server/route";
 import baptemes from "@/features/biplaces/server/route";
+import giftcards from "@/features/giftcards/server/route";
 import { cors } from "hono/cors";
 
 const app = new Hono().basePath("/api");
@@ -22,7 +23,7 @@ const routes = app
           ? origin
           : "";
       },
-      allowMethods: ["POST", "GET", "OPTIONS"],
+      allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type"],
     })
   )
@@ -36,9 +37,12 @@ const routes = app
   .route("/stages", stages)
   .route("/reservationStages", reservationStages)
   .route("/baptemes", baptemes)
+  .route("/giftcards", giftcards)
 
 export const GET = handle(app);
 export const POST = handle(app);
+export const PUT = handle(app);
+export const DELETE = handle(app);
 export const OPTIONS = handle(app);
 
 export type AppType = typeof routes;

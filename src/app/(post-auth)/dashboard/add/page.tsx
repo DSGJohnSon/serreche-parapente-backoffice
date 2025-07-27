@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CustomersAddForm from "@/features/customers/forms/customers-add-form";
 import MonitorAddForm from "@/features/users/forms/monitor-add-form";
 import ReservationStageAddForm from "@/features/reservations/stages/forms/reservationStage-add-form";
+import BaptemeBiPlaceAddForm from "@/features/biplaces/forms/bapteme-biplace-add-form";
+import { GiftCardAddForm } from "@/features/giftcards/forms/giftcard-add-form";
 
 export default function TabsDemo() {
   const searchParams = useSearchParams();
@@ -48,11 +50,13 @@ export default function TabsDemo() {
           className="w-full"
         >
           <TabsList>
-            <TabsTrigger value="customer">Client</TabsTrigger>
-            <TabsTrigger value="monitor">Moniteur</TabsTrigger>
+            <TabsTrigger value="bapteme-biplace">Bapteme BiPlace</TabsTrigger>
             <TabsTrigger value="reservation-stage">
               Réservation de stage
             </TabsTrigger>
+            <TabsTrigger value="customer">Client</TabsTrigger>
+            <TabsTrigger value="gift-card">Bon Cadeau</TabsTrigger>
+            <TabsTrigger value="monitor">Moniteur</TabsTrigger>
           </TabsList>
           <TabsContent value="customer" className="w-full max-w-xl">
             <Card className="w-full">
@@ -91,6 +95,33 @@ export default function TabsDemo() {
               </CardHeader>
               <CardContent className="w-full">
                 <ReservationStageAddForm />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="bapteme-biplace" className="w-full max-w-xl">
+            <Card className="w-full">
+              <CardHeader>
+                <CardTitle>Bapteme BiPlace</CardTitle>
+                <CardDescription>
+                  Ajouter une nouvelle réservation de bapteme biplace à la base
+                  de données.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="w-full">
+                <BaptemeBiPlaceAddForm />
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="gift-card" className="w-full max-w-xl">
+            <Card className="w-full">
+              <CardHeader>
+                <CardTitle>Bon Cadeau</CardTitle>
+                <CardDescription>
+                  Ajouter un nouveau bon cadeau à la base de données.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="w-full">
+                <GiftCardAddForm />
               </CardContent>
             </Card>
           </TabsContent>
