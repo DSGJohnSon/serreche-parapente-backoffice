@@ -30,7 +30,8 @@ export const useUpdateStage = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(JSON.stringify(error));
+      toast.error("Erreur lors de la mise à jour du stage");
+      console.error(error);
     },
   });
 

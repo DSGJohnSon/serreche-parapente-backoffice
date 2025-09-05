@@ -21,9 +21,9 @@ enum Role {
 }
 
 enum StageType {
-  NONE
   INITIATION
   PROGRESSION
+  AUTONOMIE
   DOUBLE
 }
 
@@ -33,15 +33,16 @@ enum StageBookingType {
   AUTONOMIE
 }
 
-//Semaine de stages de parapente
+//Créneau de stage de parapente (similaire aux baptêmes)
 model Stage {
   id         String    @id @default(cuid())
-  year       Int
-  weekNumber Int
-  startDate  DateTime  @unique
-  endDate    DateTime
+  startDate  DateTime  // Plus de contrainte unique pour permettre plusieurs stages par jour
+  duration   Int       @default(7) // Durée en jours
   places     Int       @default(6)
-  type       StageType @default(NONE)
+  price      Float     @default(350.0) // Prix en euros
+  type       StageType @default(INITIATION)
+  moniteurId String
+  moniteur   User      @relation(fields: [moniteurId], references: [id])
 
   bookings StageBooking[]
 
@@ -131,4 +132,5 @@ model User {
   updatedAt DateTime @updatedAt
 
   Bapteme Bapteme[]
+  stages  Stage[]
 }

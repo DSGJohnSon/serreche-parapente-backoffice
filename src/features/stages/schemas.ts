@@ -1,48 +1,53 @@
 import { z } from "zod";
 import { StageType } from "@prisma/client";
-import { id } from "date-fns/locale";
 
 export const CreateStageSchema = z.object({
-  year: z
-    .number()
-    .int()
-    .min(2000, { message: "L'année doit être supérieure ou égale à 2000." })
-    .max(2200, { message: "L'année doit être inférieure ou égale à 2200." }),
-  weekNumber: z
-    .number()
-    .int()
-    .min(1, {
-      message: "Le numéro de la semaine doit être supérieur ou égal à 1.",
-    })
-    .max(53, {
-      message: "Le numéro de la semaine doit être inférieur ou égal à 53.",
-    }),
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "La date de début doit être une date valide.",
   }),
-  endDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: "La date de fin doit être une date valide.",
+  duration: z.number().int().min(1, {
+    message: "La durée doit être supérieure à 0.",
+  }),
+  places: z.number().int().min(1, {
+    message: "Le nombre de places doit être supérieur à 0.",
+  }),
+  moniteurId: z.string().min(1, {
+    message: "L'identifiant du moniteur est requis.",
+  }),
+  price: z.number().min(0, {
+    message: "Le prix doit être supérieur ou égal à 0.",
   }),
   type: z.nativeEnum(StageType, {
-    message: "Le type de la semaine doit être valide.",
+    message: "Le type de stage doit être valide.",
   }),
 });
 
 export const UpdateStageSchema = z.object({
+  id: z.string().min(1, {
+    message: "L'identifiant du stage est requis.",
+  }),
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "La date de début doit être une date valide.",
   }),
-  previousType: z.nativeEnum(StageType, {
-    message: "Le type précédent de la semaine doit être valide.",
+  duration: z.number().int().min(1, {
+    message: "La durée doit être supérieure à 0.",
+  }),
+  places: z.number().int().min(1, {
+    message: "Le nombre de places doit être supérieur à 0.",
+  }),
+  moniteurId: z.string().min(1, {
+    message: "L'identifiant du moniteur est requis.",
+  }),
+  price: z.number().min(0, {
+    message: "Le prix doit être supérieur ou égal à 0.",
   }),
   type: z.nativeEnum(StageType, {
-    message: "Le type de la semaine doit être valide.",
+    message: "Le type de stage doit être valide.",
   }),
-  places: z.number().int(),
 });
 
 export const DeleteStageSchema = z.object({
-  startDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
-    message: "La date de début doit être une date valide.",
+  id: z.string().min(1, {
+    message: "L'identifiant du stage est requis.",
   }),
 });

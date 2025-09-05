@@ -9,7 +9,7 @@ import { toast } from "sonner";
 //*------------------*//
 export const useGetAllStages = () => {
   const query = useQuery({
-    queryKey: ["weeks"],
+    queryKey: ["stages"],
     queryFn: async () => {
       const res = await client.api.stages.getAll["$get"]({
         query: {

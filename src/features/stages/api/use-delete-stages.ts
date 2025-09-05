@@ -30,7 +30,8 @@ export const useDeleteStage = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(JSON.stringify(error));
+      toast.error("Erreur lors de la suppression du stage");
+      console.error(error);
     },
   });
 

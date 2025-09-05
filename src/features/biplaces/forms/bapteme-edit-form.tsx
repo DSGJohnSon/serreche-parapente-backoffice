@@ -58,6 +58,8 @@ export function BaptemeEditForm({
     moniteurId: "",
     price: 100.0,
   });
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
+  const [customDuration, setCustomDuration] = useState("");
 
   useEffect(() => {
     if (bapteme) {
@@ -70,6 +72,10 @@ export function BaptemeEditForm({
         .toString()
         .padStart(2, "0")}`;
 
+      // Check if duration is a custom value (not in preset options)
+      const presetDurations = [60, 90, 120, 150, 180];
+      const isCustom = !presetDurations.includes(bapteme.duration);
+      
       setFormData({
         date: baptemeDate,
         time: timeString,
@@ -78,6 +84,11 @@ export function BaptemeEditForm({
         moniteurId: bapteme.moniteurId,
         price: bapteme.price,
       });
+      
+      if (isCustom) {
+        setIsCustomDuration(true);
+        setCustomDuration(bapteme.duration.toString());
+      }
     }
   }, [bapteme]);
 
@@ -151,14 +162,20 @@ export function BaptemeEditForm({
       <div className="space-y-2">
         <Label htmlFor="duration">Durée (minutes)</Label>
         <Select
-          value={formData.duration.toString()}
-          onValueChange={(value) =>
-            setFormData((prev) => ({
-              ...prev,
-              duration: Number.parseInt(value),
-            }))
-          }
-          disabled
+          value={isCustomDuration ? "custom" : formData.duration.toString()}
+          onValueChange={(value) => {
+            if (value === "custom") {
+              setIsCustomDuration(true);
+              setCustomDuration(formData.duration.toString());
+            } else {
+              setIsCustomDuration(false);
+              setFormData((prev) => ({
+                ...prev,
+                duration: Number.parseInt(value),
+              }));
+            }
+          }}
+          disabled={isLoading}
         >
           <SelectTrigger>
             <SelectValue />
@@ -169,8 +186,36 @@ export function BaptemeEditForm({
             <SelectItem value="120">2 heures (120 min)</SelectItem>
             <SelectItem value="150">2h30 (150 min)</SelectItem>
             <SelectItem value="180">3 heures (180 min)</SelectItem>
+            <SelectItem value="custom">Durée personnalisée</SelectItem>
           </SelectContent>
         </Select>
+        
+        {isCustomDuration && (
+          <div className="mt-2">
+            <Input
+              type="number"
+              min="1"
+              max="600"
+              placeholder="Durée en minutes"
+              value={customDuration || formData.duration}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCustomDuration(value);
+                if (value && !isNaN(Number(value))) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    duration: Number.parseInt(value),
+                  }));
+                }
+              }}
+              disabled={isLoading}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Entrez la durée souhaitée en minutes (1-600)
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -230,7 +275,7 @@ export function BaptemeEditForm({
           </SelectTrigger>
           <SelectContent>
             {isLoadingMoniteurs ? (
-              <SelectItem value="" disabled>
+              <SelectItem value="loading" disabled>
                 Chargement des moniteurs...
               </SelectItem>
             ) : moniteurs && moniteurs.length > 0 ? (
@@ -258,7 +303,7 @@ export function BaptemeEditForm({
                 </SelectItem>
               ))
             ) : (
-              <SelectItem value="" disabled>
+              <SelectItem value="none" disabled>
                 Aucun moniteur disponible
               </SelectItem>
             )}

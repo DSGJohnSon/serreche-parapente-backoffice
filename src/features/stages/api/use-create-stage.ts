@@ -30,7 +30,8 @@ export const useCreateStage = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(JSON.stringify(error));
+      toast.error("Erreur lors de la création du stage");
+      console.error(error);
     },
   });
 

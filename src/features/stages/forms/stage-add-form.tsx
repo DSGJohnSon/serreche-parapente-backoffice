@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,240 +21,280 @@ import {
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useCreateStage } from "@/features/stages/api/use-create-stage";
-import { CreateStageSchema } from "@/features/stages/schemas";
 import { StageType } from "@prisma/client";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface StageAddFormProps {
-  onSuccess?: () => void;
+  selectedDate?: Date | null;
+  onSubmit: (stage: {
+    startDate: Date;
+    duration: number;
+    places: number;
+    moniteurId: string;
+    price: number;
+    type: StageType;
+  }) => void;
   onCancel?: () => void;
 }
 
 export function StageAddForm({
-  onSuccess,
+  selectedDate,
+  onSubmit,
   onCancel,
 }: StageAddFormProps) {
-  const createStage = useCreateStage();
-  const [showStartCalendar, setShowStartCalendar] = useState(false);
-  const [showEndCalendar, setShowEndCalendar] = useState(false);
-
-  const form = useForm<z.infer<typeof CreateStageSchema>>({
-    resolver: zodResolver(CreateStageSchema),
-    defaultValues: {
-      year: new Date().getFullYear(),
-      weekNumber: 1,
-      startDate: "",
-      endDate: "",
-      type: StageType.INITIATION,
-    },
+  const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
+  
+  const [formData, setFormData] = useState({
+    startDate: selectedDate || new Date(),
+    duration: 7,
+    places: 6,
+    moniteurId: "",
+    price: 350.0,
+    type: StageType.INITIATION,
   });
+  const [showCalendar, setShowCalendar] = useState(false);
 
-  const handleSubmit = async (values: z.infer<typeof CreateStageSchema>) => {
-    try {
-      await createStage.mutateAsync(values);
-      form.reset();
-      onSuccess?.();
-    } catch (error) {
-      console.error("Erreur lors de la création du stage:", error);
+  useEffect(() => {
+    if (selectedDate) {
+      setFormData((prev) => ({ ...prev, startDate: selectedDate }));
+    }
+  }, [selectedDate]);
+
+  // Durées par défaut selon le type de stage
+  const getDefaultDuration = (type: StageType): number => {
+    switch (type) {
+      case StageType.AUTONOMIE:
+        return 14; // 2 semaines
+      case StageType.INITIATION:
+      case StageType.PROGRESSION:
+      case StageType.DOUBLE:
+      default:
+        return 7; // 1 semaine
     }
   };
 
-  const handleStartDateSelect = (date: Date | undefined) => {
+  // Prix par défaut selon le type de stage
+  const getDefaultPrice = (type: StageType): number => {
+    switch (type) {
+      case StageType.AUTONOMIE:
+        return 500.0; // Prix plus élevé pour 2 semaines
+      case StageType.INITIATION:
+      case StageType.PROGRESSION:
+      case StageType.DOUBLE:
+      default:
+        return 350.0; // Prix standard pour 1 semaine
+    }
+  };
+
+  // Mettre à jour la durée et le prix quand le type change
+  const handleTypeChange = (type: StageType) => {
+    setFormData((prev) => ({
+      ...prev,
+      type,
+      duration: getDefaultDuration(type),
+      price: getDefaultPrice(type),
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.moniteurId) {
+      alert("Veuillez sélectionner un moniteur");
+      return;
+    }
+
+    const selectedMoniteur = moniteurs?.find(
+      (m) => m.id === formData.moniteurId
+    );
+
+    if (!selectedMoniteur) {
+      alert("Moniteur non trouvé");
+      return;
+    }
+
+    onSubmit({
+      startDate: formData.startDate,
+      duration: formData.duration,
+      places: formData.places,
+      moniteurId: formData.moniteurId,
+      price: formData.price,
+      type: formData.type,
+    });
+
+    // Reset form
+    setFormData({
+      startDate: new Date(),
+      duration: 7,
+      places: 6,
+      moniteurId: "",
+      price: 350.0,
+      type: StageType.INITIATION,
+    });
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
     if (date) {
-      form.setValue("startDate", date.toISOString());
-      setShowStartCalendar(false);
+      setFormData((prev) => ({ ...prev, startDate: date }));
+      setShowCalendar(false);
     }
   };
-
-  const handleEndDateSelect = (date: Date | undefined) => {
-    if (date) {
-      form.setValue("endDate", date.toISOString());
-      setShowEndCalendar(false);
-    }
-  };
-
-  const startDateValue = form.watch("startDate");
-  const endDateValue = form.watch("endDate");
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="year"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Année</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="2000"
-                    max="2200"
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                    disabled={createStage.isPending}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="weekNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Numéro de semaine</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="53"
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                    disabled={createStage.isPending}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="startDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Date de début</FormLabel>
-              <FormControl>
-                <Popover open={showStartCalendar} onOpenChange={setShowStartCalendar}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal bg-transparent"
-                      disabled={createStage.isPending}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDateValue ? 
-                        format(new Date(startDateValue), "EEEE d MMMM yyyy", { locale: fr }) :
-                        "Sélectionner une date"
-                      }
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={startDateValue ? new Date(startDateValue) : undefined}
-                      onSelect={handleStartDateSelect}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="endDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Date de fin</FormLabel>
-              <FormControl>
-                <Popover open={showEndCalendar} onOpenChange={setShowEndCalendar}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal bg-transparent"
-                      disabled={createStage.isPending}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDateValue ? 
-                        format(new Date(endDateValue), "EEEE d MMMM yyyy", { locale: fr }) :
-                        "Sélectionner une date"
-                      }
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={endDateValue ? new Date(endDateValue) : undefined}
-                      onSelect={handleEndDateSelect}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Type de stage</FormLabel>
-              <FormControl>
-                <Select
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  disabled={createStage.isPending}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={StageType.NONE}>Aucun</SelectItem>
-                    <SelectItem value={StageType.INITIATION}>Initiation</SelectItem>
-                    <SelectItem value={StageType.PROGRESSION}>Progression</SelectItem>
-                    <SelectItem value={StageType.DOUBLE}>Double</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex gap-2 pt-4">
-          {onCancel && (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="startDate">Date de début</Label>
+        <Popover open={showCalendar} onOpenChange={setShowCalendar}>
+          <PopoverTrigger asChild>
             <Button
-              type="button"
               variant="outline"
-              onClick={onCancel}
-              disabled={createStage.isPending}
-              className="flex-1"
+              className="w-full justify-start text-left font-normal bg-transparent"
             >
-              Annuler
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {format(formData.startDate, "EEEE d MMMM yyyy", { locale: fr })}
             </Button>
-          )}
-          <Button 
-            type="submit" 
-            disabled={createStage.isPending}
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0 z-[60]" align="start">
+            <Calendar
+              mode="single"
+              selected={formData.startDate}
+              onSelect={handleDateSelect}
+              autoFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="type">Type de stage</Label>
+        <Select
+          value={formData.type}
+          onValueChange={(value) => handleTypeChange(value as StageType)}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={StageType.INITIATION}>Initiation (7 jours)</SelectItem>
+            <SelectItem value={StageType.PROGRESSION}>Progression (7 jours)</SelectItem>
+            <SelectItem value={StageType.AUTONOMIE}>Autonomie (14 jours)</SelectItem>
+            <SelectItem value={StageType.DOUBLE}>Double - Initiation/Progression (7 jours)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="duration">Durée (jours)</Label>
+        <Input
+          id="duration"
+          type="number"
+          min="1"
+          max="30"
+          value={formData.duration}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              duration: Number.parseInt(e.target.value) || 1,
+            }))
+          }
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="places">Nombre de places</Label>
+        <Input
+          id="places"
+          type="number"
+          min="1"
+          max="20"
+          value={formData.places}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              places: Number.parseInt(e.target.value) || 1,
+            }))
+          }
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="price">Prix (€)</Label>
+        <Input
+          id="price"
+          type="number"
+          min="0"
+          step="0.01"
+          value={formData.price}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              price: Number.parseFloat(e.target.value) || 0,
+            }))
+          }
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="moniteur">Moniteur</Label>
+        <Select
+          value={formData.moniteurId}
+          onValueChange={(value) =>
+            setFormData((prev) => ({ ...prev, moniteurId: value }))
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Sélectionner un moniteur" />
+          </SelectTrigger>
+          <SelectContent>
+            {isLoadingMoniteurs ? (
+              <SelectItem value="loading" disabled>
+                Chargement des moniteurs...
+              </SelectItem>
+            ) : moniteurs && moniteurs.length > 0 ? (
+              moniteurs.map((moniteur) => (
+                <SelectItem key={moniteur.id} value={moniteur.id}>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={moniteur.avatarUrl} alt={moniteur.name} />
+                      <AvatarFallback className="text-xs">
+                        {moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{moniteur.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})
+                    </span>
+                  </div>
+                </SelectItem>
+              ))
+            ) : (
+              <SelectItem value="none" disabled>
+                Aucun moniteur disponible
+              </SelectItem>
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex gap-2 pt-4">
+        {onCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
             className="flex-1"
           >
-            {createStage.isPending ? "Création..." : "Créer le stage"}
+            Annuler
           </Button>
-        </div>
-      </form>
-    </Form>
+        )}
+        <Button type="submit" className="flex-1">
+          Créer le Stage
+        </Button>
+      </div>
+    </form>
   );
 }

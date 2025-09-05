@@ -49,6 +49,8 @@ export function BaptemeAddForm({
     price: 100.0,
   });
   const [showCalendar, setShowCalendar] = useState(false);
+  const [isCustomDuration, setIsCustomDuration] = useState(false);
+  const [customDuration, setCustomDuration] = useState("");
 
   useEffect(() => {
     if (selectedDate) {
@@ -103,6 +105,8 @@ export function BaptemeAddForm({
       moniteurId: "",
       price: 100.0,
     });
+    setIsCustomDuration(false);
+    setCustomDuration("");
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -153,13 +157,19 @@ export function BaptemeAddForm({
       <div className="space-y-2">
         <Label htmlFor="duration">Durée (minutes)</Label>
         <Select
-          value={formData.duration.toString()}
-          onValueChange={(value) =>
-            setFormData((prev) => ({
-              ...prev,
-              duration: Number.parseInt(value),
-            }))
-          }
+          value={isCustomDuration ? "custom" : formData.duration.toString()}
+          onValueChange={(value) => {
+            if (value === "custom") {
+              setIsCustomDuration(true);
+              setCustomDuration(formData.duration.toString());
+            } else {
+              setIsCustomDuration(false);
+              setFormData((prev) => ({
+                ...prev,
+                duration: Number.parseInt(value),
+              }));
+            }
+          }}
         >
           <SelectTrigger>
             <SelectValue />
@@ -170,8 +180,35 @@ export function BaptemeAddForm({
             <SelectItem value="120">2 heures (120 min)</SelectItem>
             <SelectItem value="150">2h30 (150 min)</SelectItem>
             <SelectItem value="180">3 heures (180 min)</SelectItem>
+            <SelectItem value="custom">Durée personnalisée</SelectItem>
           </SelectContent>
         </Select>
+        
+        {isCustomDuration && (
+          <div className="mt-2">
+            <Input
+              type="number"
+              min="1"
+              max="600"
+              placeholder="Durée en minutes"
+              value={customDuration}
+              onChange={(e) => {
+                const value = e.target.value;
+                setCustomDuration(value);
+                if (value && !isNaN(Number(value))) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    duration: Number.parseInt(value),
+                  }));
+                }
+              }}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Entrez la durée souhaitée en minutes (1-600)
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">
