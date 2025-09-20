@@ -9,13 +9,22 @@ import {
 } from "@/components/ui/dialog";
 import { Bapteme } from "@prisma/client";
 import { BaptemeAddForm } from "@/features/biplaces/forms/bapteme-add-form";
+import { BaptemeCategory } from "@/features/biplaces/schemas";
+
+interface BaptemeData {
+  date: Date;
+  duration: number;
+  places: number;
+  moniteurIds: string[];
+  categories: BaptemeCategory[];
+}
 
 interface AddBaptemeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | null;
   selectedHour?: number;
-  onCreateBapteme: (bapteme: Omit<Bapteme, "id">) => void;
+  onCreateBapteme: (bapteme: BaptemeData) => void;
 }
 
 export function AddBaptemeDialog({
@@ -25,7 +34,7 @@ export function AddBaptemeDialog({
   selectedHour,
   onCreateBapteme,
 }: AddBaptemeDialogProps) {
-  const handleSubmit = (baptemeData: Omit<Bapteme, "id">) => {
+  const handleSubmit = (baptemeData: BaptemeData) => {
     onCreateBapteme(baptemeData);
     onOpenChange(false);
   };

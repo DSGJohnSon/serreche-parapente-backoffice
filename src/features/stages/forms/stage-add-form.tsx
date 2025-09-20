@@ -24,6 +24,7 @@ import { fr } from "date-fns/locale";
 import { StageType } from "@prisma/client";
 import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 interface StageAddFormProps {
   selectedDate?: Date | null;
@@ -31,7 +32,7 @@ interface StageAddFormProps {
     startDate: Date;
     duration: number;
     places: number;
-    moniteurId: string;
+    moniteurIds: string[];
     price: number;
     type: StageType;
   }) => void;
@@ -49,9 +50,9 @@ export function StageAddForm({
     startDate: selectedDate || new Date(),
     duration: 7,
     places: 6,
-    moniteurId: "",
+    moniteurIds: [] as string[],
     price: 350.0,
-    type: StageType.INITIATION,
+    type: StageType.INITIATION as StageType,
   });
   const [showCalendar, setShowCalendar] = useState(false);
 
@@ -100,17 +101,8 @@ export function StageAddForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.moniteurId) {
-      alert("Veuillez sélectionner un moniteur");
-      return;
-    }
-
-    const selectedMoniteur = moniteurs?.find(
-      (m) => m.id === formData.moniteurId
-    );
-
-    if (!selectedMoniteur) {
-      alert("Moniteur non trouvé");
+    if (formData.moniteurIds.length === 0) {
+      alert("Veuillez sélectionner au moins un moniteur");
       return;
     }
 
@@ -118,7 +110,7 @@ export function StageAddForm({
       startDate: formData.startDate,
       duration: formData.duration,
       places: formData.places,
-      moniteurId: formData.moniteurId,
+      moniteurIds: formData.moniteurIds,
       price: formData.price,
       type: formData.type,
     });
@@ -128,7 +120,7 @@ export function StageAddForm({
       startDate: new Date(),
       duration: 7,
       places: 6,
-      moniteurId: "",
+      moniteurIds: [],
       price: 350.0,
       type: StageType.INITIATION,
     });
@@ -239,45 +231,35 @@ export function StageAddForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="moniteur">Moniteur</Label>
-        <Select
-          value={formData.moniteurId}
-          onValueChange={(value) =>
-            setFormData((prev) => ({ ...prev, moniteurId: value }))
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Sélectionner un moniteur" />
-          </SelectTrigger>
-          <SelectContent>
-            {isLoadingMoniteurs ? (
-              <SelectItem value="loading" disabled>
-                Chargement des moniteurs...
-              </SelectItem>
-            ) : moniteurs && moniteurs.length > 0 ? (
-              moniteurs.map((moniteur) => (
-                <SelectItem key={moniteur.id} value={moniteur.id}>
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={moniteur.avatarUrl} alt={moniteur.name} />
-                      <AvatarFallback className="text-xs">
-                        {moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>{moniteur.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})
-                    </span>
-                  </div>
-                </SelectItem>
-              ))
-            ) : (
-              <SelectItem value="none" disabled>
-                Aucun moniteur disponible
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+        <Label htmlFor="moniteurs">Moniteurs</Label>
+        {isLoadingMoniteurs ? (
+          <div className="text-sm text-muted-foreground">
+            Chargement des moniteurs...
+          </div>
+        ) : moniteurs && moniteurs.length > 0 ? (
+          <MultiSelect
+            options={moniteurs.map((moniteur) => ({
+              value: moniteur.id,
+              label: `${moniteur.name} (${moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})`,
+            }))}
+            onValueChange={(values) =>
+              setFormData((prev) => ({ ...prev, moniteurIds: values }))
+            }
+            defaultValue={formData.moniteurIds}
+            placeholder="Sélectionner des moniteurs"
+            variant="inverted"
+            maxCount={3}
+          />
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            Aucun moniteur disponible
+          </div>
+        )}
+        {formData.moniteurIds.length === 0 && (
+          <p className="text-xs text-red-500">
+            Veuillez sélectionner au moins un moniteur
+          </p>
+        )}
       </div>
 
       <div className="flex gap-2 pt-4">

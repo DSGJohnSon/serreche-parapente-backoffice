@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { client } from "@/lib/rpc";
 import { toast } from "sonner";
+import { BaptemeCategory } from "@/features/biplaces/schemas";
 
 export const useUpdateBapteme = () => {
   const queryClient = useQueryClient();
@@ -11,8 +12,8 @@ export const useUpdateBapteme = () => {
       date: string;
       duration: number;
       places: number;
-      moniteurId: string;
-      price: number;
+      moniteurIds: string[];
+      categories: BaptemeCategory[];
     }) => {
       const response = await client.api.baptemes.update.$post({
         json: {
@@ -20,8 +21,8 @@ export const useUpdateBapteme = () => {
           date: data.date,
           duration: data.duration,
           places: data.places,
-          moniteurId: data.moniteurId,
-          price: data.price,
+          moniteurIds: data.moniteurIds,
+          categories: data.categories,
         },
       });
 

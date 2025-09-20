@@ -33,6 +33,24 @@ enum StageBookingType {
   AUTONOMIE
 }
 
+enum BaptemeCategory {
+  AVENTURE
+  DUREE
+  LONGUE_DUREE
+  ENFANT
+  HIVER
+}
+
+//Catégories de baptêmes avec leurs prix fixes
+model BaptemeCategoryPrice {
+  id       String          @id @default(cuid())
+  category BaptemeCategory @unique
+  price    Float
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 //Créneau de stage de parapente (similaire aux baptêmes)
 model Stage {
   id         String    @id @default(cuid())
@@ -41,24 +59,55 @@ model Stage {
   places     Int       @default(6)
   price      Float     @default(350.0) // Prix en euros
   type       StageType @default(INITIATION)
-  moniteurId String
-  moniteur   User      @relation(fields: [moniteurId], references: [id])
 
-  bookings StageBooking[]
+  // Relation many-to-many avec les moniteurs
+  moniteurs  StageMoniteur[]
+  bookings   StageBooking[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+//Table de liaison pour les moniteurs de stages
+model StageMoniteur {
+  id         String @id @default(cuid())
+  stageId    String
+  moniteurId String
+  stage      Stage  @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  moniteur   User   @relation("StageMoniteurs", fields: [moniteurId], references: [id])
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([stageId, moniteurId])
+}
+
 //Créneau de bapteme
 model Bapteme {
-  id         String    @id @default(cuid())
-  date       DateTime  @unique
-  duration  Int       @default(120) // Durée en minutes
-  places     Int       @default(6)
-  price      Float     @default(100.0) // Prix en euros
-  moniteurId String
-  moniteur   User      @relation(fields: [moniteurId], references: [id])
+  id         String            @id @default(cuid())
+  date       DateTime          @unique
+  duration   Int               @default(120) // Durée en minutes
+  places     Int               @default(6)
+  categories BaptemeCategory[] // Catégories disponibles sur ce créneau
+  
+  // Relation many-to-many avec les moniteurs
+  moniteurs  BaptemeMoniteur[]
   bookings   BaptemeBooking[]
+  
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+//Table de liaison pour les moniteurs de baptêmes
+model BaptemeMoniteur {
+  id         String  @id @default(cuid())
+  baptemeId  String
+  moniteurId String
+  bapteme    Bapteme @relation(fields: [baptemeId], references: [id], onDelete: Cascade)
+  moniteur   User    @relation("BaptemeMoniteurs", fields: [moniteurId], references: [id])
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([baptemeId, moniteurId])
 }
 
 //Réservation d'une semaine de stage de parapente (Lien entre Stage et Customer)
@@ -74,13 +123,15 @@ model StageBooking {
 }
 //Réservation d'un créneau de bapteme (Lien entre Bapteme et Customer)
 model BaptemeBooking {
-  id         String    @id @default(cuid())
+  id         String          @id @default(cuid())
   baptemeId  String
-  bapteme    Bapteme   @relation(fields: [baptemeId], references: [id])
+  bapteme    Bapteme         @relation(fields: [baptemeId], references: [id])
   customerId String
-  customer   Customer  @relation(fields: [customerId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  customer   Customer        @relation(fields: [customerId], references: [id])
+  category   BaptemeCategory // Catégorie choisie par le client
+  hasVideo   Boolean         @default(false) // Option vidéo sélectionnée
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 }
 
 model GiftCard {
@@ -131,6 +182,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Bapteme Bapteme[]
-  stages  Stage[]
+  // Relations many-to-many avec les stages et baptêmes
+  stageMoniteurs   StageMoniteur[]   @relation("StageMoniteurs")
+  baptemeMoniteurs BaptemeMoniteur[] @relation("BaptemeMoniteurs")
 }

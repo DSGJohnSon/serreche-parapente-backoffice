@@ -142,14 +142,13 @@ export default function ReservationStageAddForm() {
               <FormLabel>Stage</FormLabel>
               <SearchableSelect
                 options={stages.map((stage) => {
-                  const startDate = new Date(
-                    stage.startDate
-                  ).toLocaleDateString();
-                  const endDate = new Date(stage.endDate).toLocaleDateString();
+                  const startDate = new Date(stage.startDate);
+                  const endDate = new Date(startDate);
+                  endDate.setDate(startDate.getDate() + stage.duration);
 
                   return {
                     value: stage.id,
-                    label: `${stage.year} | S${stage.weekNumber} - Semaine ${stage.type} - du ${startDate} - au ${endDate}`,
+                    label: `${startDate.getFullYear()} - Stage ${stage.type} - du ${startDate.toLocaleDateString()} au ${endDate.toLocaleDateString()}`,
                   };
                 })}
                 value={field.value}

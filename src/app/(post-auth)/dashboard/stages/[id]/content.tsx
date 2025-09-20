@@ -31,6 +31,7 @@ const stageTypeLabels = {
   NONE: "Non défini",
   INITIATION: "Initiation",
   PROGRESSION: "Progression",
+  AUTONOMIE: "Autonomie",
   DOUBLE: "Double",
 };
 
@@ -102,7 +103,7 @@ export default function StageDetails({ id }: { id: string }) {
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <CardTitle className="text-2xl font-bold">
-                Stage de Parapente - Semaine {stage.weekNumber}
+                Stage de Parapente
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Badge
@@ -112,7 +113,7 @@ export default function StageDetails({ id }: { id: string }) {
                   {stageTypeLabels[stage.type]}
                 </Badge>
                 <Badge variant={"outline"} className="text-white">
-                  Année {stage.year}
+                  {new Date(stage.startDate).getFullYear()}
                 </Badge>
                 <div className="flex items-center text-slate-50/50">
                   <span className="text-xs text-slate-50/50">
@@ -159,7 +160,12 @@ export default function StageDetails({ id }: { id: string }) {
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">Fin:</span>
-              <span>{formatDate(new Date(stage.endDate))}</span>
+              <span>{(() => {
+                const startDate = new Date(stage.startDate);
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + stage.duration);
+                return formatDate(endDate);
+              })()}</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-muted-foreground" />

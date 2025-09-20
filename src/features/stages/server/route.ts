@@ -20,7 +20,11 @@ const app = new Hono()
         where,
         include: {
           bookings: true,
-          moniteur: true,
+          moniteurs: {
+            include: {
+              moniteur: true,
+            },
+          },
         },
       });
       return c.json({ success: true, message: "", data: result });
@@ -49,7 +53,11 @@ const app = new Hono()
                 customer: true
               },
             },
-            moniteur: true,
+            moniteurs: {
+              include: {
+                moniteur: true,
+              },
+            },
           },
         });
         return c.json({ success: true, message: "", data: result });
@@ -69,7 +77,7 @@ const app = new Hono()
     sessionMiddleware,
     async (c) => {
       try {
-        const { startDate, duration, places, moniteurId, price, type } = c.req.valid("json");
+        const { startDate, duration, places, moniteurIds, price, type } = c.req.valid("json");
         const startDateObj = new Date(startDate);
 
         const result = await prisma.stage.create({
@@ -77,9 +85,13 @@ const app = new Hono()
             startDate: startDateObj,
             duration,
             places,
-            moniteurId,
             price,
             type,
+            moniteurs: {
+              create: moniteurIds.map((moniteurId) => ({
+                moniteurId,
+              })),
+            },
           },
         });
         return c.json({
@@ -133,7 +145,7 @@ const app = new Hono()
     sessionMiddleware,
     async (c) => {
       try {
-        const { id, startDate, duration, places, moniteurId, price, type } = c.req.valid("json");
+        const { id, startDate, duration, places, moniteurIds, price, type } = c.req.valid("json");
         const startDateObj = new Date(startDate);
 
         const previousData = await prisma.stage.findUnique({
@@ -158,7 +170,19 @@ const app = new Hono()
 
         const result = await prisma.stage.update({
           where: { id },
-          data: { startDate: startDateObj, duration, places, moniteurId, price, type },
+          data: {
+            startDate: startDateObj,
+            duration,
+            places,
+            price,
+            type,
+            moniteurs: {
+              deleteMany: {},
+              create: moniteurIds.map((moniteurId) => ({
+                moniteurId,
+              })),
+            },
+          },
         });
         return c.json({
           success: true,

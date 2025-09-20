@@ -1,12 +1,10 @@
 "use client";
 
 import { CalendarScheduleStages } from "@/features/stages/components/calendar-schedule-stages";
-import { AddStageSheet } from "@/features/stages/components/add-stage-sheet";
 import { StageDetailsSheet } from "@/features/stages/components/stage-details-sheet";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Stage, User, StageBooking, Customer, StageType } from "@prisma/client";
 import { useGetAllStages } from "@/features/stages/api/use-get-stage";
-import { useCreateStage } from "@/features/stages/api/use-create-stage";
 
 interface StageWithDetails {
   id: string;
@@ -15,23 +13,37 @@ interface StageWithDetails {
   places: number;
   price: number;
   type: StageType;
-  moniteurId: string;
   createdAt: Date;
   updatedAt: Date;
-  moniteur: User;
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
   bookings: any[];
   placesRestantes?: number;
 }
 
 export default function Page() {
-  const [showAddForm, setShowAddForm] = useState(false);
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedStage, setSelectedStage] = useState<StageWithDetails | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   // Fetch stages from API
   const { data: stagesData, isLoading } = useGetAllStages();
-  const createStage = useCreateStage();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <main className="flex flex-1 flex-col gap-4 p-4">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-muted-foreground">Chargement...</div>
+        </div>
+      </main>
+    );
+  }
 
   // Transform API data to match the expected Stage type with additional info
   const stages = stagesData?.map((stage) => ({
@@ -41,19 +53,20 @@ export default function Page() {
     places: stage.places,
     price: stage.price,
     type: stage.type,
-    moniteurId: stage.moniteurId,
     createdAt: new Date(stage.createdAt),
     updatedAt: new Date(stage.updatedAt),
-    moniteur: {
-      ...stage.moniteur,
-      createdAt: new Date(stage.moniteur.createdAt),
-      updatedAt: new Date(stage.moniteur.updatedAt),
-    },
+    moniteurs: stage.moniteurs.map(m => ({
+      moniteur: {
+        ...m.moniteur,
+        createdAt: new Date(m.moniteur.createdAt),
+        updatedAt: new Date(m.moniteur.updatedAt),
+      }
+    })),
     bookings: stage.bookings || [],
     placesRestantes: stage.places - (stage.bookings?.length || 0),
   })) || [];
 
-  // Keep the full data with moniteur for details sheet
+  // Keep the full data with moniteurs for details sheet
   const stagesWithDetails: StageWithDetails[] = stagesData?.map((stage) => ({
     id: stage.id,
     startDate: new Date(stage.startDate),
@@ -61,18 +74,19 @@ export default function Page() {
     places: stage.places,
     price: stage.price,
     type: stage.type,
-    moniteurId: stage.moniteurId,
     createdAt: new Date(stage.createdAt),
     updatedAt: new Date(stage.updatedAt),
-    moniteur: {
-      id: stage.moniteur.id,
-      email: stage.moniteur.email,
-      name: stage.moniteur.name,
-      avatarUrl: stage.moniteur.avatarUrl,
-      role: stage.moniteur.role,
-      createdAt: new Date(stage.moniteur.createdAt),
-      updatedAt: new Date(stage.moniteur.updatedAt),
-    },
+    moniteurs: stage.moniteurs.map(m => ({
+      moniteur: {
+        id: m.moniteur.id,
+        email: m.moniteur.email,
+        name: m.moniteur.name,
+        avatarUrl: m.moniteur.avatarUrl,
+        role: m.moniteur.role,
+        createdAt: new Date(m.moniteur.createdAt),
+        updatedAt: new Date(m.moniteur.updatedAt),
+      }
+    })),
     bookings: stage.bookings || [],
   })) || [];
 
@@ -87,41 +101,20 @@ export default function Page() {
 
   const handleDayClick = (date: Date) => {
     console.log("Day clicked:", date);
-    setSelectedDate(date);
-    setShowAddForm(true);
+    // Redirect to add page with date parameter
+    const params = new URLSearchParams({
+      type: 'stage',
+      date: date.toISOString(),
+    });
+    window.location.href = `/dashboard/add?${params.toString()}`;
   };
 
   const handleAddStage = () => {
     console.log("Add new stage");
-    setSelectedDate(new Date());
-    setShowAddForm(true);
+    // Redirect to add page
+    window.location.href = '/dashboard/add?type=stage';
   };
 
-  const handleCreateStage = (newStage: {
-    startDate: Date;
-    duration: number;
-    places: number;
-    moniteurId: string;
-    price: number;
-    type: StageType;
-  }) => {
-    // Convert to the format expected by the API
-    const stageData = {
-      startDate: newStage.startDate.toISOString(),
-      duration: newStage.duration,
-      places: newStage.places,
-      moniteurId: newStage.moniteurId,
-      price: newStage.price,
-      type: newStage.type,
-    };
-
-    createStage.mutate(stageData, {
-      onSuccess: () => {
-        setShowAddForm(false);
-        setSelectedDate(null);
-      },
-    });
-  };
 
   // Show loading state while fetching data
   if (isLoading) {
@@ -145,12 +138,6 @@ export default function Page() {
         />
       </div>
 
-      <AddStageSheet
-        open={showAddForm}
-        onOpenChange={setShowAddForm}
-        selectedDate={selectedDate}
-        onCreateStage={handleCreateStage}
-      />
 
       <StageDetailsSheet
         open={showDetailsSheet}

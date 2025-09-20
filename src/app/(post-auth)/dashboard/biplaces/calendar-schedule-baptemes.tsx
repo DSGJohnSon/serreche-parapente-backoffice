@@ -37,7 +37,9 @@ import { fr } from "date-fns/locale";
 import { Bapteme, User, BaptemeBooking } from "@prisma/client";
 
 interface BaptemeWithDetails extends Bapteme {
-  moniteur: User;
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
   bookings: BaptemeBooking[];
   placesRestantes: number;
 }
@@ -312,7 +314,12 @@ export function CalendarScheduleBaptemes({
                                       {formatTime(getEndTime(bapteme))}
                                     </div>
                                     <div className="text-white/90 text-xs font-medium">
-                                      {bapteme.moniteur.name}
+                                      {bapteme.moniteurs?.length > 0
+                                        ? bapteme.moniteurs.length === 1
+                                          ? bapteme.moniteurs[0].moniteur.name
+                                          : `${bapteme.moniteurs[0].moniteur.name} +${bapteme.moniteurs.length - 1}`
+                                        : 'Aucun moniteur'
+                                      }
                                     </div>
                                     <div className="text-white/80 text-xs">
                                       {bapteme.placesRestantes}/{bapteme.places}{" "}
@@ -401,8 +408,12 @@ export function CalendarScheduleBaptemes({
                         {formatTime(getEndTime(bapteme))}
                       </div>
                       <div className="text-xs opacity-80">
-                        {bapteme.moniteur.name} • {bapteme.placesRestantes}/
-                        {bapteme.places}
+                        {bapteme.moniteurs?.length > 0
+                          ? bapteme.moniteurs.length === 1
+                            ? bapteme.moniteurs[0].moniteur.name
+                            : `${bapteme.moniteurs[0].moniteur.name} +${bapteme.moniteurs.length - 1}`
+                          : 'Aucun moniteur'
+                        } • {bapteme.placesRestantes}/{bapteme.places}
                       </div>
                     </div>
                   ))}

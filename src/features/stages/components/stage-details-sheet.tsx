@@ -33,13 +33,16 @@ import { fr } from "date-fns/locale";
 import { Stage, User, StageBooking, Customer } from "@prisma/client";
 import { useState } from "react";
 import { Plus, Minus, Edit2, Trash2, Save, X } from "lucide-react";
-import { useGetMoniteurs } from "@/features/users/api/use-get-moniteurs";
+import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
 import { useUpdateStage } from "../api/use-update-stages";
 import { useDeleteStage } from "../api/use-delete-stages";
 import { toast } from "sonner";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 interface StageWithDetails extends Stage {
-  moniteur: User;
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
   bookings: (StageBooking & { customer: Customer })[];
 }
 
@@ -59,10 +62,10 @@ export function StageDetailsSheet({
   const [editedStage, setEditedStage] = useState<{
     places: number;
     price: number;
-    moniteurId: string;
+    moniteurIds: string[];
   } | null>(null);
 
-  const { data: moniteurs } = useGetMoniteurs();
+  const { data: moniteurs } = useGetMoniteursAndAdmins();
   const updateStage = useUpdateStage();
   const deleteStage = useDeleteStage();
 
@@ -75,7 +78,7 @@ export function StageDetailsSheet({
     setEditedStage({
       places: stage.places,
       price: stage.price,
-      moniteurId: stage.moniteurId,
+      moniteurIds: stage.moniteurs.map(m => m.moniteur.id),
     });
     setIsEditing(true);
   };
@@ -94,7 +97,7 @@ export function StageDetailsSheet({
       duration: stage.duration,
       places: editedStage.places,
       price: editedStage.price,
-      moniteurId: editedStage.moniteurId,
+      moniteurIds: editedStage.moniteurIds,
       type: stage.type,
     }, {
       onSuccess: () => {
@@ -288,53 +291,47 @@ export function StageDetailsSheet({
               </div>
             </div>
             
-            {/* Moniteur - Editable */}
+            {/* Moniteurs - Editable */}
             <div>
-              <h3 className="font-semibold mb-3">Moniteur</h3>
+              <h3 className="font-semibold mb-3">
+                Moniteur{stage.moniteurs.length > 1 ? 's' : ''}
+              </h3>
               {isEditing && editedStage ? (
                 <div className="space-y-2">
-                  <Label htmlFor="moniteur">Sélectionner un moniteur</Label>
-                  <Select
-                    value={editedStage.moniteurId}
-                    onValueChange={(value) => setEditedStage({
+                  <Label htmlFor="moniteurs">Sélectionner des moniteurs</Label>
+                  <MultiSelect
+                    options={moniteurs?.map((moniteur) => ({
+                      value: moniteur.id,
+                      label: `${moniteur.name} (${moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})`,
+                    })) || []}
+                    onValueChange={(values) => setEditedStage({
                       ...editedStage,
-                      moniteurId: value
+                      moniteurIds: values
                     })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choisir un moniteur" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {moniteurs?.map((moniteur) => (
-                        <SelectItem key={moniteur.id} value={moniteur.id}>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage src={moniteur.avatarUrl} alt={moniteur.name} />
-                              <AvatarFallback className="text-xs">
-                                {moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            {moniteur.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    defaultValue={editedStage.moniteurIds}
+                    placeholder="Sélectionner des moniteurs"
+                    variant="inverted"
+                    maxCount={3}
+                  />
                 </div>
               ) : (
-                <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={stage.moniteur.avatarUrl} alt={stage.moniteur.name} />
-                    <AvatarFallback className="text-sm">
-                      {stage.moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium">{stage.moniteur.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {stage.moniteur.role === 'ADMIN' ? 'Administrateur' : 'Moniteur'}
+                <div className="space-y-3">
+                  {stage.moniteurs.map((moniteurData, index) => (
+                    <div key={moniteurData.moniteur.id} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={moniteurData.moniteur.avatarUrl} alt={moniteurData.moniteur.name} />
+                        <AvatarFallback className="text-sm">
+                          {moniteurData.moniteur.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{moniteurData.moniteur.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {moniteurData.moniteur.role === 'ADMIN' ? 'Administrateur' : 'Moniteur'}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               )}
             </div>

@@ -24,7 +24,11 @@ const app = new Hono()
         where,
         include: {
           bookings: true,
-          moniteur: true,
+          moniteurs: {
+            include: {
+              moniteur: true,
+            },
+          },
         },
       });
       return c.json({ success: true, message: "", data: result });
@@ -43,7 +47,11 @@ const app = new Hono()
         where: { id },
         include: {
           bookings: { include: { customer: true } },
-          moniteur: true,
+          moniteurs: {
+            include: {
+              moniteur: true,
+            },
+          },
         },
       });
       return c.json({ success: true, message: "", data: result });
@@ -58,7 +66,7 @@ const app = new Hono()
     sessionMiddleware,
     async (c) => {
       try {
-        const { date, duration, places, moniteurId, price } = c.req.valid("json");
+        const { date, duration, places, moniteurIds, categories } = c.req.valid("json");
         const dateObj = new Date(date);
 
         const result = await prisma.bapteme.create({
@@ -66,8 +74,12 @@ const app = new Hono()
             date: dateObj,
             duration,
             places,
-            moniteurId,
-            price,
+            categories,
+            moniteurs: {
+              create: moniteurIds.map((moniteurId) => ({
+                moniteurId,
+              })),
+            },
           },
         });
         return c.json({
@@ -121,7 +133,7 @@ const app = new Hono()
     sessionMiddleware,
     async (c) => {
       try {
-        const { originalDate, date, duration, places, moniteurId, price } = c.req.valid("json");
+        const { originalDate, date, duration, places, moniteurIds, categories } = c.req.valid("json");
         const originalDateObj = new Date(originalDate);
         const newDateObj = new Date(date);
 
@@ -147,7 +159,18 @@ const app = new Hono()
 
         const result = await prisma.bapteme.update({
           where: { date: originalDateObj },
-          data: { date: newDateObj, duration, places, moniteurId, price },
+          data: {
+            date: newDateObj,
+            duration,
+            places,
+            categories,
+            moniteurs: {
+              deleteMany: {},
+              create: moniteurIds.map((moniteurId) => ({
+                moniteurId,
+              })),
+            },
+          },
         });
         return c.json({
           success: true,

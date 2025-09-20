@@ -8,20 +8,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { BaptemeEditForm } from "@/features/biplaces/forms/bapteme-edit-form";
+import { BaptemeCategory } from "@/features/biplaces/schemas";
 
 interface BaptemeData {
   id: string;
   date: Date;
   duration: number;
   places: number;
-  moniteurId: string;
-  price: number;
-  monitor?: {
-    id: string;
-    name: string;
-    avatarUrl: string | null;
-    role: string;
-  };
+  moniteurs?: Array<{
+    moniteur: {
+      id: string;
+      name: string;
+      avatarUrl: string | null;
+      role: string;
+    };
+  }>;
+  categories: BaptemeCategory[];
   bookings?: any[];
 }
 

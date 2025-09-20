@@ -37,7 +37,9 @@ import { fr } from "date-fns/locale";
 import { Stage, User, StageBooking } from "@prisma/client";
 
 interface StageWithDetails extends Stage {
-  moniteur: User;
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
   bookings: StageBooking[];
   placesRestantes: number;
 }
@@ -244,7 +246,12 @@ export function CalendarScheduleStages({
                     {getTypeLabel(stage.type)}
                   </div>
                   <div className="text-xs opacity-80">
-                    {stage.moniteur?.name}
+                    {stage.moniteurs?.length > 0
+                      ? stage.moniteurs.length === 1
+                        ? stage.moniteurs[0].moniteur.name
+                        : `${stage.moniteurs[0].moniteur.name} +${stage.moniteurs.length - 1}`
+                      : 'Aucun moniteur'
+                    }
                   </div>
                   <div className="text-xs opacity-80">
                     {stage.placesRestantes || 0}/{stage.places} • {stage.duration}j

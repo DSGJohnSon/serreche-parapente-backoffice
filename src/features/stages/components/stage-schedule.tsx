@@ -49,7 +49,7 @@ import { useRouter } from "next/navigation";
 import { useDeleteStage } from "../api/use-delete-stages";
 
 // Types pour les données
-type ScheduleOption = StageType;
+type ScheduleOption = StageType | "NONE";
 type ViewMode = "month" | "year";
 
 interface WeekSchedule {
@@ -72,6 +72,7 @@ interface WeeklyScheduleProps {
 const scheduleOptions = [
   { value: "INITIATION", label: "INITIATION" },
   { value: "PROGRESSION", label: "PROGRESSION" },
+  { value: "AUTONOMIE", label: "AUTONOMIE" },
   { value: "DOUBLE", label: "DOUBLE" },
   { value: "NONE", label: "Aucun stage" },
 ];
@@ -100,6 +101,13 @@ const optionColors: Record<
     text: "",
     selectBg: "bg-teal-100",
     hoverBg: "hover:bg-teal-200",
+  },
+  AUTONOMIE: {
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    text: "",
+    selectBg: "bg-purple-100",
+    hoverBg: "hover:bg-purple-200",
   },
   DOUBLE: {
     bg: "bg-orange-50",
@@ -164,14 +172,24 @@ export function WeeklySchedule({
 
   useEffect(() => {
     setInitialData(
-      stagesData?.map((week) => ({
-        ...week,
-        bookings: week.bookings.map((booking) => ({
-          ...booking,
-          createdAt: new Date(booking.createdAt),
-          updatedAt: new Date(booking.updatedAt),
-        })),
-      })) || []
+      stagesData?.map((week) => {
+        const startDate = new Date(week.startDate);
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + week.duration);
+        
+        return {
+          ...week,
+          weekNumber: Math.ceil((startDate.getTime() - new Date(startDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)),
+          year: startDate.getFullYear(),
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          bookings: week.bookings.map((booking) => ({
+            ...booking,
+            createdAt: new Date(booking.createdAt),
+            updatedAt: new Date(booking.updatedAt),
+          })),
+        };
+      }) || []
     );
   }, [stagesData]);
 
@@ -327,7 +345,7 @@ export function WeeklySchedule({
     );
 
     // Vérifiez si le type passe de NONE à un autre type
-    if (weekToUpdate.type === "NONE" && value !== "NONE") {
+    if (weekToUpdate.type === "NONE" && value !== "NONE" && value !== "NONE") {
       console.log(
         "Création de la semaine :",
         weekToUpdate.year,
@@ -338,11 +356,12 @@ export function WeeklySchedule({
       // Utilisez le hook useCreateWeek pour créer la semaine en BDD
       createWeek(
         {
-          year: weekToUpdate.year,
-          weekNumber: weekToUpdate.weekNumber,
           startDate: weekToUpdate.startDate,
-          endDate: weekToUpdate.endDate,
-          type: value as ScheduleOption,
+          duration: 7, // Default duration
+          places: weekToUpdate.places,
+          moniteurIds: [], // Default empty array
+          price: 350.0, // Default price
+          type: value as StageType,
         },
         {
           onSuccess: (response) => {
@@ -379,15 +398,19 @@ export function WeeklySchedule({
     if (
       weekToUpdate.type !== "NONE" &&
       value !== "NONE" &&
-      value !== weekToUpdate.type
+      value !== weekToUpdate.type &&
+      weekToUpdate.id
     ) {
-      // Utilisez le hook useCreateWeek pour créer la semaine en BDD
+      // Utilisez le hook useUpdateWeek pour mettre à jour la semaine en BDD
       updateWeek(
         {
+          id: weekToUpdate.id,
           startDate: weekToUpdate.startDate,
-          previousType: weekToUpdate.type as ScheduleOption,
-          type: value as ScheduleOption,
+          duration: 7, // Default duration
           places: weekToUpdate.places,
+          moniteurIds: [], // Default empty array
+          price: 350.0, // Default price
+          type: value as StageType,
         },
         {
           onSuccess: (response) => {
@@ -419,10 +442,10 @@ export function WeeklySchedule({
       );
     }
 
-    if (weekToUpdate.type !== "NONE" && value === "NONE") {
+    if (weekToUpdate.type !== "NONE" && value === "NONE" && weekToUpdate.id) {
       deleteWeek(
         {
-          startDate: weekToUpdate.startDate,
+          id: weekToUpdate.id,
         },
         {
           onSuccess: (response) => {

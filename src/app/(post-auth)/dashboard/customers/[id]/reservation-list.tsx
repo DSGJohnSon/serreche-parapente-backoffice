@@ -49,7 +49,8 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({
   ) => {
     const now = new Date();
     const startDate = new Date(booking.stage.startDate);
-    const endDate = new Date(booking.stage.endDate);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + booking.stage.duration);
 
     if (now < startDate) {
       return { label: "À venir", variant: "default" as const };
@@ -91,7 +92,7 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({
       getStageTypeLabel(booking.type)
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      booking.stage.year.toString().includes(searchTerm);
+      new Date(booking.stage.startDate).getFullYear().toString().includes(searchTerm);
 
     const matchesFilter = filterType === "ALL" || booking.type === filterType;
 
@@ -160,7 +161,7 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({
                     <div className="flex items-start justify-between">
                       <div className="space-y-2">
                         <CardTitle className="text-lg">
-                          Stage Semaine {booking.stage.weekNumber}
+                          Stage {getStageTypeLabel(booking.type)}
                         </CardTitle>
                         <div className="flex gap-2">
                           <Badge variant={getStageTypeVariant(booking.type)}>
@@ -176,10 +177,12 @@ export const ReservationsList: React.FC<ReservationsListProps> = ({
                       <div className="flex items-center text-muted-foreground">
                         <Calendar className="w-4 h-4 mr-3" />
                         <span className="text-sm">
-                          {formatDateRange(
-                            booking.stage.startDate,
-                            booking.stage.endDate
-                          )}
+                          {(() => {
+                            const startDate = new Date(booking.stage.startDate);
+                            const endDate = new Date(startDate);
+                            endDate.setDate(startDate.getDate() + booking.stage.duration);
+                            return formatDateRange(startDate, endDate);
+                          })()}
                         </span>
                       </div>
 

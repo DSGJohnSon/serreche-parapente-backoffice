@@ -35,11 +35,25 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 interface StageData {
-  startDate: string;
+  id: string;
+  startDate: Date;
+  duration: number;
+  places: number;
+  price: number;
   type: StageType;
-  places?: number;
+  moniteurs?: Array<{
+    moniteur: {
+      id: string;
+      name: string;
+      avatarUrl: string | null;
+      role: string;
+    };
+  }>;
+  bookings?: any[];
 }
 
 interface StageEditFormProps {
@@ -54,25 +68,32 @@ export function StageEditForm({
   onCancel,
 }: StageEditFormProps) {
   const updateStage = useUpdateStage();
+  const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
   const [showCalendar, setShowCalendar] = useState(false);
 
   const form = useForm<z.infer<typeof UpdateStageSchema>>({
     resolver: zodResolver(UpdateStageSchema),
     defaultValues: {
-      startDate: stage.startDate,
-      previousType: stage.type,
+      id: stage.id,
+      startDate: stage.startDate.toISOString(),
+      duration: stage.duration,
+      places: stage.places,
+      price: stage.price,
       type: stage.type,
-      places: stage.places || 10,
+      moniteurIds: stage.moniteurs?.map(m => m.moniteur.id) || [],
     },
   });
 
   useEffect(() => {
     if (stage) {
       form.reset({
-        startDate: stage.startDate,
-        previousType: stage.type,
+        id: stage.id,
+        startDate: stage.startDate.toISOString(),
+        duration: stage.duration,
+        places: stage.places,
+        price: stage.price,
         type: stage.type,
-        places: stage.places || 10,
+        moniteurIds: stage.moniteurs?.map(m => m.moniteur.id) || [],
       });
     }
   }, [stage, form]);
@@ -150,12 +171,33 @@ export function StageEditForm({
                     <SelectValue placeholder="Sélectionner un type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={StageType.NONE}>Aucun</SelectItem>
-                    <SelectItem value={StageType.INITIATION}>Initiation</SelectItem>
-                    <SelectItem value={StageType.PROGRESSION}>Progression</SelectItem>
-                    <SelectItem value={StageType.DOUBLE}>Double</SelectItem>
+                    <SelectItem value={StageType.INITIATION}>Initiation (7 jours)</SelectItem>
+                    <SelectItem value={StageType.PROGRESSION}>Progression (7 jours)</SelectItem>
+                    <SelectItem value={StageType.AUTONOMIE}>Autonomie (14 jours)</SelectItem>
+                    <SelectItem value={StageType.DOUBLE}>Double - Initiation/Progression (7 jours)</SelectItem>
                   </SelectContent>
                 </Select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="duration"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Durée (jours)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="1"
+                  max="30"
+                  {...field}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  disabled={updateStage.isPending}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -177,6 +219,61 @@ export function StageEditForm({
                   onChange={(e) => field.onChange(Number(e.target.value))}
                   disabled={updateStage.isPending}
                 />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="price"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Prix (€)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  {...field}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  disabled={updateStage.isPending}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="moniteurIds"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Moniteurs</FormLabel>
+              <FormControl>
+                {isLoadingMoniteurs ? (
+                  <div className="text-sm text-muted-foreground">
+                    Chargement des moniteurs...
+                  </div>
+                ) : moniteurs && moniteurs.length > 0 ? (
+                  <MultiSelect
+                    options={moniteurs.map((moniteur) => ({
+                      value: moniteur.id,
+                      label: `${moniteur.name} (${moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})`,
+                    }))}
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    placeholder="Sélectionner des moniteurs"
+                    variant="inverted"
+                    maxCount={3}
+                  />
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    Aucun moniteur disponible
+                  </div>
+                )}
               </FormControl>
               <FormMessage />
             </FormItem>

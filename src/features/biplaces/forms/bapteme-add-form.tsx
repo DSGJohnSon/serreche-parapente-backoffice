@@ -24,13 +24,41 @@ import { fr } from "date-fns/locale";
 import { Bapteme } from "@prisma/client";
 import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { BaptemeCategory } from "@/features/biplaces/schemas";
+import { MultiSelect } from "@/components/ui/multi-select";
+
+interface BaptemeData {
+  date: Date;
+  duration: number;
+  places: number;
+  moniteurIds: string[];
+  categories: BaptemeCategory[];
+}
 
 interface BaptemeAddFormProps {
   selectedDate?: Date | null;
   selectedHour?: number;
-  onSubmit: (bapteme: Omit<Bapteme, "id">) => void;
+  onSubmit: (bapteme: BaptemeData) => void;
   onCancel?: () => void;
 }
+
+// Labels pour les catégories
+const CATEGORY_LABELS: Record<BaptemeCategory, string> = {
+  [BaptemeCategory.AVENTURE]: "Aventure",
+  [BaptemeCategory.DUREE]: "Durée",
+  [BaptemeCategory.LONGUE_DUREE]: "Longue Durée",
+  [BaptemeCategory.ENFANT]: "Enfant",
+  [BaptemeCategory.HIVER]: "Hiver"
+};
+
+// Prix pour chaque catégorie
+const CATEGORY_PRICES: Record<BaptemeCategory, number> = {
+  [BaptemeCategory.AVENTURE]: 110,
+  [BaptemeCategory.DUREE]: 150,
+  [BaptemeCategory.LONGUE_DUREE]: 185,
+  [BaptemeCategory.ENFANT]: 90,
+  [BaptemeCategory.HIVER]: 130
+};
 
 export function BaptemeAddForm({
   selectedDate,
@@ -45,8 +73,8 @@ export function BaptemeAddForm({
     time: "10:00",
     duration: 120,
     places: 6,
-    moniteurId: "",
-    price: 100.0,
+    moniteurIds: [] as string[],
+    categories: [] as BaptemeCategory[],
   });
   const [showCalendar, setShowCalendar] = useState(false);
   const [isCustomDuration, setIsCustomDuration] = useState(false);
@@ -68,8 +96,15 @@ export function BaptemeAddForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.moniteurId) {
-      alert("Veuillez sélectionner un moniteur");
+    console.log('Form data at submit:', formData);
+
+    if (!formData.moniteurIds || formData.moniteurIds.length === 0) {
+      alert("Veuillez sélectionner au moins un moniteur");
+      return;
+    }
+
+    if (formData.categories.length === 0) {
+      alert("Veuillez sélectionner au moins une catégorie");
       return;
     }
 
@@ -77,23 +112,15 @@ export function BaptemeAddForm({
     const baptemeDate = new Date(formData.date);
     baptemeDate.setHours(hours, minutes, 0, 0);
 
-    const selectedMoniteur = moniteurs?.find(
-      (m) => m.id === formData.moniteurId
-    );
-
-    if (!selectedMoniteur) {
-      alert("Moniteur non trouvé");
-      return;
-    }
-
-    const newBapteme: Omit<Bapteme, "id"> = {
+    const newBapteme = {
       date: baptemeDate,
       duration: formData.duration,
       places: formData.places,
-      moniteurId: formData.moniteurId,
-      price: formData.price,
+      moniteurIds: formData.moniteurIds,
+      categories: formData.categories,
     };
 
+    console.log('Submitting bapteme:', newBapteme);
     onSubmit(newBapteme);
 
     // Reset form
@@ -102,11 +129,20 @@ export function BaptemeAddForm({
       time: "10:00",
       duration: 120,
       places: 6,
-      moniteurId: "",
-      price: 100.0,
+      moniteurIds: [],
+      categories: [],
     });
     setIsCustomDuration(false);
     setCustomDuration("");
+  };
+
+  const handleCategoryChange = (category: BaptemeCategory, checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      categories: checked
+        ? [...prev.categories, category]
+        : prev.categories.filter((c) => c !== category),
+    }));
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -229,64 +265,74 @@ export function BaptemeAddForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="price">Prix (€)</Label>
-        <Input
-          id="price"
-          type="number"
-          min="0"
-          step="0.01"
-          value={formData.price}
-          onChange={(e) =>
-            setFormData((prev) => ({
-              ...prev,
-              price: Number.parseFloat(e.target.value) || 0,
-            }))
-          }
-          required
-        />
+      <div className="space-y-3">
+        <Label>Catégories de baptêmes disponibles</Label>
+        <div className="grid grid-cols-2 gap-3">
+          {Object.values(BaptemeCategory).map((category) => (
+            <div
+              key={category}
+              className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => handleCategoryChange(category, !formData.categories.includes(category))}
+            >
+              <input
+                type="checkbox"
+                id={category}
+                checked={formData.categories.includes(category)}
+                onChange={() => {}} // Handled by div onClick
+                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded pointer-events-none"
+              />
+              <div className="flex-1">
+                <Label
+                  htmlFor={category}
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  {CATEGORY_LABELS[category]}
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Prix: {CATEGORY_PRICES[category]}€
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+        {formData.categories.length === 0 && (
+          <p className="text-xs text-red-500">
+            Veuillez sélectionner au moins une catégorie
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="moniteur">Moniteur</Label>
-        <Select
-          value={formData.moniteurId}
-          onValueChange={(value) =>
-            setFormData((prev) => ({ ...prev, moniteurId: value }))
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Sélectionner un moniteur" />
-          </SelectTrigger>
-          <SelectContent>
-            {isLoadingMoniteurs ? (
-              <SelectItem value="loading" disabled>
-                Chargement des moniteurs...
-              </SelectItem>
-            ) : moniteurs && moniteurs.length > 0 ? (
-              moniteurs.map((moniteur) => (
-                <SelectItem key={moniteur.id} value={moniteur.id}>
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={moniteur.avatarUrl} alt={moniteur.name} />
-                      <AvatarFallback className="text-xs">
-                        {moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span>{moniteur.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})
-                    </span>
-                  </div>
-                </SelectItem>
-              ))
-            ) : (
-              <SelectItem value="none" disabled>
-                Aucun moniteur disponible
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+        <Label htmlFor="moniteurs">Moniteurs</Label>
+        {isLoadingMoniteurs ? (
+          <div className="text-sm text-muted-foreground">
+            Chargement des moniteurs...
+          </div>
+        ) : moniteurs && moniteurs.length > 0 ? (
+          <MultiSelect
+            options={moniteurs.map((moniteur) => ({
+              value: moniteur.id,
+              label: `${moniteur.name} (${moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})`,
+            }))}
+            onValueChange={(values) => {
+              console.log('MultiSelect values changed:', values);
+              setFormData((prev) => ({ ...prev, moniteurIds: values }));
+            }}
+            defaultValue={formData.moniteurIds}
+            placeholder="Sélectionner des moniteurs"
+            variant="inverted"
+            maxCount={3}
+          />
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            Aucun moniteur disponible
+          </div>
+        )}
+        {formData.moniteurIds.length === 0 && (
+          <p className="text-xs text-red-500">
+            Veuillez sélectionner au moins un moniteur
+          </p>
+        )}
       </div>
 
       <div className="flex gap-2 pt-4">

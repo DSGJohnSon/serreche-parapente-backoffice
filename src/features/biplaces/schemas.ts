@@ -1,6 +1,9 @@
 import { z } from "zod";
-import { StageType } from "@prisma/client";
+import { StageType, BaptemeCategory } from "@prisma/client";
 import { id } from "date-fns/locale";
+
+// Export de l'enum pour utilisation dans les composants
+export { BaptemeCategory };
 
 export const CreateBaptemeSchema = z.object({
   date: z.string().refine((val) => !isNaN(Date.parse(val)), {
@@ -12,11 +15,11 @@ export const CreateBaptemeSchema = z.object({
   places: z.number().int().min(1, {
     message: "Le nombre de places doit être supérieur à 0.",
   }),
-  moniteurId: z.string().min(1, {
-    message: "L'identifiant du moniteur est requis.",
+  moniteurIds: z.array(z.string().min(1)).min(1, {
+    message: "Au moins un moniteur doit être sélectionné.",
   }),
-  price: z.number().min(0, {
-    message: "Le prix doit être supérieur ou égal à 0.",
+  categories: z.array(z.nativeEnum(BaptemeCategory)).min(1, {
+    message: "Au moins une catégorie doit être sélectionnée.",
   }),
 });
 
@@ -33,11 +36,11 @@ export const UpdateBaptemeSchema = z.object({
   places: z.number().int().min(1, {
     message: "Le nombre de places doit être supérieur à 0.",
   }),
-  moniteurId: z.string().min(1, {
-    message: "L'identifiant du moniteur est requis.",
+  moniteurIds: z.array(z.string().min(1)).min(1, {
+    message: "Au moins un moniteur doit être sélectionné.",
   }),
-  price: z.number().min(0, {
-    message: "Le prix doit être supérieur ou égal à 0.",
+  categories: z.array(z.nativeEnum(BaptemeCategory)).min(1, {
+    message: "Au moins une catégorie doit être sélectionnée.",
   }),
 });
 

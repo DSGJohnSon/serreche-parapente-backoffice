@@ -14,20 +14,42 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Bapteme, User } from "@prisma/client";
-import { CalendarIcon, ClockIcon, UsersIcon, EuroIcon, MailIcon, Edit, Trash2 } from "lucide-react";
+import { CalendarIcon, ClockIcon, UsersIcon, TagIcon, MailIcon, Edit, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { EditBaptemeDialog } from "./edit-bapteme-dialog";
 import { useDeleteBapteme } from "@/features/biplaces/api/use-delete-bapteme";
+import { BaptemeCategory } from "@/features/biplaces/schemas";
 
-interface BaptemeWithMoniteur extends Bapteme {
-  moniteur: User;
+interface BaptemeWithMoniteurs extends Omit<Bapteme, 'categories'> {
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
   bookings?: any[];
+  categories: BaptemeCategory[];
 }
+
+// Labels pour les catégories
+const CATEGORY_LABELS: Record<BaptemeCategory, string> = {
+  [BaptemeCategory.AVENTURE]: "Aventure",
+  [BaptemeCategory.DUREE]: "Durée",
+  [BaptemeCategory.LONGUE_DUREE]: "Longue Durée",
+  [BaptemeCategory.ENFANT]: "Enfant",
+  [BaptemeCategory.HIVER]: "Hiver"
+};
+
+// Prix pour chaque catégorie
+const CATEGORY_PRICES: Record<BaptemeCategory, number> = {
+  [BaptemeCategory.AVENTURE]: 110,
+  [BaptemeCategory.DUREE]: 150,
+  [BaptemeCategory.LONGUE_DUREE]: 185,
+  [BaptemeCategory.ENFANT]: 90,
+  [BaptemeCategory.HIVER]: 130
+};
 
 interface BaptemeDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  bapteme: BaptemeWithMoniteur | null;
+  bapteme: BaptemeWithMoniteurs | null;
 }
 
 export function BaptemeDetailsDialog({
@@ -118,41 +140,55 @@ export function BaptemeDetailsDialog({
             </div>
 
             <div className="flex items-center gap-3">
-              <EuroIcon className="h-5 w-5 text-muted-foreground" />
+              <TagIcon className="h-5 w-5 text-muted-foreground" />
               <div>
-                <p className="font-medium">Prix</p>
-                <p className="text-sm text-muted-foreground">
-                  {bapteme.price.toFixed(2)} €
-                </p>
+                <p className="font-medium">Catégories disponibles</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {bapteme.categories && bapteme.categories.length > 0 ? (
+                    bapteme.categories.map((category) => (
+                      <Badge key={category} variant="secondary" className="text-xs">
+                        {CATEGORY_LABELS[category]} ({CATEGORY_PRICES[category]}€)
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Aucune catégorie définie</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Informations du moniteur */}
+          {/* Informations des moniteurs */}
           <div className="border-t pt-4">
-            <h3 className="font-medium mb-3">Moniteur assigné</h3>
-            <div className="flex items-start gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={bapteme.moniteur.avatarUrl} alt={bapteme.moniteur.name} />
-                <AvatarFallback>
-                  {bapteme.moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium">{bapteme.moniteur.name}</p>
-                  <Badge variant={bapteme.moniteur.role === 'ADMIN' ? 'default' : 'secondary'}>
-                    {bapteme.moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'}
-                  </Badge>
+            <h3 className="font-medium mb-3">
+              Moniteur{bapteme.moniteurs.length > 1 ? 's' : ''} assigné{bapteme.moniteurs.length > 1 ? 's' : ''}
+            </h3>
+            <div className="space-y-3">
+              {bapteme.moniteurs.map((moniteurData, index) => (
+                <div key={moniteurData.moniteur.id} className="flex items-start gap-3">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={moniteurData.moniteur.avatarUrl} alt={moniteurData.moniteur.name} />
+                    <AvatarFallback>
+                      {moniteurData.moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{moniteurData.moniteur.name}</p>
+                      <Badge variant={moniteurData.moniteur.role === 'ADMIN' ? 'default' : 'secondary'}>
+                        {moniteurData.moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MailIcon className="h-4 w-4" />
+                      <span>{moniteurData.moniteur.email}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Membre depuis {format(moniteurData.moniteur.createdAt, "MMMM yyyy", { locale: fr })}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <MailIcon className="h-4 w-4" />
-                  <span>{bapteme.moniteur.email}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Membre depuis {format(bapteme.moniteur.createdAt, "MMMM yyyy", { locale: fr })}
-                </p>
-              </div>
+              ))}
             </div>
           </div>
         </div>

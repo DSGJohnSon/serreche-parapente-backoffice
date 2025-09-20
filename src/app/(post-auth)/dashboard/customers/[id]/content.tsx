@@ -54,18 +54,24 @@ export default function CustomerDetails({ id }: { id: string }) {
     );
   }
 
-  const transformedBookings = customer.stages.map((booking) => ({
-    ...booking,
-    createdAt: new Date(booking.createdAt),
-    updatedAt: new Date(booking.updatedAt),
-    stage: {
-      ...booking.stage,
-      createdAt: new Date(booking.stage.createdAt),
-      updatedAt: new Date(booking.stage.updatedAt),
-      startDate: new Date(booking.stage.startDate),
-      endDate: new Date(booking.stage.endDate),
-    },
-  }));
+  const transformedBookings = customer.stages.map((booking) => {
+    const startDate = new Date(booking.stage.startDate);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + booking.stage.duration);
+    
+    return {
+      ...booking,
+      createdAt: new Date(booking.createdAt),
+      updatedAt: new Date(booking.updatedAt),
+      stage: {
+        ...booking.stage,
+        createdAt: new Date(booking.stage.createdAt),
+        updatedAt: new Date(booking.stage.updatedAt),
+        startDate: startDate,
+        endDate: endDate,
+      },
+    };
+  });
 
   const age = customer.birthDate
     ? calculateAge(new Date(customer.birthDate))

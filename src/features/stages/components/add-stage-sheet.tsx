@@ -18,7 +18,7 @@ interface AddStageSheetProps {
     startDate: Date;
     duration: number;
     places: number;
-    moniteurId: string;
+    moniteurIds: string[];
     price: number;
     type: StageType;
   }) => void;
@@ -34,7 +34,7 @@ export function AddStageSheet({
     startDate: Date;
     duration: number;
     places: number;
-    moniteurId: string;
+    moniteurIds: string[];
     price: number;
     type: StageType;
   }) => {
