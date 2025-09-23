@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { sessionMiddleware } from "@/lib/session-middleware";
+import { adminSessionMiddleware, publicAPIMiddleware, sessionMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { zValidator } from "@hono/zod-validator";
 import { AddCustomerSchema } from "../schemas";
@@ -11,7 +11,7 @@ const app = new Hono()
   //Get all customers of the database
   .get(
     "getAll",
-    // sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const result = await prisma.customer.findMany({
@@ -35,7 +35,7 @@ const app = new Hono()
   )
   .get(
     "getById/:id",
-    // sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const id = c.req.param("id");
@@ -92,7 +92,7 @@ const app = new Hono()
   //Create new customer
   .post(
     "/create",
-    // adminSessionMiddleware,
+    publicAPIMiddleware,
     zValidator("json", AddCustomerSchema),
     async (c) => {
       const {

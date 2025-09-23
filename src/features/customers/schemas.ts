@@ -12,6 +12,6 @@ export const AddCustomerSchema = z.object({
   postalCode: z.string().min(1, { message: "Le code postal est requis" }),
   city: z.string().min(1, { message: "La ville est requise" }),
   country: z.string().min(1, { message: "Le pays est requis" }),
-  height: z.string().min(1, { message: "La taille doit être supérieure ou égale à 0" }),
-  weight: z.string().min(1, { message: "Le poids doit être supérieur ou égal à 0" }),
+  height: z.coerce.number().min(1, { message: "La taille doit être supérieure ou égale à 1" }),
+  weight: z.coerce.number().min(1, { message: "Le poids doit être supérieur ou égal à 1" }),
 });

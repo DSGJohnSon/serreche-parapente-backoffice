@@ -35,12 +35,19 @@ function CustomersAddForm() {
       postalCode: "",
       city: "",
       country: "France",
-      height: "",
-      weight: "",
+      height: 0,
+      weight: 0,
     },
   });
   function onSubmit(values: z.infer<typeof AddCustomerSchema>) {
-    mutate(values, {
+    // Transform the values to ensure height and weight are numbers
+    const transformedValues = {
+      ...values,
+      height: Number(values.height),
+      weight: Number(values.weight),
+    };
+    
+    mutate(transformedValues, {
       onSuccess: (data) => {
         form.reset();
       },

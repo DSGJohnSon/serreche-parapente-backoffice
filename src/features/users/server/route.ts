@@ -85,7 +85,7 @@ const app = new Hono()
   // Change user role
   .post(
     "/changeRole",
-    // adminSessionMiddleware,
+    adminSessionMiddleware,
     zValidator("json", ChangeUserRoleSchema),
     async (c) => {
       const { userId, role } = c.req.valid("json");

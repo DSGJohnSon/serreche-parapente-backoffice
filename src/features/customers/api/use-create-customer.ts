@@ -1,24 +1,28 @@
-import { client } from "@/lib/rpc";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { InferRequestType, InferResponseType } from "hono";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { createCustomer } from "../actions";
 
-type ResponseType = InferResponseType<
-  (typeof client.api.customers.create)["$post"]
->;
-type RequestType = InferRequestType<
-  (typeof client.api.customers.create)["$post"]
->["json"];
+type RequestType = {
+  firstname: string;
+  lastname: string;
+  email: string;
+  phone: string;
+  adress: string;
+  postalCode: string;
+  city: string;
+  country: string;
+  height: number;
+  weight: number;
+};
 
 export const useCreateCustomer = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const mutation = useMutation<ResponseType, Error, RequestType>({
-    mutationFn: async (json) => {
-      const response = await client.api.customers.create["$post"]({ json });
-      return await response.json();
+  const mutation = useMutation<any, Error, RequestType>({
+    mutationFn: async (data) => {
+      return await createCustomer(data);
     },
     onSuccess: (response) => {
       if (response.success) {
@@ -30,7 +34,7 @@ export const useCreateCustomer = () => {
       }
     },
     onError: (error: Error) => {
-      toast.error(JSON.stringify(error));
+      toast.error(error.message || "Erreur lors de la création du client");
     },
   });
 

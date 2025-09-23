@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { sessionMiddleware } from "@/lib/session-middleware";
+import { adminSessionMiddleware, sessionMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { zValidator } from "@hono/zod-validator";
 import { CreateGiftCardSchema, UpdateGiftCardSchema, UseGiftCardSchema } from "../schemas";
@@ -12,7 +12,7 @@ const app = new Hono()
   // Get all gift cards
   .get(
     "getAll",
-    // sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const result = await prisma.giftCard.findMany({
@@ -52,7 +52,7 @@ const app = new Hono()
   // Get gift card by ID
   .get(
     "getById/:id",
-    // sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const id = c.req.param("id");
@@ -100,7 +100,7 @@ const app = new Hono()
   // Get unused gift cards
   .get(
     "getUnused",
-    // sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const result = await prisma.giftCard.findMany({
@@ -135,7 +135,7 @@ const app = new Hono()
   // Get used gift cards
   .get(
     "getUsed",
-    // sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const result = await prisma.giftCard.findMany({
@@ -182,7 +182,7 @@ const app = new Hono()
   // Create new gift card
   .post(
     "/create",
-    // adminSessionMiddleware,
+    adminSessionMiddleware,
     zValidator("json", CreateGiftCardSchema),
     async (c) => {
       const { code, amount, customerId } = c.req.valid("json");
@@ -241,7 +241,7 @@ const app = new Hono()
   // Update gift card (only unused cards can be updated)
   .put(
     "/update/:id",
-    // adminSessionMiddleware,
+    adminSessionMiddleware,
     zValidator("json", UpdateGiftCardSchema),
     async (c) => {
       const id = c.req.param("id");
@@ -318,7 +318,7 @@ const app = new Hono()
   // Use gift card
   .put(
     "/use/:id",
-    // sessionMiddleware,
+    sessionMiddleware,
     zValidator("json", UseGiftCardSchema),
     async (c) => {
       const id = c.req.param("id");
@@ -403,7 +403,7 @@ const app = new Hono()
   // Delete gift card (only unused cards can be deleted)
   .delete(
     "/delete/:id",
-    // adminSessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       const id = c.req.param("id");
 

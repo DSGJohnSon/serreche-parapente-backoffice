@@ -37,8 +37,16 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useCreateStage } from "../api/use-create-stage";
-import { StageBooking, StageType } from "@prisma/client";
+import { StageBooking, StageType, Stage, User } from "@prisma/client";
 import { useGetAllStages } from "../api/use-get-stage";
+
+// Type for the API response from the server (same as in stages page)
+interface StageApiResponse extends Stage {
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
+  bookings: StageBooking[];
+}
 import { useUpdateStage } from "../api/use-update-stages";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -172,7 +180,7 @@ export function WeeklySchedule({
 
   useEffect(() => {
     setInitialData(
-      stagesData?.map((week) => {
+      stagesData?.map((week: StageApiResponse) => {
         const startDate = new Date(week.startDate);
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + week.duration);

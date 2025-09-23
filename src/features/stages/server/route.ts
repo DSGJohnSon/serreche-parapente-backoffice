@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { sessionMiddleware } from "@/lib/session-middleware";
+import { adminSessionMiddleware, publicAPIMiddleware, sessionMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { CreateStageSchema, DeleteStageSchema, UpdateStageSchema } from "../schemas";
 import { z } from "zod";
@@ -8,7 +8,7 @@ import { Prisma } from "@prisma/client";
 
 const app = new Hono()
   // Get all stages with optional filtering by moniteurId or date
-  .get("getAll", async (c) => {
+  .get("getAll", publicAPIMiddleware, async (c) => {
     const moniteurId = c.req.query("moniteurId");
     const date = c.req.query("date");
     const where: any = {};
@@ -35,6 +35,7 @@ const app = new Hono()
   // Get stage by id
   .get(
     "getById/:id",
+    sessionMiddleware,
     async (c) => {
       try {
         const id = c.req.param("id");
@@ -74,7 +75,7 @@ const app = new Hono()
   .post(
     "create",
     zValidator("json", CreateStageSchema),
-    sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const { startDate, duration, places, moniteurIds, price, type } = c.req.valid("json");
@@ -142,7 +143,7 @@ const app = new Hono()
   .post(
     "update",
     zValidator("json", UpdateStageSchema),
-    sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const { id, startDate, duration, places, moniteurIds, price, type } = c.req.valid("json");
@@ -213,7 +214,7 @@ const app = new Hono()
   .post(
     "delete",
     zValidator("json", DeleteStageSchema),
-    sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const { id } = c.req.valid("json");

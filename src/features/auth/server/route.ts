@@ -10,6 +10,7 @@ import { PrismaClient } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import { sessionMiddleware } from "@/lib/session-middleware";
 
 async function signUpNewUser(email: string, password: string) {
   const { data, error } = await supabase.auth.signUp({
@@ -28,7 +29,7 @@ async function signInWithEmail(email: string, password: string) {
 }
 
 const app = new Hono()
-  .get("current", async (c) => {
+  .get("current", sessionMiddleware, async (c) => {
     const session = (await cookies()).get(AUTH_COOKIE);
     if (!session)
       return c.json({
@@ -235,7 +236,7 @@ const app = new Hono()
 
     return c.json({ success: true, message: "Inscription réussie !", data: dataSignIn });
   })
-  .post("/logout", async (c) => {
+  .post("/logout", sessionMiddleware, async (c) => {
     deleteCookie(c, AUTH_COOKIE);
 
     return c.json({ success: true, message: "Déconnexion réussie ! Redirection", data: null });

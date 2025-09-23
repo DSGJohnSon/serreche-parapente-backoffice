@@ -3,6 +3,7 @@
 import { client } from "@/lib/rpc";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { getAllStages } from "../actions";
 
 //*------------------*//
 //Get all stages
@@ -11,21 +12,17 @@ export const useGetAllStages = () => {
   const query = useQuery({
     queryKey: ["stages"],
     queryFn: async () => {
-      const res = await client.api.stages.getAll["$get"]({
-        query: {
-          includeBookings: "true",
-        },
-      });
-      if (!res.ok) {
+      try {
+        const result = await getAllStages();
+        if (!result.success) {
+          toast.error(result.message);
+          return null;
+        }
+        return result.data;
+      } catch (error) {
+        toast.error("Erreur lors de la récupération des stages");
         return null;
       }
-
-      const { success, message, data } = await res.json();
-      if (!success) {
-        toast.error(message);
-        return null;
-      }
-      return data;
     },
   });
 

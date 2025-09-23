@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { sessionMiddleware } from "@/lib/session-middleware";
+import { adminSessionMiddleware, sessionMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { CreateByAdminReservationStageSchema } from "../schemas";
 import { z } from "zod";
@@ -9,7 +9,7 @@ import { Prisma } from "@prisma/client";
 const app = new Hono().post(
   "createByAdmin",
   zValidator("json", CreateByAdminReservationStageSchema),
-  sessionMiddleware,
+  adminSessionMiddleware,
   async (c) => {
     try {
       const { customerId, stageId, type } = c.req.valid("json");

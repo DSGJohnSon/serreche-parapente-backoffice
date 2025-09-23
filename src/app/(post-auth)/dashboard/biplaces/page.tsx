@@ -4,10 +4,19 @@ import { CalendarScheduleBaptemes } from "./calendar-schedule-baptemes";
 import { AddBaptemeDialog } from "./add-bapteme-dialog";
 import { BaptemeDetailsDialog } from "./bapteme-details-dialog";
 import { useState, useEffect } from "react";
-import { Bapteme, User } from "@prisma/client";
+import { Bapteme, User, BaptemeBooking } from "@prisma/client";
 import { useGetAllBaptemes } from "@/features/biplaces/api/use-get-bapteme";
 import { useCreateBapteme } from "@/features/biplaces/api/use-create-bapteme";
 import { BaptemeCategory } from "@/features/biplaces/schemas";
+
+// Type for the API response from the server
+interface BaptemeApiResponse extends Omit<Bapteme, 'categories'> {
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
+  bookings: BaptemeBooking[];
+  categories: BaptemeCategory[];
+}
 
 interface BaptemeWithMoniteurs extends Omit<Bapteme, 'categories'> {
   moniteurs: Array<{
@@ -52,7 +61,7 @@ export default function Page() {
   }
 
   // Transform API data to match the expected Bapteme type with additional info
-  const baptemes = baptemesData?.map((bapteme) => ({
+  const baptemes = baptemesData?.map((bapteme: BaptemeApiResponse) => ({
     id: bapteme.id,
     date: new Date(bapteme.date),
     duration: bapteme.duration,
@@ -74,7 +83,7 @@ export default function Page() {
   })) || [];
 
   // Keep the full data with moniteurs for details dialog
-  const baptemesWithMoniteurs: BaptemeWithMoniteurs[] = baptemesData?.map((bapteme) => ({
+  const baptemesWithMoniteurs: BaptemeWithMoniteurs[] = baptemesData?.map((bapteme: BaptemeApiResponse) => ({
     id: bapteme.id,
     date: new Date(bapteme.date),
     duration: bapteme.duration,

@@ -6,6 +6,14 @@ import { useState, useEffect } from "react";
 import { Stage, User, StageBooking, Customer, StageType } from "@prisma/client";
 import { useGetAllStages } from "@/features/stages/api/use-get-stage";
 
+// Type for the API response from the server
+interface StageApiResponse extends Stage {
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
+  bookings: StageBooking[];
+}
+
 interface StageWithDetails {
   id: string;
   startDate: Date;
@@ -46,7 +54,7 @@ export default function Page() {
   }
 
   // Transform API data to match the expected Stage type with additional info
-  const stages = stagesData?.map((stage) => ({
+  const stages = stagesData?.map((stage: StageApiResponse) => ({
     id: stage.id,
     startDate: new Date(stage.startDate),
     duration: stage.duration,
@@ -67,7 +75,7 @@ export default function Page() {
   })) || [];
 
   // Keep the full data with moniteurs for details sheet
-  const stagesWithDetails: StageWithDetails[] = stagesData?.map((stage) => ({
+  const stagesWithDetails: StageWithDetails[] = stagesData?.map((stage: StageApiResponse) => ({
     id: stage.id,
     startDate: new Date(stage.startDate),
     duration: stage.duration,

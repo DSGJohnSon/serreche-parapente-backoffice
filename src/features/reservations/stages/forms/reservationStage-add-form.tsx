@@ -38,8 +38,16 @@ import {
   SearchableSelectTrigger,
 } from "@/components/ui/searchable-select";
 import Link from "next/link";
-import { StageBookingType, StageType } from "@prisma/client";
+import { StageBookingType, StageType, Stage, User, StageBooking } from "@prisma/client";
 import { useCreateReservationStageByAdmin } from "../api/use-create-reservation-stage";
+
+// Type for the API response from the server (same as in stages page)
+interface StageApiResponse extends Stage {
+  moniteurs: Array<{
+    moniteur: User;
+  }>;
+  bookings: StageBooking[];
+}
 
 export default function ReservationStageAddForm() {
   const { data: customers, isLoading: customersLoading } = useGetAllCustomers();
@@ -141,7 +149,7 @@ export default function ReservationStageAddForm() {
             <FormItem className="flex flex-col">
               <FormLabel>Stage</FormLabel>
               <SearchableSelect
-                options={stages.map((stage) => {
+                options={stages.map((stage: StageApiResponse) => {
                   const startDate = new Date(stage.startDate);
                   const endDate = new Date(startDate);
                   endDate.setDate(startDate.getDate() + stage.duration);

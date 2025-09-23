@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { sessionMiddleware } from "@/lib/session-middleware";
+import { adminSessionMiddleware, publicAPIMiddleware, sessionMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -12,7 +12,7 @@ import {
 
 const app = new Hono()
   // GET all baptemes, optionally filtered by moniteurId or date
-  .get("getAll", async (c) => {
+  .get("getAll", publicAPIMiddleware, async (c) => {
     const moniteurId = c.req.query("moniteurId");
     const date = c.req.query("date");
     const where: any = {};
@@ -37,7 +37,7 @@ const app = new Hono()
     }
   })
   // GET bapteme by id
-  .get("getById/:id", async (c) => {
+  .get("getById/:id", sessionMiddleware, async (c) => {
     try {
       const id = c.req.param("id");
       if (!id) {
@@ -63,7 +63,7 @@ const app = new Hono()
   .post(
     "create",
     zValidator("json", CreateBaptemeSchema),
-    sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const { date, duration, places, moniteurIds, categories } = c.req.valid("json");
@@ -130,7 +130,7 @@ const app = new Hono()
   .post(
     "update",
     zValidator("json", UpdateBaptemeSchema),
-    sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const { originalDate, date, duration, places, moniteurIds, categories } = c.req.valid("json");
@@ -201,7 +201,7 @@ const app = new Hono()
   .post(
     "delete",
     zValidator("json", DeleteBaptemeSchema),
-    sessionMiddleware,
+    adminSessionMiddleware,
     async (c) => {
       try {
         const { date } = c.req.valid("json");
