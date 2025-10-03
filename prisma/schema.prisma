@@ -41,6 +41,29 @@ enum BaptemeCategory {
   HIVER
 }
 
+// Nouveaux enums pour le système de panier
+enum CartItemType {
+  STAGE
+  BAPTEME
+  GIFT_CARD
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
 //Catégories de baptêmes avec leurs prix fixes
 model BaptemeCategoryPrice {
   id       String          @id @default(cuid())
@@ -63,6 +86,11 @@ model Stage {
   // Relation many-to-many avec les moniteurs
   moniteurs  StageMoniteur[]
   bookings   StageBooking[]
+
+  // Nouvelles relations pour le système de panier
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  temporaryReservations TemporaryReservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -93,6 +121,11 @@ model Bapteme {
   moniteurs  BaptemeMoniteur[]
   bookings   BaptemeBooking[]
   
+  // Nouvelles relations pour le système de panier
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  temporaryReservations TemporaryReservation[]
+  
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 }
@@ -118,6 +151,10 @@ model StageBooking {
   stage      Stage     @relation(fields: [stageId], references: [id])
   customerId String
   customer   Customer  @relation(fields: [customerId], references: [id])
+  
+  // Relation avec OrderItem
+  orderItem  OrderItem?
+  
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 }
@@ -130,6 +167,10 @@ model BaptemeBooking {
   customer   Customer        @relation(fields: [customerId], references: [id])
   category   BaptemeCategory // Catégorie choisie par le client
   hasVideo   Boolean         @default(false) // Option vidéo sélectionnée
+  
+  // Relation avec OrderItem
+  orderItem  OrderItem?
+  
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 }
@@ -147,6 +188,10 @@ model GiftCard {
   usedAt     DateTime?
   usedBy     String?   // ID du client qui a utilisé la carte-cadeau
   usedByCustomer Customer? @relation(name: "GiftCardUser", fields: [usedBy], references: [id])
+  
+  // Nouvelles relations pour le système de commandes
+  appliedToOrders Order[]
+  generatedFromOrderItem OrderItem[] @relation("GeneratedGiftCard")
 }
 
 //CLient
@@ -167,6 +212,10 @@ model Customer {
   BaptemeBooking BaptemeBooking[]
   giftCards  GiftCard[]     @relation(name: "GiftCardBuyer")
   giftCardsUsed GiftCard[]  @relation(name: "GiftCardUser")
+  
+  // Nouvelles relations pour le système de panier
+  cartItems CartItem[]
+  
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 
@@ -185,4 +234,164 @@ model User {
   // Relations many-to-many avec les stages et baptêmes
   stageMoniteurs   StageMoniteur[]   @relation("StageMoniteurs")
   baptemeMoniteurs BaptemeMoniteur[] @relation("BaptemeMoniteurs")
+}
+
+// Session temporaire pour les paniers non-authentifiés
+model CartSession {
+  id        String   @id @default(cuid())
+  sessionId String   @unique // UUID généré côté client
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  cartItems CartItem[]
+  
+  @@index([expiresAt])
+  @@index([sessionId])
+}
+
+// Articles dans le panier
+model CartItem {
+  id        String       @id @default(cuid())
+  type      CartItemType
+  quantity  Int          @default(1)
+  
+  // Références optionnelles selon le type
+  stageId   String?
+  stage     Stage?       @relation(fields: [stageId], references: [id])
+  
+  baptemeId String?
+  bapteme   Bapteme?     @relation(fields: [baptemeId], references: [id])
+  
+  // Pour les bons cadeaux
+  giftCardAmount Float?
+  
+  // Informations du participant
+  participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
+  
+  // Session ou customer
+  cartSessionId String?
+  cartSession   CartSession? @relation(fields: [cartSessionId], references: [id], onDelete: Cascade)
+  
+  customerId    String?
+  customer      Customer?    @relation(fields: [customerId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([cartSessionId])
+  @@index([customerId])
+}
+
+// Réservation temporaire pour gérer les stocks
+model TemporaryReservation {
+  id        String   @id @default(cuid())
+  sessionId String   // Session du panier
+  
+  // Référence à l'activité
+  stageId   String?
+  stage     Stage?   @relation(fields: [stageId], references: [id])
+  
+  baptemeId String?
+  bapteme   Bapteme? @relation(fields: [baptemeId], references: [id])
+  
+  quantity  Int      @default(1)
+  expiresAt DateTime // 15 minutes par défaut
+  
+  createdAt DateTime @default(now())
+  
+  @@index([expiresAt])
+  @@index([sessionId])
+}
+
+// Commande principale
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique // Format: ORD-YYYY-XXXXXX
+  status        OrderStatus @default(PENDING)
+  
+  // Montants
+  subtotal      Float
+  discountAmount Float      @default(0.0)
+  totalAmount   Float
+  
+  // Informations client
+  customerEmail String
+  customerData  Json       // Sauvegarde des infos client au moment de la commande
+  
+  // Bon cadeau utilisé
+  appliedGiftCardId String?
+  appliedGiftCard   GiftCard? @relation(fields: [appliedGiftCardId], references: [id])
+  
+  // Relations
+  orderItems    OrderItem[]
+  payments      Payment[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([orderNumber])
+  @@index([customerEmail])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Articles de la commande
+model OrderItem {
+  id       String       @id @default(cuid())
+  orderId  String
+  order    Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  type     CartItemType
+  quantity Int          @default(1)
+  unitPrice Float
+  totalPrice Float
+  
+  // Références selon le type
+  stageId   String?
+  stage     Stage?   @relation(fields: [stageId], references: [id])
+  
+  baptemeId String?
+  bapteme   Bapteme? @relation(fields: [baptemeId], references: [id])
+  
+  // Pour les bons cadeaux
+  giftCardAmount Float?
+  generatedGiftCardId String?
+  generatedGiftCard   GiftCard? @relation("GeneratedGiftCard", fields: [generatedGiftCardId], references: [id])
+  
+  // Données du participant
+  participantData Json
+  
+  // Réservations créées
+  stageBookingId   String? @unique
+  stageBooking     StageBooking?   @relation(fields: [stageBookingId], references: [id])
+  
+  baptemeBookingId String? @unique
+  baptemeBooking   BaptemeBooking? @relation(fields: [baptemeBookingId], references: [id])
+  
+  createdAt DateTime @default(now())
+  
+  @@index([orderId])
+}
+
+// Paiements
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String
+  order           Order         @relation(fields: [orderId], references: [id])
+  
+  stripePaymentIntentId String  @unique
+  status          PaymentStatus @default(PENDING)
+  amount          Float
+  currency        String        @default("eur")
+  
+  // Métadonnées Stripe
+  stripeMetadata  Json?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([orderId])
+  @@index([stripePaymentIntentId])
 }
