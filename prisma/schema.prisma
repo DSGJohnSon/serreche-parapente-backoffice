@@ -81,6 +81,8 @@ model Stage {
   duration   Int       @default(7) // Durée en jours
   places     Int       @default(6)
   price      Float     @default(350.0) // Prix en euros
+  allTimeHighPrice Float    // Prix "All Time High"
+  acomptePrice Float    @default(100.0) // Montant de l'acompte
   type       StageType @default(INITIATION)
 
   // Relation many-to-many avec les moniteurs

@@ -1,20 +1,15 @@
 "use client";
 
-import { AppWindowIcon, CodeIcon } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCallback } from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CustomersAddForm from "@/features/customers/forms/customers-add-form";
 import MonitorAddForm from "@/features/users/forms/monitor-add-form";
@@ -49,6 +44,7 @@ export default function TabsDemo() {
     places: number;
     moniteurIds: string[];
     price: number;
+    acomptePrice: number;
     type: StageType;
   }) => {
     const stageData = {
@@ -57,6 +53,7 @@ export default function TabsDemo() {
       places: newStage.places,
       moniteurIds: newStage.moniteurIds,
       price: newStage.price,
+      acomptePrice: newStage.acomptePrice,
       type: newStage.type,
     };
 

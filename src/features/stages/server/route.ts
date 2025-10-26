@@ -78,7 +78,7 @@ const app = new Hono()
     adminSessionMiddleware,
     async (c) => {
       try {
-        const { startDate, duration, places, moniteurIds, price, type } = c.req.valid("json");
+        const { startDate, duration, places, moniteurIds, price, acomptePrice, type } = c.req.valid("json");
         const startDateObj = new Date(startDate);
 
         const result = await prisma.stage.create({
@@ -87,6 +87,8 @@ const app = new Hono()
             duration,
             places,
             price,
+            allTimeHighPrice: price,
+            acomptePrice,
             type,
             moniteurs: {
               create: moniteurIds.map((moniteurId) => ({
@@ -146,7 +148,7 @@ const app = new Hono()
     adminSessionMiddleware,
     async (c) => {
       try {
-        const { id, startDate, duration, places, moniteurIds, price, type } = c.req.valid("json");
+        const { id, startDate, duration, places, moniteurIds, price, acomptePrice, type } = c.req.valid("json");
         const startDateObj = new Date(startDate);
 
         const previousData = await prisma.stage.findUnique({
@@ -169,6 +171,9 @@ const app = new Hono()
           });
         }
 
+        const updatedAllTimeHighPrice =Math.max(previousData.allTimeHighPrice, price)
+        
+
         const result = await prisma.stage.update({
           where: { id },
           data: {
@@ -176,6 +181,8 @@ const app = new Hono()
             duration,
             places,
             price,
+            allTimeHighPrice: updatedAllTimeHighPrice,
+            acomptePrice,
             type,
             moniteurs: {
               deleteMany: {},

@@ -17,6 +17,9 @@ export const CreateStageSchema = z.object({
   price: z.number().min(0, {
     message: "Le prix doit être supérieur ou égal à 0.",
   }),
+  acomptePrice: z.number().min(0, {
+    message: "Le montant de l'acompte doit être supérieur ou égal à 0.",
+  }),
   type: z.nativeEnum(StageType, {
     message: "Le type de stage doit être valide.",
   }),
@@ -40,6 +43,9 @@ export const UpdateStageSchema = z.object({
   }),
   price: z.number().min(0, {
     message: "Le prix doit être supérieur ou égal à 0.",
+  }),
+  acomptePrice: z.number().min(0, {
+    message: "Le montant de l'acompte doit être supérieur ou égal à 0.",
   }),
   type: z.nativeEnum(StageType, {
     message: "Le type de stage doit être valide.",

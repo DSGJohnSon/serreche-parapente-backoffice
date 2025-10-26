@@ -20,6 +20,8 @@ interface StageWithDetails {
   duration: number;
   places: number;
   price: number;
+  acomptePrice: number;
+  allTimeHighPrice: number;
   type: StageType;
   createdAt: Date;
   updatedAt: Date;
@@ -60,6 +62,8 @@ export default function Page() {
     duration: stage.duration,
     places: stage.places,
     price: stage.price,
+    acomptePrice: stage.acomptePrice,
+    allTimeHighPrice: stage.allTimeHighPrice,
     type: stage.type,
     createdAt: new Date(stage.createdAt),
     updatedAt: new Date(stage.updatedAt),
@@ -81,6 +85,8 @@ export default function Page() {
     duration: stage.duration,
     places: stage.places,
     price: stage.price,
+    acomptePrice: stage.acomptePrice,
+    allTimeHighPrice: stage.allTimeHighPrice,
     type: stage.type,
     createdAt: new Date(stage.createdAt),
     updatedAt: new Date(stage.updatedAt),

@@ -23,8 +23,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { StageType } from "@prisma/client";
 import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { get } from "http";
 
 interface StageAddFormProps {
   selectedDate?: Date | null;
@@ -34,6 +34,7 @@ interface StageAddFormProps {
     places: number;
     moniteurIds: string[];
     price: number;
+    acomptePrice: number;
     type: StageType;
   }) => void;
   onCancel?: () => void;
@@ -44,24 +45,8 @@ export function StageAddForm({
   onSubmit,
   onCancel,
 }: StageAddFormProps) {
+  //Récupérer la liste des moniteurs
   const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
-  
-  const [formData, setFormData] = useState({
-    startDate: selectedDate || new Date(),
-    duration: 7,
-    places: 6,
-    moniteurIds: [] as string[],
-    price: 350.0,
-    type: StageType.INITIATION as StageType,
-  });
-  const [showCalendar, setShowCalendar] = useState(false);
-
-  useEffect(() => {
-    if (selectedDate) {
-      setFormData((prev) => ({ ...prev, startDate: selectedDate }));
-    }
-  }, [selectedDate]);
-
   // Durées par défaut selon le type de stage
   const getDefaultDuration = (type: StageType): number => {
     switch (type) {
@@ -74,19 +59,55 @@ export function StageAddForm({
         return 7; // 1 semaine
     }
   };
-
   // Prix par défaut selon le type de stage
   const getDefaultPrice = (type: StageType): number => {
     switch (type) {
       case StageType.AUTONOMIE:
-        return 500.0; // Prix plus élevé pour 2 semaines
+        return 1200.0; // Prix plus élevé pour 2 semaines
       case StageType.INITIATION:
       case StageType.PROGRESSION:
       case StageType.DOUBLE:
       default:
-        return 350.0; // Prix standard pour 1 semaine
+        return 700.0; // Prix standard pour 1 semaine
     }
   };
+  
+  // État du formulaire
+  const [formData, setFormData] = useState({
+    startDate: selectedDate || new Date(),
+    duration: getDefaultDuration(StageType.INITIATION),
+    places: 6,
+    moniteurIds: [] as string[],
+    type: StageType.INITIATION as StageType,
+    price: getDefaultPrice(StageType.INITIATION),
+    acomptePrice: getDefaultPrice(StageType.INITIATION) * 0.4,
+  });
+  const [showCalendar, setShowCalendar] = useState(false);
+
+
+  // Initialiser la durée et le prix selon le type de stage
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      duration: getDefaultDuration(prev.type),
+      price: getDefaultPrice(prev.type),
+    }));
+  }, []);
+
+  //Modifier le montant de l'acompte d'office quand le prix change (le passer à 2/5 du prix)
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      acomptePrice: parseFloat((prev.price * 0.4).toFixed(2)),
+    }));
+  }, [formData.price]);
+
+  // Mettre à jour la date de début si une date sélectionnée est fournie
+  useEffect(() => {
+    if (selectedDate) {
+      setFormData((prev) => ({ ...prev, startDate: selectedDate }));
+    }
+  }, [selectedDate]);
 
   // Mettre à jour la durée et le prix quand le type change
   const handleTypeChange = (type: StageType) => {
@@ -106,23 +127,16 @@ export function StageAddForm({
       return;
     }
 
+    console.log("Submitting form with data:", formData);
+
     onSubmit({
       startDate: formData.startDate,
       duration: formData.duration,
       places: formData.places,
       moniteurIds: formData.moniteurIds,
       price: formData.price,
+      acomptePrice: formData.acomptePrice,
       type: formData.type,
-    });
-
-    // Reset form
-    setFormData({
-      startDate: new Date(),
-      duration: 7,
-      places: 6,
-      moniteurIds: [],
-      price: 350.0,
-      type: StageType.INITIATION,
     });
   };
 
@@ -224,6 +238,23 @@ export function StageAddForm({
             setFormData((prev) => ({
               ...prev,
               price: Number.parseFloat(e.target.value) || 0,
+            }))
+          }
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="acomptePrice">Prix de l'acompte (€)</Label>
+        <Input
+          id="acomptePrice"
+          type="number"
+          min="0"
+          step="0.01"
+          value={formData.acomptePrice}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              acomptePrice: Number.parseFloat(e.target.value) || 0,
             }))
           }
           required

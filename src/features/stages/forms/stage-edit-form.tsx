@@ -4,7 +4,6 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -44,6 +43,7 @@ interface StageData {
   duration: number;
   places: number;
   price: number;
+  acomptePrice: number;
   type: StageType;
   moniteurs?: Array<{
     moniteur: {
@@ -79,6 +79,7 @@ export function StageEditForm({
       duration: stage.duration,
       places: stage.places,
       price: stage.price,
+      acomptePrice: stage.acomptePrice,
       type: stage.type,
       moniteurIds: stage.moniteurs?.map(m => m.moniteur.id) || [],
     },
@@ -92,6 +93,7 @@ export function StageEditForm({
         duration: stage.duration,
         places: stage.places,
         price: stage.price,
+        acomptePrice: stage.acomptePrice,
         type: stage.type,
         moniteurIds: stage.moniteurs?.map(m => m.moniteur.id) || [],
       });
@@ -231,6 +233,27 @@ export function StageEditForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Prix (€)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  {...field}
+                  onChange={(e) => field.onChange(Number(e.target.value))}
+                  disabled={updateStage.isPending}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="acomptePrice"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Prix de l'acompte (€)</FormLabel>
               <FormControl>
                 <Input
                   type="number"
