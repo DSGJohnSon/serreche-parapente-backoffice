@@ -61,6 +61,7 @@ export function CalendarScheduleStages({
 }: StageCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("month");
+  const [hoveredStageId, setHoveredStageId] = useState<string | null>(null);
 
   const goToToday = () => {
     setCurrentDate(new Date());
@@ -98,45 +99,24 @@ export function CalendarScheduleStages({
 
   const { start, end } = getDateRange();
 
-  const getStagesForDay = (date: Date) => {
-    return stages.filter((stage) => {
-      const stageStart = new Date(stage.startDate);
-      const stageEnd = addDays(stageStart, stage.duration - 1);
-      return date >= stageStart && date <= stageEnd;
-    });
-  };
-
   const getStagesStartingOnDay = (date: Date) => {
     return stages.filter((stage) =>
       isSameDay(new Date(stage.startDate), date)
     );
   };
 
-  // Fonction pour calculer la position et la largeur d'un stage qui s'étale sur plusieurs jours
-  const getStageSpanInfo = (stage: any, currentDate: Date, viewDays: Date[]) => {
-    const stageStart = new Date(stage.startDate);
-    const stageEnd = addDays(stageStart, stage.duration - 1);
-    
-    // Trouver l'index du jour actuel dans la vue
-    const currentDayIndex = viewDays.findIndex(day => isSameDay(day, currentDate));
-    if (currentDayIndex === -1) return null;
-    
-    // Calculer combien de jours le stage s'étend dans cette vue
-    const visibleStart = Math.max(0, viewDays.findIndex(day => isSameDay(day, stageStart)));
-    const visibleEnd = Math.min(viewDays.length - 1, viewDays.findIndex(day => isSameDay(day, stageEnd)));
-    
-    if (visibleEnd === -1) return null;
-    
-    const spanDays = visibleEnd - visibleStart + 1;
-    const isFirstDay = isSameDay(currentDate, stageStart) || (visibleStart === currentDayIndex);
-    
-    return {
-      spanDays,
-      isFirstDay,
-      dayIndex: currentDayIndex,
-      visibleStart,
-      visibleEnd
-    };
+  // Get stages that continue from previous week
+  const getStagesContinuingOnDay = (date: Date, weekStartDate: Date) => {
+    return stages.filter((stage) => {
+      const stageStart = new Date(stage.startDate);
+      // duration is in days, so a 7-day stage goes from day 0 to day 6
+      const stageEnd = addDays(stageStart, stage.duration - 1);
+      
+      // Stage started before this week and continues into/through this week
+      return stageStart < weekStartDate &&
+             stageEnd >= date &&
+             isSameDay(date, weekStartDate); // Only show on first day of week
+    });
   };
 
   const getTypeColor = (type: string) => {
@@ -151,6 +131,21 @@ export function CalendarScheduleStages({
         return "bg-orange-100 text-orange-800 border-orange-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const getTypeRingColor = (type: string) => {
+    switch (type) {
+      case "INITIATION":
+        return "ring-blue-500";
+      case "PROGRESSION":
+        return "ring-green-500";
+      case "AUTONOMIE":
+        return "ring-purple-500";
+      case "DOUBLE":
+        return "ring-orange-500";
+      default:
+        return "ring-gray-500";
     }
   };
 
@@ -179,7 +174,7 @@ export function CalendarScheduleStages({
           {weekDays.map((day) => (
             <div
               key={day.toISOString()}
-              className={`p-4 text-center border-r cursor-pointer hover:bg-muted/50 ${
+              className={`p-4 text-center border-r last:border-r-0 cursor-pointer hover:bg-muted/50 ${
                 isToday(day) ? "bg-primary/10 font-semibold" : ""
               }`}
               onClick={() => onDayClick(day)}
@@ -195,71 +190,78 @@ export function CalendarScheduleStages({
         </div>
 
         {/* Week content */}
-        <div className="flex-1 relative">
-          <div className="grid grid-cols-7 h-full">
-            {weekDays.map((day) => (
-              <TooltipProvider key={day.toISOString()}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div
-                      className="border-r border-b p-2 cursor-pointer hover:bg-muted/30 min-h-[400px] relative"
-                      onClick={() => onDayClick(day)}
-                    >
-                      {/* Placeholder pour maintenir la structure */}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Ajouter un stage le {format(day, "EEEE d MMMM", { locale: fr })}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ))}
-          </div>
-          
-          {/* Stages qui s'étalent sur plusieurs jours */}
-          <div className="absolute inset-0 pointer-events-none p-2">
-            {stages.map((stage, stageIndex) => {
-              const spanInfo = getStageSpanInfo(stage, new Date(stage.startDate), weekDays);
-              if (!spanInfo || !spanInfo.isFirstDay) return null;
-              
-              const { spanDays, visibleStart } = spanInfo;
-              const leftPercentage = (visibleStart / 7) * 100;
-              const widthPercentage = (spanDays / 7) * 100;
-              
-              return (
-                <div
-                  key={stage.id}
-                  className={`absolute pointer-events-auto cursor-pointer hover:opacity-80 border rounded-md p-4 ${getTypeColor(stage.type)} border-2`}
-                  style={{
-                    left: `${leftPercentage}%`,
-                    width: `${widthPercentage}%`,
-                    height: "100%",
-                    top: `${8 + stageIndex * 60}px`,
-                    zIndex: 10
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStageClick(stage);
-                  }}
-                >
-                  <div className="font-medium text-xs">
-                    {getTypeLabel(stage.type)}
-                  </div>
-                  <div className="text-xs opacity-80">
-                    {stage.moniteurs?.length > 0
-                      ? stage.moniteurs.length === 1
-                        ? stage.moniteurs[0].moniteur.name
-                        : `${stage.moniteurs[0].moniteur.name} +${stage.moniteurs.length - 1}`
-                      : 'Aucun moniteur'
+        <div className="flex-1 grid grid-cols-7">
+          {weekDays.map((day, dayIndex) => {
+            const dayStages = getStagesStartingOnDay(day);
+            const continuingStages = dayIndex === 0 ? getStagesContinuingOnDay(day, weekDays[0]) : [];
+            const allStages = [...continuingStages, ...dayStages];
+            
+            return (
+              <div
+                key={day.toISOString()}
+                className="border-r last:border-r-0 border-b p-2 cursor-pointer hover:bg-muted/30 min-h-[400px] relative overflow-visible"
+                onClick={() => onDayClick(day)}
+              >
+                {/* Stages starting on this day or continuing from previous week */}
+                <div className="space-y-1">
+                  {allStages.map((stage, stageIndex) => {
+                    const stageStart = new Date(stage.startDate);
+                    const stageEnd = addDays(stageStart, stage.duration - 1);
+                    const isContinuing = stageStart < weekDays[0];
+                    
+                    // Calculate how many days this stage spans in this week
+                    let spanDays;
+                    if (isContinuing) {
+                      // Stage continues from previous week
+                      // stageEnd is already calculated as startDate + duration - 1
+                      // So we need to count from today to stageEnd inclusive
+                      const daysFromTodayToEnd = Math.floor((stageEnd.getTime() - day.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                      spanDays = Math.min(daysFromTodayToEnd, 7);
+                    } else {
+                      // Stage starts this week
+                      const remainingDaysInWeek = 7 - dayIndex;
+                      spanDays = Math.min(stage.duration, remainingDaysInWeek);
                     }
-                  </div>
-                  <div className="text-xs opacity-80">
-                    {stage.placesRestantes || 0}/{stage.places} • {stage.duration}j
-                  </div>
+                    
+                    return (
+                      <div
+                        key={stage.id}
+                        className={`relative pointer-events-auto cursor-pointer border rounded-md p-2 text-xs ${getTypeColor(stage.type)} transition-all ${
+                          hoveredStageId === stage.id ? `ring-2 ${getTypeRingColor(stage.type)} shadow-lg` : 'border-2'
+                        }`}
+                        style={{
+                          width: `calc(${spanDays * 100}% + ${(spanDays - 1) * 0.5}px)`,
+                          zIndex: hoveredStageId === stage.id ? 50 : 10 + stageIndex
+                        }}
+                        onMouseEnter={() => setHoveredStageId(stage.id)}
+                        onMouseLeave={() => setHoveredStageId(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onStageClick(stage);
+                        }}
+                      >
+                        <div className="font-semibold truncate">
+                          {isContinuing && "↪ "}
+                          {getTypeLabel(stage.type)}
+                        </div>
+                        <div className="opacity-80 truncate">
+                          {stage.moniteurs?.length > 0
+                            ? stage.moniteurs.length === 1
+                              ? stage.moniteurs[0].moniteur.name
+                              : `${stage.moniteurs[0].moniteur.name} +${stage.moniteurs.length - 1}`
+                            : 'Aucun moniteur'
+                          }
+                        </div>
+                        <div className="opacity-80">
+                          <span className="font-bold">{stage.placesRestantes || 0} places restantes</span> • {stage.bookings?.length || 0} réservations • {stage.duration}j
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -277,6 +279,12 @@ export function CalendarScheduleStages({
     });
 
     const weekDays = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+    
+    // Group calendar days by week
+    const weeks: Date[][] = [];
+    for (let i = 0; i < calendarDays.length; i += 7) {
+      weeks.push(calendarDays.slice(i, i + 7));
+    }
 
     return (
       <div className="flex flex-col h-full">
@@ -292,91 +300,89 @@ export function CalendarScheduleStages({
           ))}
         </div>
 
-        {/* Month grid */}
-        <div className="flex-1 relative">
-          <div className="grid grid-cols-7 grid-rows-6 h-full">
-            {calendarDays.map((day) => {
-              const isCurrentMonth = isSameMonth(day, currentDate);
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={`border-r border-b last:border-r-0 p-2 cursor-pointer hover:bg-muted/50 min-h-[120px] ${
-                    !isCurrentMonth ? "text-muted-foreground bg-muted/20" : ""
-                  } ${isToday(day) ? "bg-primary/10" : ""}`}
-                  onClick={() => onDayClick(day)}
-                >
-                  <div
-                    className={`text-sm mb-1 ${
-                      isToday(day) ? "font-bold text-primary" : ""
-                    }`}
-                  >
-                    {format(day, "d")}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          {/* Stages qui s'étalent sur plusieurs jours en vue mois */}
-          <div className="absolute inset-0 pointer-events-none">
-            {stages.map((stage, stageIndex) => {
-              const stageStart = new Date(stage.startDate);
-              const stageEnd = addDays(stageStart, stage.duration - 1);
-              
-              // Calculer les semaines où le stage apparaît
-              const stageWeeks: { week: number; startDay: number; endDay: number }[] = [];
-              let currentWeekStart = startOfWeek(stageStart, { weekStartsOn: 1 });
-              
-              while (currentWeekStart <= stageEnd) {
-                const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-                const weekStartDay = Math.max(0, Math.floor((Math.max(stageStart.getTime(), currentWeekStart.getTime()) - currentWeekStart.getTime()) / (1000 * 60 * 60 * 24)));
-                const weekEndDay = Math.min(6, Math.floor((Math.min(stageEnd.getTime(), weekEnd.getTime()) - currentWeekStart.getTime()) / (1000 * 60 * 60 * 24)));
-                
-                // Trouver l'index de la semaine dans le calendrier
-                const weekIndex = calendarDays.findIndex(day => isSameDay(day, currentWeekStart));
-                if (weekIndex !== -1) {
-                  const weekNumber = Math.floor(weekIndex / 7);
-                  stageWeeks.push({
-                    week: weekNumber,
-                    startDay: weekStartDay,
-                    endDay: weekEndDay
-                  });
-                }
-                
-                currentWeekStart = addWeeks(currentWeekStart, 1);
-              }
-              
-              return stageWeeks.map((weekInfo, weekIndex) => {
-                const spanDays = weekInfo.endDay - weekInfo.startDay + 1;
-                const leftPercentage = (weekInfo.startDay / 7) * 100;
-                const widthPercentage = (spanDays / 7) * 100;
-                const topPercentage = (weekInfo.week / 6) * 100;
+        {/* Month grid - week by week */}
+        <div className="flex-1 flex flex-col">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="flex-1 grid grid-cols-7">
+              {week.map((day, dayIndex) => {
+                const isCurrentMonth = isSameMonth(day, currentDate);
+                const dayStages = getStagesStartingOnDay(day);
+                const continuingStages = dayIndex === 0 ? getStagesContinuingOnDay(day, week[0]) : [];
+                const allStages = [...continuingStages, ...dayStages];
                 
                 return (
                   <div
-                    key={`${stage.id}-week-${weekInfo.week}`}
-                    className={`absolute pointer-events-auto cursor-pointer hover:opacity-80 border rounded-sm p-1 ${getTypeColor(stage.type)} border-2`}
-                    style={{
-                      left: `${leftPercentage}%`,
-                      width: `${widthPercentage}%`,
-                      top: `calc(${topPercentage}% + ${35 + stageIndex * 25}px)`,
-                      height: '22px',
-                      zIndex: 10
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onStageClick(stage);
-                    }}
+                    key={day.toISOString()}
+                    className={`border-r last:border-r-0 border-b p-2 cursor-pointer hover:bg-muted/50 min-h-[100px] relative overflow-visible ${
+                      !isCurrentMonth ? "text-muted-foreground bg-muted/20" : ""
+                    } ${isToday(day) ? "bg-primary/10" : ""}`}
+                    onClick={() => onDayClick(day)}
                   >
-                    <div className="font-medium text-xs truncate">
-                      {weekIndex === 0 && getTypeLabel(stage.type)}
-                      {weekIndex === 0 && weekInfo.startDay === Math.floor((stageStart.getTime() - startOfWeek(stageStart, { weekStartsOn: 1 }).getTime()) / (1000 * 60 * 60 * 24)) && " 🚀"}
+                    <div
+                      className={`text-sm mb-1 font-medium ${
+                        isToday(day) ? "font-bold text-primary" : ""
+                      }`}
+                    >
+                      {format(day, "d")}
+                    </div>
+                    
+                    {/* Stages starting on this day or continuing from previous week */}
+                    <div className="space-y-1 mt-1">
+                      {allStages.map((stage, stageIndex) => {
+                        const stageStart = new Date(stage.startDate);
+                        const stageEnd = addDays(stageStart, stage.duration - 1);
+                        const isContinuing = stageStart < week[0];
+                        
+                        // Calculate how many days this stage spans in this week
+                        let spanDays;
+                        if (isContinuing) {
+                          // Stage continues from previous week
+                          // stageEnd is already calculated as startDate + duration - 1
+                          // So we need to count from today to stageEnd inclusive
+                          const daysFromTodayToEnd = Math.floor((stageEnd.getTime() - day.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          spanDays = Math.min(daysFromTodayToEnd, 7);
+                        } else {
+                          // Stage starts this week
+                          const remainingDaysInWeek = 7 - dayIndex;
+                          spanDays = Math.min(stage.duration, remainingDaysInWeek);
+                        }
+                        
+                        return (
+                          <div
+                            key={`${stage.id}-${weekIndex}`}
+                            className={`relative pointer-events-auto cursor-pointer border rounded-sm px-1 py-0.5 text-xs ${getTypeColor(stage.type)} transition-all ${
+                              hoveredStageId === stage.id ? `ring-2 ${getTypeRingColor(stage.type)} shadow-lg` : 'border'
+                            }`}
+                            style={{
+                              width: `calc(${spanDays * 100}% + ${(spanDays - 1) * 0.5}px)`,
+                              zIndex: hoveredStageId === stage.id ? 50 : 10 + stageIndex
+                            }}
+                            onMouseEnter={() => setHoveredStageId(stage.id)}
+                            onMouseLeave={() => setHoveredStageId(null)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onStageClick(stage);
+                            }}
+                          >
+                            <div className="font-semibold truncate leading-tight">
+                              {isContinuing && "↪ "}
+                              {stage.type === "INITIATION" && "Initiation"}
+                              {stage.type === "PROGRESSION" && "Progression"}
+                              {stage.type === "AUTONOMIE" && "Autonomie"}
+                              {stage.type === "DOUBLE" && "Double"}
+                            </div>
+                            <div className="text-[10px] opacity-80 truncate leading-tight">
+                              <span className={`font-bold ${(stage.placesRestantes || 0) <= 2 ? 'text-red-600' : ''}`}>{stage.placesRestantes || 0} places restantes</span> • {stage.bookings?.length || 0} réservations • {stage.duration}j
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
-              });
-            })}
-          </div>
+              })}
+            </div>
+          ))}
         </div>
       </div>
     );

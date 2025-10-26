@@ -101,6 +101,7 @@ export function StageDetailsSheet({
         onSuccess: () => {
           setIsEditing(false);
           setEditedStage(null);
+          onOpenChange(false);
         },
       }
     );

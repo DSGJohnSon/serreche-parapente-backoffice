@@ -3,6 +3,8 @@ import { handle } from "hono/vercel";
 import auth from "@/features/auth/server/route";
 import users from "@/features/users/server/route";
 import customers from "@/features/customers/server/route";
+import clients from "@/features/clients/server/route";
+import stagiaires from "@/features/stagiaires/server/route";
 import stages from "@/features/stages/server/route";
 import reservationStages from "@/features/reservations/stages/server/route";
 import reservations from "@/features/reservations/server/route";
@@ -38,7 +40,9 @@ const routes = app
   // })
   .route("/auth", auth)
   .route("/users", users)
-  .route("/customers", customers)
+  .route("/customers", customers) // Kept for backward compatibility
+  .route("/clients", clients)
+  .route("/stagiaires", stagiaires)
   .route("/stages", stages)
   .route("/reservationStages", reservationStages)
   .route("/reservations", reservations)

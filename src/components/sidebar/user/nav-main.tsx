@@ -12,6 +12,7 @@ import {
   LucideTicket,
   LucideUsers2,
   LucideUsersRound,
+  LucideUserCheck,
 } from "lucide-react";
 
 import {
@@ -111,17 +112,34 @@ export function NavMain() {
           <SidebarMenuItem
             className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-              slugToKnowIfActive[0] === "customers"
+              slugToKnowIfActive[0] === "clients"
                 ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
                 : ""
             )}
           >
             <Link
-              href={`/${pathname.split("/").slice(1, 2).join("/")}/customers`}
+              href={`/${pathname.split("/").slice(1, 2).join("/")}/clients`}
             >
-              <SidebarMenuButton tooltip={"Clients"}>
+              <SidebarMenuButton tooltip={"Clients (Payeurs)"}>
                 <LucideUsers2 className="size-4" />
                 <span>Clients</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem
+            className={cn(
+              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+              slugToKnowIfActive[0] === "stagiaires"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
+            )}
+          >
+            <Link
+              href={`/${pathname.split("/").slice(1, 2).join("/")}/stagiaires`}
+            >
+              <SidebarMenuButton tooltip={"Stagiaires (Participants)"}>
+                <LucideUserCheck className="size-4" />
+                <span>Stagiaires</span>
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>

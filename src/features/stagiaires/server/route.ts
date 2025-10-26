@@ -1,0 +1,139 @@
+import { Hono } from "hono";
+import { adminSessionMiddleware, publicAPIMiddleware } from "@/lib/session-middleware";
+import prisma from "@/lib/prisma";
+import { zValidator } from "@hono/zod-validator";
+import { AddStagiaireSchema } from "../schemas";
+
+const app = new Hono()
+  //*------------------*//
+  //ALL GET REQUESTS API
+  //*------------------*//
+  //Get all stagiaires of the database
+  .get(
+    "getAll",
+    adminSessionMiddleware,
+    async (c) => {
+      try {
+        const result = await prisma.stagiaire.findMany({
+          include: {
+            stageBookings: {
+              include: {
+                stage: true,
+              },
+            },
+            baptemeBookings: {
+              include: {
+                bapteme: true,
+              },
+            },
+          },
+        });
+        return c.json({ success: true, message: "", data: result });
+      } catch (error) {
+        return c.json({
+          success: false,
+          message: "Error fetching stagiaires",
+          data: null,
+        });
+      }
+    }
+  )
+  .get(
+    "getById/:id",
+    adminSessionMiddleware,
+    async (c) => {
+      try {
+        const id = c.req.param("id");
+        if (!id) {
+          return c.json({
+            success: false,
+            message: "ID is required",
+            data: null,
+          });
+        }
+        const result = await prisma.stagiaire.findUnique({
+          where: { id },
+          include: {
+            stageBookings: {
+              include: {
+                stage: true,
+              },
+            },
+            baptemeBookings: {
+              include: {
+                bapteme: true,
+              },
+            },
+          },
+        });
+        return c.json({ success: true, message: "", data: result });
+      } catch (error) {
+        return c.json({
+          success: false,
+          message: "Error fetching stagiaire",
+          data: null,
+        });
+      }
+    }
+  )
+  //
+  //Create new stagiaire
+  .post(
+    "/create",
+    publicAPIMiddleware,
+    zValidator("json", AddStagiaireSchema),
+    async (c) => {
+      const {
+        email,
+        firstName,
+        height,
+        lastName,
+        phone,
+        weight,
+        birthDate,
+      } = c.req.valid("json");
+
+      if (
+        !firstName ||
+        !lastName ||
+        !email ||
+        !phone ||
+        !height ||
+        !weight
+      ) {
+        return c.json({
+          success: false,
+          message: "Il manque des champs",
+          data: null,
+        });
+      }
+
+      try {
+        const result = await prisma.stagiaire.create({
+          data: {
+            firstName,
+            lastName,
+            email,
+            phone,
+            height: Number(height),
+            weight: Number(weight),
+            birthDate: birthDate ? new Date(birthDate) : undefined,
+          },
+        });
+
+        return c.json({
+          success: true,
+          message: `Stagiaire ${result.firstName} ${result.lastName} enregistré avec succès`,
+          data: result,
+        });
+      } catch (error) {
+        return c.json({
+          success: false,
+          message: "Error creating stagiaire",
+          data: null,
+        });
+      }
+    }
+  );
+
+export default app;
