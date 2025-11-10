@@ -26,6 +26,7 @@ import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BaptemeCategory } from "@/features/biplaces/schemas";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { useGetTarifs } from "@/features/tarifs/api/use-get-tarifs";
 
 interface BaptemeData {
   date: Date;
@@ -51,14 +52,6 @@ const CATEGORY_LABELS: Record<BaptemeCategory, string> = {
   [BaptemeCategory.HIVER]: "Hiver"
 };
 
-// Prix pour chaque catégorie
-const CATEGORY_PRICES: Record<BaptemeCategory, number> = {
-  [BaptemeCategory.AVENTURE]: 110,
-  [BaptemeCategory.DUREE]: 150,
-  [BaptemeCategory.LONGUE_DUREE]: 185,
-  [BaptemeCategory.ENFANT]: 90,
-  [BaptemeCategory.HIVER]: 130
-};
 
 export function BaptemeAddForm({
   selectedDate,
@@ -67,6 +60,7 @@ export function BaptemeAddForm({
   onCancel,
 }: BaptemeAddFormProps) {
   const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
+  const { data: tarifs, isLoading: isLoadingTarifs } = useGetTarifs();
   
   const [formData, setFormData] = useState({
     date: selectedDate || new Date(),
@@ -267,34 +261,45 @@ export function BaptemeAddForm({
 
       <div className="space-y-3">
         <Label>Catégories de baptêmes disponibles</Label>
-        <div className="grid grid-cols-2 gap-3">
-          {Object.values(BaptemeCategory).map((category) => (
-            <div
-              key={category}
-              className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-              onClick={() => handleCategoryChange(category, !formData.categories.includes(category))}
-            >
-              <input
-                type="checkbox"
-                id={category}
-                checked={formData.categories.includes(category)}
-                onChange={() => {}} // Handled by div onClick
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded pointer-events-none"
-              />
-              <div className="flex-1">
-                <Label
-                  htmlFor={category}
-                  className="text-sm font-medium cursor-pointer"
+        {isLoadingTarifs ? (
+          <div className="text-sm text-muted-foreground">
+            Chargement des tarifs...
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {Object.values(BaptemeCategory).map((category) => {
+              const tarif = tarifs?.find((t) => t.category === category);
+              const price = tarif?.price || 0;
+              
+              return (
+                <div
+                  key={category}
+                  className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => handleCategoryChange(category, !formData.categories.includes(category))}
                 >
-                  {CATEGORY_LABELS[category]}
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Prix: {CATEGORY_PRICES[category]}€
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+                  <input
+                    type="checkbox"
+                    id={category}
+                    checked={formData.categories.includes(category)}
+                    onChange={() => {}} // Handled by div onClick
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded pointer-events-none"
+                  />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor={category}
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      {CATEGORY_LABELS[category]}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Prix: {price}€
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {formData.categories.length === 0 && (
           <p className="text-xs text-red-500">
             Veuillez sélectionner au moins une catégorie

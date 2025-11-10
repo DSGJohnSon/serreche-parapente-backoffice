@@ -14,9 +14,9 @@ const app = new Hono()
     adminSessionMiddleware,
     async (c) => {
       try {
-        const result = await prisma.customer.findMany({
+        const result = await prisma.stagiaire.findMany({
           include: {
-            stages: {
+            stageBookings: {
               include: {
                 stage: true,
               },
@@ -46,34 +46,17 @@ const app = new Hono()
             data: null,
           });
         }
-        const result = await prisma.customer.findUnique({
+        const result = await prisma.stagiaire.findUnique({
           where: { id },
           include: {
-            stages: {
+            stageBookings: {
               include: {
                 stage: true,
               },
             },
-            giftCards: {
+            baptemeBookings: {
               include: {
-                usedByCustomer: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                  },
-                },
-              },
-            },
-            giftCardsUsed: {
-              include: {
-                customer: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                  },
-                },
+                bapteme: true,
               },
             },
           },
@@ -128,16 +111,12 @@ const app = new Hono()
       }
 
       try {
-        const result = await prisma.customer.create({
+        const result = await prisma.stagiaire.create({
           data: {
             firstName: firstname,
             lastName: lastname,
             email,
             phone,
-            adress,
-            postalCode,
-            city,
-            country,
             height: Number(height),
             weight: Number(weight),
           },

@@ -10,16 +10,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { VisibleColumns } from "@/app/(post-auth)/dashboard/customers/customers";
-import { Customer, StageBooking } from "@prisma/client";
-
 interface CustomerFiltersProps {
   searchTerm: string;
   setSearchTerm: (term: string) => void;
   visibleColumns: VisibleColumns;
   toggleColumn: (column: keyof VisibleColumns) => void;
-  customers: (Customer & {
-    bookings: StageBooking[];
-  })[];
+  customers: any[];
 }
 
 export function CustomerFilters({

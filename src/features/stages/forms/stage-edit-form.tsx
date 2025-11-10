@@ -253,7 +253,7 @@ export function StageEditForm({
           name="acomptePrice"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Prix de l'acompte (€)</FormLabel>
+              <FormLabel>Prix de l&apos;acompte (€)</FormLabel>
               <FormControl>
                 <Input
                   type="number"

@@ -45,7 +45,7 @@ const app = new Hono()
             },
           },
           include: {
-            customer: true,
+            stagiaire: true,
             stage: {
               include: {
                 moniteurs: {
@@ -86,7 +86,7 @@ const app = new Hono()
             },
           },
           include: {
-            customer: true,
+            stagiaire: true,
             bapteme: {
               include: {
                 moniteurs: {
@@ -175,7 +175,7 @@ const app = new Hono()
             },
           },
           include: {
-            customer: true,
+            stagiaire: true,
             stage: {
               include: {
                 moniteurs: {
@@ -211,7 +211,7 @@ const app = new Hono()
             },
           },
           include: {
-            customer: true,
+            stagiaire: true,
             bapteme: {
               include: {
                 moniteurs: {

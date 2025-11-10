@@ -22,7 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Stage, User, StageBooking, Customer } from "@prisma/client";
+import { Stage, User, StageBooking } from "@prisma/client";
 import { useState } from "react";
 import { Plus, Minus, Edit2, Trash2, Save, X } from "lucide-react";
 import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
@@ -35,7 +35,7 @@ interface StageWithDetails extends Stage {
   moniteurs: Array<{
     moniteur: User;
   }>;
-  bookings: (StageBooking & { customer: Customer })[];
+  bookings: any[];
   acomptePrice: number;
 }
 
@@ -286,7 +286,7 @@ export function StageDetailsSheet({
                 {/* Prix de l'acompte - Editable */}
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-muted-foreground">
-                    Prix de l'acompte (20% du prix total):
+                    Prix de l&apos;acompte (20% du prix total):
                   </span>
                   {isEditing && editedStage ? (
                     <div className="flex items-center gap-2">

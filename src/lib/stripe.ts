@@ -13,7 +13,6 @@ export const createPaymentIntent = async (order: {
   id: string;
   orderNumber: string;
   totalAmount: number;
-  customerEmail: string;
 }) => {
   if (!stripe) {
     // Mode test sans Stripe
@@ -33,7 +32,6 @@ export const createPaymentIntent = async (order: {
     metadata: {
       orderId: order.id,
       orderNumber: order.orderNumber,
-      customerEmail: order.customerEmail,
     },
   });
 };

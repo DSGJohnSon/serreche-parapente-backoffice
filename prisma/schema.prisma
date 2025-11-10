@@ -69,29 +69,29 @@ model BaptemeCategoryPrice {
   id       String          @id @default(cuid())
   category BaptemeCategory @unique
   price    Float
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 //Créneau de stage de parapente (similaire aux baptêmes)
 model Stage {
-  id         String    @id @default(cuid())
-  startDate  DateTime  // Plus de contrainte unique pour permettre plusieurs stages par jour
-  duration   Int       @default(7) // Durée en jours
-  places     Int       @default(6)
-  price      Float     @default(350.0) // Prix en euros
-  allTimeHighPrice Float    // Prix "All Time High"
-  acomptePrice Float    @default(100.0) // Montant de l'acompte
-  type       StageType @default(INITIATION)
+  id               String    @id @default(cuid())
+  startDate        DateTime // Plus de contrainte unique pour permettre plusieurs stages par jour
+  duration         Int       @default(7) // Durée en jours
+  places           Int       @default(6)
+  price            Float     @default(350.0) // Prix en euros
+  allTimeHighPrice Float // Prix "All Time High"
+  acomptePrice     Float     @default(100.0) // Montant de l'acompte
+  type             StageType @default(INITIATION)
 
   // Relation many-to-many avec les moniteurs
-  moniteurs  StageMoniteur[]
-  bookings   StageBooking[]
+  moniteurs StageMoniteur[]
+  bookings  StageBooking[]
 
   // Nouvelles relations pour le système de panier
-  cartItems  CartItem[]
-  orderItems OrderItem[]
+  cartItems             CartItem[]
+  orderItems            OrderItem[]
   temporaryReservations TemporaryReservation[]
 
   createdAt DateTime @default(now())
@@ -105,9 +105,9 @@ model StageMoniteur {
   moniteurId String
   stage      Stage  @relation(fields: [stageId], references: [id], onDelete: Cascade)
   moniteur   User   @relation("StageMoniteurs", fields: [moniteurId], references: [id])
-  
+
   createdAt DateTime @default(now())
-  
+
   @@unique([stageId, moniteurId])
 }
 
@@ -118,18 +118,18 @@ model Bapteme {
   duration   Int               @default(120) // Durée en minutes
   places     Int               @default(6)
   categories BaptemeCategory[] // Catégories disponibles sur ce créneau
-  
+
   // Relation many-to-many avec les moniteurs
-  moniteurs  BaptemeMoniteur[]
-  bookings   BaptemeBooking[]
-  
+  moniteurs BaptemeMoniteur[]
+  bookings  BaptemeBooking[]
+
   // Nouvelles relations pour le système de panier
-  cartItems  CartItem[]
-  orderItems OrderItem[]
+  cartItems             CartItem[]
+  orderItems            OrderItem[]
   temporaryReservations TemporaryReservation[]
-  
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 //Table de liaison pour les moniteurs de baptêmes
@@ -139,27 +139,28 @@ model BaptemeMoniteur {
   moniteurId String
   bapteme    Bapteme @relation(fields: [baptemeId], references: [id], onDelete: Cascade)
   moniteur   User    @relation("BaptemeMoniteurs", fields: [moniteurId], references: [id])
-  
+
   createdAt DateTime @default(now())
-  
+
   @@unique([baptemeId, moniteurId])
 }
 
 //Réservation d'une semaine de stage de parapente (Lien entre Stage et Stagiaire)
 model StageBooking {
-  id          String    @id @default(cuid())
+  id          String           @id @default(cuid())
   type        StageBookingType @default(INITIATION)
   stageId     String
-  stage       Stage     @relation(fields: [stageId], references: [id])
+  stage       Stage            @relation(fields: [stageId], references: [id])
   stagiaireId String
-  stagiaire   Stagiaire @relation(fields: [stagiaireId], references: [id])
-  
+  stagiaire   Stagiaire        @relation(fields: [stagiaireId], references: [id])
+
   // Relation avec OrderItem
-  orderItem   OrderItem?
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  orderItem OrderItem?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
+
 //Réservation d'un créneau de bapteme (Lien entre Bapteme et Stagiaire)
 model BaptemeBooking {
   id          String          @id @default(cuid())
@@ -169,70 +170,71 @@ model BaptemeBooking {
   stagiaire   Stagiaire       @relation(fields: [stagiaireId], references: [id])
   category    BaptemeCategory // Catégorie choisie par le stagiaire
   hasVideo    Boolean         @default(false) // Option vidéo sélectionnée
-  
+
   // Relation avec OrderItem
-  orderItem   OrderItem?
-  
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  orderItem OrderItem?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model GiftCard {
-  id         String    @id @default(cuid())
-  code       String    @unique
-  amount     Float     @default(0.0) // Montant en euros
-  isUsed     Boolean   @default(false)
+  id         String   @id @default(cuid())
+  code       String   @unique
+  amount     Float    @default(0.0) // Montant en euros
+  isUsed     Boolean  @default(false)
+  expiryDate DateTime @default(dbgenerated("CURRENT_DATE + INTERVAL '1 year'")) // Expire après 1 an par défaut
   clientId   String?
-  client     Client?   @relation(name: "GiftCardBuyer", fields: [clientId], references: [id])
+  client     Client?  @relation(name: "GiftCardBuyer", fields: [clientId], references: [id])
 
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  usedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  usedAt        DateTime?
   usedByOrderId String? // ID de la commande qui a utilisé la carte-cadeau
-  
+
   // Nouvelles relations pour le système de commandes
-  appliedToOrders Order[]
+  appliedToOrders        Order[]
   generatedFromOrderItem OrderItem[] @relation("GeneratedGiftCard")
 }
 
 // Client (celui qui paie la commande)
 model Client {
-  id         String    @id @default(cuid())
+  id         String @id @default(cuid())
   firstName  String
   lastName   String
-  email      String    @unique
+  email      String @unique
   phone      String
   address    String
   postalCode String
   city       String
   country    String
-  
+
   // Relations
-  orders     Order[]
-  giftCards  GiftCard[] @relation(name: "GiftCardBuyer")
-  
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  orders    Order[]
+  giftCards GiftCard[] @relation(name: "GiftCardBuyer")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Stagiaire (celui qui participe aux stages/baptêmes)
 model Stagiaire {
-  id         String   @id @default(cuid())
-  firstName  String
-  lastName   String
-  email      String
-  phone      String
-  birthDate  DateTime?
-  weight     Float
-  height     Float
-  
+  id        String    @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String
+  birthDate DateTime?
+  weight    Float
+  height    Float
+
   // Relations
   stageBookings   StageBooking[]
   baptemeBookings BaptemeBooking[]
-  
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([email])
 }
 
@@ -258,90 +260,90 @@ model CartSession {
   expiresAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   // Relations
   cartItems CartItem[]
-  
+
   @@index([expiresAt])
   @@index([sessionId])
 }
 
 // Articles dans le panier
 model CartItem {
-  id        String       @id @default(cuid())
-  type      CartItemType
-  quantity  Int          @default(1)
-  
+  id       String       @id @default(cuid())
+  type     CartItemType
+  quantity Int          @default(1)
+
   // Références optionnelles selon le type
-  stageId   String?
-  stage     Stage?       @relation(fields: [stageId], references: [id])
-  
+  stageId String?
+  stage   Stage?  @relation(fields: [stageId], references: [id])
+
   baptemeId String?
-  bapteme   Bapteme?     @relation(fields: [baptemeId], references: [id])
-  
+  bapteme   Bapteme? @relation(fields: [baptemeId], references: [id])
+
   // Pour les bons cadeaux
   giftCardAmount Float?
-  
+
   // Informations du participant (temporaires, avant paiement)
   participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
-  
+
   // Session uniquement (pas de lien client avant paiement)
   cartSessionId String
   cartSession   CartSession @relation(fields: [cartSessionId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([cartSessionId])
 }
 
 // Réservation temporaire pour gérer les stocks
 model TemporaryReservation {
-  id        String   @id @default(cuid())
-  sessionId String   // Session du panier
-  
+  id        String @id @default(cuid())
+  sessionId String // Session du panier
+
   // Référence à l'activité
-  stageId   String?
-  stage     Stage?   @relation(fields: [stageId], references: [id])
-  
+  stageId String?
+  stage   Stage?  @relation(fields: [stageId], references: [id])
+
   baptemeId String?
   bapteme   Bapteme? @relation(fields: [baptemeId], references: [id])
-  
+
   quantity  Int      @default(1)
   expiresAt DateTime // 15 minutes par défaut
-  
+
   createdAt DateTime @default(now())
-  
+
   @@index([expiresAt])
   @@index([sessionId])
 }
 
 // Commande principale
 model Order {
-  id            String      @id @default(cuid())
-  orderNumber   String      @unique // Format: ORD-YYYY-XXXXXX
-  status        OrderStatus @default(PENDING)
-  
+  id          String      @id @default(cuid())
+  orderNumber String      @unique // Format: ORD-YYYY-XXXXXX
+  status      OrderStatus @default(PENDING)
+
   // Montants
-  subtotal      Float
-  discountAmount Float      @default(0.0)
-  totalAmount   Float
-  
+  subtotal       Float
+  discountAmount Float @default(0.0)
+  totalAmount    Float
+
   // Relation avec le client (celui qui paie)
-  clientId      String
-  client        Client      @relation(fields: [clientId], references: [id])
-  
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
   // Bon cadeau utilisé
   appliedGiftCardId String?
   appliedGiftCard   GiftCard? @relation(fields: [appliedGiftCardId], references: [id])
-  
+
   // Relations
-  orderItems    OrderItem[]
-  payments      Payment[]
-  
+  orderItems OrderItem[]
+  payments   Payment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([orderNumber])
   @@index([clientId])
   @@index([status])
@@ -350,59 +352,59 @@ model Order {
 
 // Articles de la commande
 model OrderItem {
-  id       String       @id @default(cuid())
-  orderId  String
-  order    Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  type     CartItemType
-  quantity Int          @default(1)
-  unitPrice Float
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  type       CartItemType
+  quantity   Int          @default(1)
+  unitPrice  Float
   totalPrice Float
-  
+
   // Références selon le type
-  stageId   String?
-  stage     Stage?   @relation(fields: [stageId], references: [id])
-  
+  stageId String?
+  stage   Stage?  @relation(fields: [stageId], references: [id])
+
   baptemeId String?
   bapteme   Bapteme? @relation(fields: [baptemeId], references: [id])
-  
+
   // Pour les bons cadeaux
-  giftCardAmount Float?
+  giftCardAmount      Float?
   generatedGiftCardId String?
   generatedGiftCard   GiftCard? @relation("GeneratedGiftCard", fields: [generatedGiftCardId], references: [id])
-  
+
   // Données du participant (historique JSON)
   participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
-  
+
   // Réservations créées (liées au stagiaire)
-  stageBookingId   String? @unique
-  stageBooking     StageBooking?   @relation(fields: [stageBookingId], references: [id])
-  
-  baptemeBookingId String? @unique
+  stageBookingId String?       @unique
+  stageBooking   StageBooking? @relation(fields: [stageBookingId], references: [id])
+
+  baptemeBookingId String?         @unique
   baptemeBooking   BaptemeBooking? @relation(fields: [baptemeBookingId], references: [id])
-  
+
   createdAt DateTime @default(now())
-  
+
   @@index([orderId])
 }
 
 // Paiements
 model Payment {
-  id              String        @id @default(cuid())
-  orderId         String
-  order           Order         @relation(fields: [orderId], references: [id])
-  
-  stripePaymentIntentId String  @unique
-  status          PaymentStatus @default(PENDING)
-  amount          Float
-  currency        String        @default("eur")
-  
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  stripePaymentIntentId String        @unique
+  status                PaymentStatus @default(PENDING)
+  amount                Float
+  currency              String        @default("eur")
+
   // Métadonnées Stripe
-  stripeMetadata  Json?
-  
+  stripeMetadata Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([orderId])
   @@index([stripePaymentIntentId])
 }

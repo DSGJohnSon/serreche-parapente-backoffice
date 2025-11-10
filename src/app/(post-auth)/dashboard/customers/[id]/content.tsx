@@ -54,7 +54,7 @@ export default function CustomerDetails({ id }: { id: string }) {
     );
   }
 
-  const transformedBookings = customer.stages.map((booking) => {
+  const transformedBookings = customer.stageBookings.map((booking: any) => {
     const startDate = new Date(booking.stage.startDate);
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + booking.stage.duration);
@@ -193,42 +193,13 @@ export default function CustomerDetails({ id }: { id: string }) {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center">
-                <MapPin className="w-5 h-5 mr-2" />
-                Adresse
-              </h3>
-              <Separator />
-              <div className="flex items-start space-x-3">
-                <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Adresse complète
-                  </p>
-                  <div className="font-medium space-y-1">
-                    <p>{customer.adress}</p>
-                    <p>
-                      {customer.postalCode} {customer.city}
-                    </p>
-                    <p>{customer.country}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Address section removed - Stagiaire model doesn't have address fields */}
           </div>
         </CardContent>
       </Card>
       <ReservationsList bookings={transformedBookings} />
       
-      {/* Gift Cards Section */}
-      {customer.giftCards && customer.giftCardsUsed && (
-        <div className="mt-8">
-          <GiftCardsList
-            purchasedGiftCards={customer.giftCards || []}
-            usedGiftCards={customer.giftCardsUsed || []}
-          />
-        </div>
-      )}
+      {/* Gift Cards Section removed - Stagiaire model doesn't have gift card relations */}
     </>
   );
 }

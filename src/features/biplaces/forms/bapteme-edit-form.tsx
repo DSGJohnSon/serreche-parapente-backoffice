@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUpdateBapteme } from "@/features/biplaces/api/use-update-bapteme";
 import { BaptemeCategory } from "@/features/biplaces/schemas";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { useGetTarifs } from "@/features/tarifs/api/use-get-tarifs";
 
 interface BaptemeData {
   id: string;
@@ -47,14 +48,6 @@ const CATEGORY_LABELS: Record<BaptemeCategory, string> = {
   [BaptemeCategory.HIVER]: "Hiver"
 };
 
-// Prix pour chaque catégorie
-const CATEGORY_PRICES: Record<BaptemeCategory, number> = {
-  [BaptemeCategory.AVENTURE]: 110,
-  [BaptemeCategory.DUREE]: 150,
-  [BaptemeCategory.LONGUE_DUREE]: 185,
-  [BaptemeCategory.ENFANT]: 90,
-  [BaptemeCategory.HIVER]: 130
-};
 
 interface BaptemeEditFormProps {
   bapteme: BaptemeData;
@@ -69,6 +62,7 @@ export function BaptemeEditForm({
 }: BaptemeEditFormProps) {
   const { data: moniteurs, isLoading: isLoadingMoniteurs } =
     useGetMoniteursAndAdmins();
+  const { data: tarifs, isLoading: isLoadingTarifs } = useGetTarifs();
   const updateBapteme = useUpdateBapteme();
 
   const [formData, setFormData] = useState({
@@ -279,39 +273,50 @@ export function BaptemeEditForm({
 
       <div className="space-y-3">
         <Label>Catégories de baptêmes disponibles</Label>
-        <div className="grid grid-cols-2 gap-3">
-          {Object.values(BaptemeCategory).map((category) => (
-            <div
-              key={category}
-              className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
-                isLoading
-                  ? 'cursor-not-allowed opacity-50'
-                  : 'cursor-pointer hover:bg-gray-50'
-              }`}
-              onClick={() => !isLoading && handleCategoryChange(category, !formData.categories.includes(category))}
-            >
-              <input
-                type="checkbox"
-                id={`edit-${category}`}
-                checked={formData.categories.includes(category)}
-                onChange={() => {}} // Handled by div onClick
-                disabled={isLoading}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded pointer-events-none"
-              />
-              <div className="flex-1">
-                <Label
-                  htmlFor={`edit-${category}`}
-                  className="text-sm font-medium cursor-pointer"
+        {isLoadingTarifs ? (
+          <div className="text-sm text-muted-foreground">
+            Chargement des tarifs...
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {Object.values(BaptemeCategory).map((category) => {
+              const tarif = tarifs?.find((t) => t.category === category);
+              const price = tarif?.price || 0;
+              
+              return (
+                <div
+                  key={category}
+                  className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
+                    isLoading
+                      ? 'cursor-not-allowed opacity-50'
+                      : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                  onClick={() => !isLoading && handleCategoryChange(category, !formData.categories.includes(category))}
                 >
-                  {CATEGORY_LABELS[category]}
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Prix: {CATEGORY_PRICES[category]}€
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+                  <input
+                    type="checkbox"
+                    id={`edit-${category}`}
+                    checked={formData.categories.includes(category)}
+                    onChange={() => {}} // Handled by div onClick
+                    disabled={isLoading}
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded pointer-events-none"
+                  />
+                  <div className="flex-1">
+                    <Label
+                      htmlFor={`edit-${category}`}
+                      className="text-sm font-medium cursor-pointer"
+                    >
+                      {CATEGORY_LABELS[category]}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Prix: {price}€
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         {formData.categories.length === 0 && (
           <p className="text-xs text-red-500">
             Veuillez sélectionner au moins une catégorie

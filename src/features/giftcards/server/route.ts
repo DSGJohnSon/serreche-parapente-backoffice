@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { adminSessionMiddleware, sessionMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { zValidator } from "@hono/zod-validator";
-import { CreateGiftCardSchema, UpdateGiftCardSchema, UseGiftCardSchema } from "../schemas";
+import { CreateGiftCardSchema, UpdateGiftCardSchema, UseGiftCardSchema, ValidateGiftCardSchema } from "../schemas";
 
 const app = new Hono()
   //*------------------*//
@@ -17,15 +17,7 @@ const app = new Hono()
       try {
         const result = await prisma.giftCard.findMany({
           include: {
-            customer: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            usedByCustomer: {
+            client: {
               select: {
                 id: true,
                 firstName: true,
@@ -67,15 +59,7 @@ const app = new Hono()
         const result = await prisma.giftCard.findUnique({
           where: { id },
           include: {
-            customer: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            usedByCustomer: {
+            client: {
               select: {
                 id: true,
                 firstName: true,
@@ -108,7 +92,7 @@ const app = new Hono()
             isUsed: false,
           },
           include: {
-            customer: {
+            client: {
               select: {
                 id: true,
                 firstName: true,
@@ -143,15 +127,7 @@ const app = new Hono()
             isUsed: true,
           },
           include: {
-            customer: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            usedByCustomer: {
+            client: {
               select: {
                 id: true,
                 firstName: true,
@@ -205,10 +181,10 @@ const app = new Hono()
           data: {
             code,
             amount,
-            customerId,
+            clientId: customerId,
           },
           include: {
-            customer: {
+            client: {
               select: {
                 id: true,
                 firstName: true,
@@ -230,6 +206,67 @@ const app = new Hono()
           message: "Erreur lors de la création du bon cadeau",
           data: null,
         });
+      }
+    }
+  )
+
+  // Validate gift card
+  .post(
+    "/validate",
+    zValidator("json", ValidateGiftCardSchema),
+    async (c) => {
+      const { code } = c.req.valid("json");
+
+      try {
+        // Find gift card by code
+        const giftCard = await prisma.giftCard.findUnique({
+          where: { code },
+        });
+
+        console.log(giftCard);
+
+        // Check if gift card exists
+        if (!giftCard) {
+          return c.json({
+            success: false,
+            message: "Bon cadeau invalide",
+          }, 404);
+        }
+        
+        // Check if gift card is already used
+        if (giftCard.isUsed) {
+          return c.json({
+            success: false,
+            message: "Bon cadeau déjà utilisé",
+          }, 400);
+        }
+        
+        // Check if gift card has remaining amount
+        if (giftCard.amount <= 0) {
+          console.log("Gift card not found for code:", code);
+          return c.json({
+            success: false,
+            message: "Bon cadeau invalide, expiré ou déjà utilisé",
+          }, 400);
+        }
+
+        // Return gift card information
+        return c.json({
+          success: true,
+          data: {
+            giftCard: {
+              code: giftCard.code,
+              remainingAmount: giftCard.amount,
+              expirationDate: null, // No expiration date in current schema
+              isValid: true,
+            },
+          },
+        });
+      } catch (error) {
+        return c.json({
+          success: false,
+          message: "Erreur lors de la validation du bon cadeau",
+        }, 500);
       }
     }
   )
@@ -281,15 +318,7 @@ const app = new Hono()
           where: { id },
           data: updateData,
           include: {
-            customer: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            usedByCustomer: {
+            client: {
               select: {
                 id: true,
                 firstName: true,
@@ -358,19 +387,11 @@ const app = new Hono()
           where: { id },
           data: {
             isUsed: true,
-            usedBy,
+            usedByOrderId: usedBy,
             usedAt: new Date(),
           },
           include: {
-            customer: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            usedByCustomer: {
+            client: {
               select: {
                 id: true,
                 firstName: true,

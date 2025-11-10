@@ -189,15 +189,15 @@ export function GiftCards() {
                           Créé le {format(new Date(giftCard.createdAt), "dd/MM/yyyy", { locale: fr })}
                         </div>
                         
-                        {giftCard.customer && (
+                        {giftCard.client && (
                           <div className="flex items-center gap-1 text-sm">
                             <LucideUser className="h-3 w-3" />
                             <span className="text-xs">Acheté par:</span>
                             <Link
-                              href={`/dashboard/customers/${giftCard.customer.id}`}
+                              href={`/dashboard/customers/${giftCard.client.id}`}
                               className="text-blue-600 hover:underline text-xs truncate"
                             >
-                              {giftCard.customer.firstName} {giftCard.customer.lastName}
+                              {giftCard.client.firstName} {giftCard.client.lastName}
                             </Link>
                           </div>
                         )}
@@ -298,26 +298,15 @@ export function GiftCards() {
                             </div>
                             
                             <div className="space-y-1">
-                              {giftCard.customer && (
-                                <div className="flex items-center gap-1 text-xs">
-                                  <span>Acheté par:</span>
-                                  <Link
-                                    href={`/dashboard/customers/${giftCard.customer.id}`}
-                                    className="text-blue-600 hover:underline truncate"
-                                  >
-                                    {giftCard.customer.firstName} {giftCard.customer.lastName}
-                                  </Link>
-                                </div>
-                              )}
-                              {giftCard.usedByCustomer && (
+                              {giftCard.client && (
                                 <div className="flex items-center gap-1 text-xs">
                                   <LucideUser className="h-3 w-3" />
-                                  <span>Utilisé par:</span>
+                                  <span>Acheté par:</span>
                                   <Link
-                                    href={`/dashboard/customers/${giftCard.usedByCustomer.id}`}
-                                    className="text-blue-600 hover:underline font-medium truncate"
+                                    href={`/dashboard/customers/${giftCard.client.id}`}
+                                    className="text-blue-600 hover:underline truncate"
                                   >
-                                    {giftCard.usedByCustomer.firstName} {giftCard.usedByCustomer.lastName}
+                                    {giftCard.client.firstName} {giftCard.client.lastName}
                                   </Link>
                                 </div>
                               )}

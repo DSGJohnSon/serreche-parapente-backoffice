@@ -27,6 +27,7 @@ const app = new Hono()
           },
         },
       });
+      console.log(result);
       return c.json({ success: true, message: "", data: result });
     } catch (error) {
       return c.json({ success: false, message: "Erreur lors de la récupération des stages", data: null });
@@ -51,7 +52,7 @@ const app = new Hono()
           include: {
             bookings: {
               include: {
-                customer: true
+                stagiaire: true
               },
             },
             moniteurs: {

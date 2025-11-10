@@ -46,7 +46,7 @@ const app = new Hono()
       const result = await prisma.bapteme.findUnique({
         where: { id },
         include: {
-          bookings: { include: { customer: true } },
+          bookings: { include: { stagiaire: true } },
           moniteurs: {
             include: {
               moniteur: true,

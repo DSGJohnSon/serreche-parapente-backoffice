@@ -34,15 +34,22 @@ const AddToCartSchema = z.object({
 const UpdateCartItemSchema = z.object({
   quantity: z.number().optional(),
   participantData: z.object({
-    firstName: z.string(),
-    lastName: z.string(),
-    email: z.string().email(),
-    phone: z.string(),
-    weight: z.number(),
-    height: z.number(),
+    // Pour BAPTEME et STAGE
+    firstName: z.string().min(1, "Prénom requis").optional(),
+    lastName: z.string().min(1, "Nom requis").optional(),
+    email: z.string().email("Email invalide").optional(),
+    phone: z.string().min(10, "Téléphone invalide").optional(),
+    weight: z.number().min(20, "Poids minimum: 20kg").max(120, "Poids maximum: 120kg").optional(),
+    height: z.number().min(120, "Taille minimum: 120cm").max(220, "Taille maximum: 220cm").optional(),
     birthDate: z.string().optional(),
     selectedCategory: z.string().optional(),
     hasVideo: z.boolean().optional(),
+    selectedStageType: z.string().optional(),
+    // Pour GIFT_CARD
+    recipientName: z.string().optional(),
+    recipientEmail: z.string().email("Email bénéficiaire invalide").optional(),
+    notifyRecipient: z.boolean().optional(),
+    personalMessage: z.string().optional(),
   }).optional(),
 });
 
@@ -238,6 +245,215 @@ const app = new Hono()
           message: "Erreur lors de la mise à jour",
           data: null,
         });
+      }
+    }
+  )
+
+  // PATCH cart item (with price recalculation)
+  .patch(
+    "update/:id",
+    publicAPIMiddleware,
+    zValidator("json", UpdateCartItemSchema),
+    cartSessionMiddleware,
+    async (c) => {
+      try {
+        const itemId = c.req.param("id");
+        const updateData = c.req.valid("json");
+        const cartSession = c.get("cartSession");
+
+        // Vérifier que l'item appartient à cette session
+        const existingItem = await prisma.cartItem.findFirst({
+          where: {
+            id: itemId,
+            cartSessionId: cartSession.id,
+          },
+          include: {
+            stage: true,
+            bapteme: true,
+          },
+        });
+
+        if (!existingItem) {
+          return c.json(
+            {
+              success: false,
+              message: "Article introuvable dans votre panier",
+              data: null,
+            },
+            404
+          );
+        }
+
+        // Validation stricte des données participant si fournies
+        if (updateData.participantData) {
+          const { weight, height, email, phone, recipientName } = updateData.participantData;
+
+          // Validation pour BAPTEME/STAGE
+          if (existingItem.type === 'BAPTEME' || existingItem.type === 'STAGE') {
+            // Validation poids (si fourni)
+            if (weight !== undefined && (weight < 20 || weight > 120)) {
+              return c.json(
+                {
+                  success: false,
+                  message: "Le poids doit être entre 20 et 120 kg",
+                  data: null,
+                },
+                400
+              );
+            }
+
+            // Validation taille (si fournie)
+            if (height !== undefined && (height < 120 || height > 220)) {
+              return c.json(
+                {
+                  success: false,
+                  message: "La taille doit être entre 120 et 220 cm",
+                  data: null,
+                },
+                400
+              );
+            }
+
+            // Validation email (si fourni)
+            if (email !== undefined) {
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (!emailRegex.test(email)) {
+                return c.json(
+                  {
+                    success: false,
+                    message: "Format d'email invalide",
+                    data: null,
+                  },
+                  400
+                );
+              }
+            }
+
+            // Validation téléphone (si fourni)
+            if (phone !== undefined) {
+              const phoneRegex = /^(?:(?:\+|00)33|0)\s*[1-9](?:[\s.-]*\d{2}){4}$/;
+              if (!phoneRegex.test(phone.replace(/\s/g, ""))) {
+                return c.json(
+                  {
+                    success: false,
+                    message: "Format de téléphone invalide",
+                    data: null,
+                  },
+                  400
+                );
+              }
+            }
+          }
+
+          // Validation pour GIFT_CARD
+          if (existingItem.type === 'GIFT_CARD') {
+            if (recipientName !== undefined && recipientName.trim().length === 0) {
+              return c.json(
+                {
+                  success: false,
+                  message: "Le nom du bénéficiaire est requis",
+                  data: null,
+                },
+                400
+              );
+            }
+          }
+        }
+
+        // Préparer les données de mise à jour
+        const dataToUpdate: any = {};
+
+        if (updateData.quantity !== undefined) {
+          dataToUpdate.quantity = updateData.quantity;
+        }
+
+        if (updateData.participantData) {
+          // Fusionner les anciennes données avec les nouvelles
+          const oldParticipantData = existingItem.participantData as any;
+          const newParticipantData = {
+            ...oldParticipantData,
+            ...updateData.participantData,
+          };
+
+          dataToUpdate.participantData = newParticipantData;
+
+          // Log pour le suivi
+          console.log(`[CART UPDATE] Item ${itemId} - Participant data updated:`, {
+            oldData: oldParticipantData,
+            newData: newParticipantData,
+          });
+        }
+
+        // Mettre à jour l'item
+        const updatedItem = await prisma.cartItem.update({
+          where: { id: itemId },
+          data: dataToUpdate,
+          include: {
+            stage: true,
+            bapteme: true,
+          },
+        });
+
+        // Recalculer le total du panier
+        const allCartItems = await prisma.cartItem.findMany({
+          where: {
+            cartSessionId: cartSession.id,
+          },
+          include: {
+            stage: true,
+            bapteme: true,
+          },
+        });
+
+        let totalAmount = 0;
+        for (const item of allCartItems) {
+          if (item.type === "STAGE" && item.stage) {
+            totalAmount += item.stage.price * item.quantity;
+          } else if (item.type === "BAPTEME" && item.bapteme) {
+            const participantData = item.participantData as any;
+            if (participantData.selectedCategory) {
+              const basePrice = await getBaptemePrice(
+                participantData.selectedCategory
+              );
+              const videoPrice = participantData.hasVideo ? 25 : 0;
+              totalAmount += (basePrice + videoPrice) * item.quantity;
+            } else {
+              totalAmount += 110 * item.quantity;
+            }
+          } else if (item.type === "GIFT_CARD") {
+            totalAmount += item.giftCardAmount || 0;
+          }
+        }
+
+        // Log du recalcul
+        console.log(`[CART UPDATE] Total recalculated: ${totalAmount}€`);
+
+        return c.json({
+          success: true,
+          message: "Article mis à jour avec succès",
+          data: {
+            item: updatedItem,
+            cart: {
+              id: cartSession.id,
+              items: allCartItems,
+              totalAmount,
+              itemCount: allCartItems.length,
+            },
+          },
+        });
+      } catch (error) {
+        console.error("[CART UPDATE ERROR]", error);
+        return c.json(
+          {
+            success: false,
+            message:
+              error instanceof Error
+                ? error.message
+                : "Erreur lors de la mise à jour",
+            data: null,
+          },
+          500
+        );
       }
     }
   )

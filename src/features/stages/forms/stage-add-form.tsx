@@ -244,7 +244,7 @@ export function StageAddForm({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="acomptePrice">Prix de l'acompte (€)</Label>
+        <Label htmlFor="acomptePrice">Prix de l&apos;acompte (€)</Label>
         <Input
           id="acomptePrice"
           type="number"

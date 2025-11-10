@@ -249,7 +249,7 @@ export function CalendarScheduleBaptemes({
           {weekDays.map((day) => (
             <div
               key={day.toISOString()}
-              className={`p-2 text-center border-l cursor-pointer hover:bg-muted/50 ${
+              className={`p-2 text-center border-l cursor-pointer hover:bg-muted/90 ${
                 isToday(day) ? "bg-primary/10 font-semibold" : ""
               }`}
               onClick={() => onDayClick(day)}
@@ -283,11 +283,26 @@ export function CalendarScheduleBaptemes({
                       .toString()
                       .padStart(2, "0")}h`;
 
+                    // Determine if this hour is in the grayed-out periods
+                    const isNightEarly = hour >= 0 && hour < 6; // 00h-6h
+                    const isNightLate = hour >= 20 && hour < 24; // 20h-00h
+                    const isGrayedOut = isNightEarly || isNightLate;
+                    
+                    // Add thicker border at 6h and 20h boundaries
+                    const isTopBoundary = hour === 6;
+                    const isBottomBoundary = hour === 19;
+
                     return (
                       <Tooltip key={`${day.toISOString()}-${hour}`}>
                         <TooltipTrigger asChild>
                           <div
-                            className="border-b border-l cursor-pointer hover:bg-muted/30 relative"
+                            className={`border-b border-l cursor-pointer hover:bg-gray-300/50 relative ${
+                              isGrayedOut ? 'bg-gray-300/10' : 'bg-white'
+                            } ${
+                              isTopBoundary ? 'border-t-[2px] border-t-foreground/30' : ''
+                            } ${
+                              isBottomBoundary ? 'border-b-[2px] border-b-foreground/30' : ''
+                            }`}
                             style={{ height: `${HOUR_HEIGHT}px` }}
                             onClick={() => onDayClick(day, hour)}
                           >

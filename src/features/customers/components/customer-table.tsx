@@ -15,14 +15,12 @@ import {
   SortField,
   VisibleColumns,
 } from "@/app/(post-auth)/dashboard/customers/customers";
-import { Customer, StageBooking } from "@prisma/client";
+// Note: Using any type because Customer model doesn't exist in Prisma schema
 import CopyTextComponent from "@/components/copy-text-component";
 import Link from "next/link";
 
 interface CustomerTableProps {
-  customers: (Customer & {
-    bookings: StageBooking[];
-  })[];
+  customers: any[];
   visibleColumns: VisibleColumns;
   sortField: SortField;
   sortDirection: SortDirection;

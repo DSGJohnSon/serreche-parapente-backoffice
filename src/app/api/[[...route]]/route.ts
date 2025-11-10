@@ -14,6 +14,7 @@ import cart from "@/features/cart/server/route";
 import availability from "@/features/availability/server/route";
 import orders from "@/features/orders/server/route";
 import checkout from "@/features/checkout/server/route";
+import tarifs from "@/features/tarifs/server/route";
 import { cors } from "hono/cors";
 
 const app = new Hono().basePath("/api");
@@ -30,7 +31,7 @@ const routes = app
           ? origin
           : "";
       },
-      allowMethods: ["POST", "GET", "PUT", "DELETE", "OPTIONS"],
+      allowMethods: ["POST", "GET", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "x-api-key", "x-session-id"],
     })
   )
@@ -52,10 +53,12 @@ const routes = app
   .route("/availability", availability)
   .route("/orders", orders)
   .route("/checkout", checkout)
+  .route("/tarifs", tarifs)
 
 export const GET = handle(app);
 export const POST = handle(app);
 export const PUT = handle(app);
+export const PATCH = handle(app);
 export const DELETE = handle(app);
 export const OPTIONS = handle(app);
 

@@ -230,7 +230,7 @@ export function ReservationsView() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="today">Aujourd'hui</TabsTrigger>
+          <TabsTrigger value="today">Aujourd&apos;hui</TabsTrigger>
           <TabsTrigger value="monthly">Vue mensuelle</TabsTrigger>
         </TabsList>
 
@@ -240,7 +240,7 @@ export function ReservationsView() {
               <div className="grid gap-4 md:grid-cols-3">
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Stages aujourd'hui</CardTitle>
+                    <CardTitle className="text-sm font-medium">Stages aujourd&apos;hui</CardTitle>
                     <CalendarDays className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -249,7 +249,7 @@ export function ReservationsView() {
                 </Card>
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Baptêmes aujourd'hui</CardTitle>
+                    <CardTitle className="text-sm font-medium">Baptêmes aujourd&apos;hui</CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
@@ -279,7 +279,7 @@ export function ReservationsView() {
                   <CardContent className="space-y-4">
                     {todayData.stageBookings.length === 0 ? (
                       <p className="text-muted-foreground text-center py-4">
-                        Aucun stage prévu aujourd'hui
+                        Aucun stage prévu aujourd&apos;hui
                       </p>
                     ) : (
                       todayData.stageBookings.map((booking) => (
@@ -351,7 +351,7 @@ export function ReservationsView() {
                   <CardContent className="space-y-4">
                     {todayData.baptemeBookings.length === 0 ? (
                       <p className="text-muted-foreground text-center py-4">
-                        Aucun baptême prévu aujourd'hui
+                        Aucun baptême prévu aujourd&apos;hui
                       </p>
                     ) : (
                       todayData.baptemeBookings.map((booking) => (

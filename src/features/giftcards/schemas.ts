@@ -17,6 +17,11 @@ export const UseGiftCardSchema = z.object({
   usedBy: z.string().min(1, { message: "L'utilisateur est requis" }),
 });
 
+export const ValidateGiftCardSchema = z.object({
+  code: z.string().min(1, { message: "Le code est requis" }),
+});
+
 export type CreateGiftCard = z.infer<typeof CreateGiftCardSchema>;
 export type UpdateGiftCard = z.infer<typeof UpdateGiftCardSchema>;
 export type UseGiftCard = z.infer<typeof UseGiftCardSchema>;
+export type ValidateGiftCard = z.infer<typeof ValidateGiftCardSchema>;

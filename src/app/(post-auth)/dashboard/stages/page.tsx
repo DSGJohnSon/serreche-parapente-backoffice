@@ -3,7 +3,7 @@
 import { CalendarScheduleStages } from "@/features/stages/components/calendar-schedule-stages";
 import { StageDetailsSheet } from "@/features/stages/components/stage-details-sheet";
 import { useState, useEffect } from "react";
-import { Stage, User, StageBooking, Customer, StageType } from "@prisma/client";
+import { Stage, User, StageBooking, StageType } from "@prisma/client";
 import { useGetAllStages } from "@/features/stages/api/use-get-stage";
 
 // Type for the API response from the server

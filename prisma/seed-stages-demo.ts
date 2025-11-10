@@ -20,6 +20,7 @@ async function main() {
       duration: 5,
       places: 6,
       price: 700.0,
+      allTimeHighPrice: 700.0,
       type: 'INITIATION' as const,
     });
   }
@@ -35,6 +36,7 @@ async function main() {
       duration: 5,
       places: 6,
       price: 700.0,
+      allTimeHighPrice: 700.0,
       type: 'PROGRESSION' as const,
     });
   }
@@ -50,6 +52,7 @@ async function main() {
       duration: 10,
       places: 6,
       price: 1200.0,
+      allTimeHighPrice: 1200.0,
       type: 'AUTONOMIE' as const,
     });
   }

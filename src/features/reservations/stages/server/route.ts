@@ -16,7 +16,7 @@ const app = new Hono().post(
 
       const result = await prisma.stageBooking.create({
         data: {
-          customerId: customerId,
+          stagiaireId: customerId,
           stageId: stageId,
           type: type,
         },

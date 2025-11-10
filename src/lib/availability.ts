@@ -228,7 +228,16 @@ export class AvailabilityService {
       };
 
       if (stageType) {
-        whereClause.type = stageType;
+        // Si on recherche INITIATION ou PROGRESSION, inclure aussi les stages DOUBLE
+        // car DOUBLE = INITIATION + PROGRESSION
+        if (stageType === 'INITIATION' || stageType === 'PROGRESSION') {
+          whereClause.type = {
+            in: [stageType, 'DOUBLE']
+          };
+        } else {
+          // Pour AUTONOMIE, rechercher uniquement ce type
+          whereClause.type = stageType;
+        }
       }
 
       const stages = await prisma.stage.findMany({

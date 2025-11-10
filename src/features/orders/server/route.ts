@@ -76,6 +76,27 @@ const app = new Hono()
 
         const totalAmount = subtotal - discountAmount;
 
+        // Créer ou trouver le client
+        let client = await prisma.client.findUnique({
+          where: { email: customerEmail },
+        });
+
+        if (!client) {
+          // Créer un nouveau client avec les données fournies
+          client = await prisma.client.create({
+            data: {
+              email: customerEmail,
+              firstName: customerData?.firstName || '',
+              lastName: customerData?.lastName || '',
+              phone: customerData?.phone || '',
+              address: customerData?.address || '',
+              postalCode: customerData?.postalCode || '',
+              city: customerData?.city || '',
+              country: customerData?.country || 'France',
+            },
+          });
+        }
+
         // Créer la commande
         const orderNumber = generateOrderNumber();
         
@@ -86,8 +107,7 @@ const app = new Hono()
             subtotal,
             discountAmount,
             totalAmount,
-            customerEmail,
-            customerData: customerData || {},
+            clientId: client.id,
             appliedGiftCardId: appliedGiftCard?.id,
             orderItems: {
               create: await Promise.all(cartItems.map(async item => {
@@ -127,7 +147,6 @@ const app = new Hono()
           id: order.id,
           orderNumber: order.orderNumber,
           totalAmount: order.totalAmount,
-          customerEmail: order.customerEmail,
         });
 
         // Enregistrer le paiement
@@ -191,12 +210,12 @@ const app = new Hono()
                 bapteme: true,
                 stageBooking: {
                   include: {
-                    customer: true,
+                    stagiaire: true,
                   },
                 },
                 baptemeBooking: {
                   include: {
-                    customer: true,
+                    stagiaire: true,
                   },
                 },
               },

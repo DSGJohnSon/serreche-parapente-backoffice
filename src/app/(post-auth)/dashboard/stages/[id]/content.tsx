@@ -197,8 +197,8 @@ export default function StageDetails({ id }: { id: string }) {
                   <div className="flex items-start gap-4 p-4 rounded-lg border bg-card">
                     <Avatar className="h-12 w-12">
                       <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                        {booking.customer.firstName.charAt(0)}
-                        {booking.customer.lastName.charAt(0)}
+                        {booking.stagiaire.firstName.charAt(0)}
+                        {booking.stagiaire.lastName.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
 
@@ -206,8 +206,8 @@ export default function StageDetails({ id }: { id: string }) {
                       <div className="flex items-start justify-between">
                         <div>
                           <h4 className="font-semibold text-lg">
-                            {booking.customer.firstName}{" "}
-                            {booking.customer.lastName}
+                            {booking.stagiaire.firstName}{" "}
+                            {booking.stagiaire.lastName}
                           </h4>
                           <Badge
                             variant="default"
@@ -233,18 +233,18 @@ export default function StageDetails({ id }: { id: string }) {
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4 text-muted-foreground" />
-                            <span>{booking.customer.email}</span>
+                            <span>{booking.stagiaire.email}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
-                            <span>{booking.customer.phone}</span>
+                            <span>{booking.stagiaire.phone}</span>
                           </div>
-                          {booking.customer.birthDate && (
+                          {booking.stagiaire.birthDate && (
                             <div className="flex items-center gap-2">
                               <User className="h-4 w-4 text-muted-foreground" />
                               <span>
                                 {calculateAge(
-                                  new Date(booking.customer.birthDate)
+                                  new Date(booking.stagiaire.birthDate)
                                 )}{" "}
                                 ans
                               </span>
@@ -254,32 +254,12 @@ export default function StageDetails({ id }: { id: string }) {
 
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span className="truncate">
-                              {booking.customer.adress}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <span className="w-4" />
-                            <span>
-                              {booking.customer.postalCode}{" "}
-                              {booking.customer.city}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <span className="w-4" />
-                            <span>{booking.customer.country}</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
                             <Weight className="h-4 w-4 text-muted-foreground" />
-                            <span>{booking.customer.weight} kg</span>
+                            <span>{booking.stagiaire.weight} kg</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Ruler className="h-4 w-4 text-muted-foreground" />
-                            <span>{booking.customer.height} cm</span>
+                            <span>{booking.stagiaire.height} cm</span>
                           </div>
                         </div>
                       </div>

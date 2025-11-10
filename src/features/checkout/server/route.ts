@@ -51,7 +51,7 @@ const app = new Hono()
             data: {
               isUsed: true,
               usedAt: new Date(),
-              usedBy: order.customerEmail,
+              usedByOrderId: order.id,
             },
           });
         }
@@ -77,14 +77,14 @@ const app = new Hono()
 async function createBookingsFromOrder(order: any) {
   for (const item of order.orderItems) {
     if (item.type === 'STAGE' && item.stageId) {
-      // Créer ou récupérer le customer
-      const customer = await findOrCreateCustomer(item.participantData);
+      // Créer ou récupérer le stagiaire
+      const stagiaire = await findOrCreateStagiaire(item.participantData);
       
       // Créer la réservation de stage
       const booking = await prisma.stageBooking.create({
         data: {
           stageId: item.stageId,
-          customerId: customer.id,
+          stagiaireId: stagiaire.id,
           type: item.stage.type,
         },
       });
@@ -97,8 +97,8 @@ async function createBookingsFromOrder(order: any) {
     }
 
     if (item.type === 'BAPTEME' && item.baptemeId) {
-      // Créer ou récupérer le customer
-      const customer = await findOrCreateCustomer(item.participantData);
+      // Créer ou récupérer le stagiaire
+      const stagiaire = await findOrCreateStagiaire(item.participantData);
       
       // Créer la réservation de baptême
       const selectedCategory = item.participantData.selectedCategory;
@@ -112,7 +112,7 @@ async function createBookingsFromOrder(order: any) {
       const booking = await prisma.baptemeBooking.create({
         data: {
           baptemeId: item.baptemeId,
-          customerId: customer.id,
+          stagiaireId: stagiaire.id,
           category: selectedCategory as any,
           hasVideo: item.participantData.hasVideo || false,
         },
@@ -133,7 +133,7 @@ async function createBookingsFromOrder(order: any) {
         data: {
           code,
           amount: item.giftCardAmount!,
-          customerId: null, // Sera assigné lors de l'utilisation
+          clientId: null, // Sera assigné lors de l'utilisation
         },
       });
 
@@ -146,25 +146,21 @@ async function createBookingsFromOrder(order: any) {
   }
 }
 
-// Fonction pour trouver ou créer un customer
-async function findOrCreateCustomer(participantData: any) {
+// Fonction pour trouver ou créer un stagiaire
+async function findOrCreateStagiaire(participantData: any) {
   // Chercher d'abord par email
-  let customer = await prisma.customer.findUnique({
+  let stagiaire = await prisma.stagiaire.findFirst({
     where: { email: participantData.email },
   });
 
-  if (!customer) {
-    // Créer un nouveau customer
-    customer = await prisma.customer.create({
+  if (!stagiaire) {
+    // Créer un nouveau stagiaire
+    stagiaire = await prisma.stagiaire.create({
       data: {
         firstName: participantData.firstName,
         lastName: participantData.lastName,
         email: participantData.email,
         phone: participantData.phone,
-        adress: participantData.address || '',
-        postalCode: participantData.postalCode || '',
-        city: participantData.city || '',
-        country: participantData.country || 'France',
         weight: participantData.weight,
         height: participantData.height,
         birthDate: participantData.birthDate ? new Date(participantData.birthDate) : null,
@@ -172,7 +168,7 @@ async function findOrCreateCustomer(participantData: any) {
     });
   }
 
-  return customer;
+  return stagiaire;
 }
 
 // Fonction pour générer un code unique de bon cadeau

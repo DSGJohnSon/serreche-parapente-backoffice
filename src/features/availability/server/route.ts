@@ -27,7 +27,7 @@ const GetAvailableMonthsSchema = z.object({
 const GetAvailablePeriodsSchema = z.object({
   type: z.enum(['stage', 'bapteme']),
   category: z.string().optional(),
-  stageType: z.enum(['INITIATION', 'PROGRESSION', 'AUTONOMIE']).optional().nullable(),
+  stageType: z.enum(['INITIATION', 'PROGRESSION', 'AUTONOMIE']).optional(),
 });
 
 const app = new Hono()
@@ -238,6 +238,8 @@ const app = new Hono()
           category,
           stageType
         );
+
+        console.log('Périodes disponibles:', periods);
 
         return c.json({
           success: true,

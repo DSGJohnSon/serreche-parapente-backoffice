@@ -1,11 +1,7 @@
 import { CheckCircle2Icon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Customer, StageBooking } from "@prisma/client";
-
 interface CustomerStatsProps {
-  customers: (Customer & {
-    bookings: StageBooking[];
-  })[];
+  customers: any[];
 }
 
 export function CustomerStats({ customers }: CustomerStatsProps) {

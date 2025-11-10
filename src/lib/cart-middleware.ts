@@ -3,8 +3,16 @@ import "server-only";
 import { getCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import prisma from "./prisma";
+import type { CartSession } from "@prisma/client";
 
-export const cartSessionMiddleware = createMiddleware(async (c, next) => {
+type CartSessionEnv = {
+  Variables: {
+    cartSession: CartSession;
+    isAuthenticated?: boolean;
+  };
+};
+
+export const cartSessionMiddleware = createMiddleware<CartSessionEnv>(async (c, next) => {
   const sessionId = c.req.header("x-session-id") || getCookie(c, "cart-session");
   
   if (!sessionId) {
@@ -37,7 +45,7 @@ export const cartSessionMiddleware = createMiddleware(async (c, next) => {
   await next();
 });
 
-export const cartOrAuthMiddleware = createMiddleware(async (c, next) => {
+export const cartOrAuthMiddleware = createMiddleware<CartSessionEnv>(async (c, next) => {
   const authCookie = getCookie(c, "auth-token");
   const sessionId = c.req.header("x-session-id");
   
