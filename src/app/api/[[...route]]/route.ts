@@ -27,8 +27,8 @@ const routes = app
         return [
           "http://localhost:3000",
           "http://localhost:3001",
-          "https://serreche-parapente-front.vercel.app/",
-          "https://serreche-parapente-backoffice.vercel.app/",
+          "https://serreche-parapente-front.vercel.app",
+          "https://serreche-parapente-backoffice.vercel.app",
         ].includes(origin ?? "")
           ? origin
           : "";
