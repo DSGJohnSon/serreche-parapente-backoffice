@@ -51,7 +51,7 @@ interface BaptemeCalendarProps {
   onAddBapteme: () => void;
 }
 
-type CalendarView = "week" | "month";
+type CalendarView = "week" | "month" | "day";
 
 export function CalendarScheduleBaptemes({
   baptemes,
@@ -61,6 +61,7 @@ export function CalendarScheduleBaptemes({
 }: BaptemeCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("week");
+  const [selectedDayDate, setSelectedDayDate] = useState<Date>(new Date());
 
   const goToToday = () => {
     setCurrentDate(new Date());
@@ -69,17 +70,30 @@ export function CalendarScheduleBaptemes({
   const navigatePrevious = () => {
     if (view === "week") {
       setCurrentDate(subWeeks(currentDate, 1));
-    } else {
+    } else if (view === "month") {
       setCurrentDate(subMonths(currentDate, 1));
+    } else if (view === "day") {
+      const newDate = new Date(selectedDayDate);
+      newDate.setDate(newDate.getDate() - 1);
+      setSelectedDayDate(newDate);
     }
   };
 
   const navigateNext = () => {
     if (view === "week") {
       setCurrentDate(addWeeks(currentDate, 1));
-    } else {
+    } else if (view === "month") {
       setCurrentDate(addMonths(currentDate, 1));
+    } else if (view === "day") {
+      const newDate = new Date(selectedDayDate);
+      newDate.setDate(newDate.getDate() + 1);
+      setSelectedDayDate(newDate);
     }
+  };
+
+  const handleDayClickInternal = (date: Date, hour?: number) => {
+    setSelectedDayDate(date);
+    setView("day");
   };
 
   const getDateRange = () => {
@@ -115,6 +129,88 @@ export function CalendarScheduleBaptemes({
     return endTime;
   };
 
+  // Get color for a single category
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "AVENTURE":
+        return "rgb(16, 185, 129)"; // emerald-500
+      case "DUREE":
+        return "rgb(249, 115, 22)"; // orange-500
+      case "ENFANT":
+        return "rgb(99, 102, 241)"; // indigo-500
+      case "HIVER":
+        return "rgb(100, 116, 139)"; // slate-500
+      case "LONGUE_DUREE":
+        return "rgb(234, 179, 8)"; // yellow-500
+      default:
+        return "rgb(59, 130, 246)"; // blue-500 (fallback)
+    }
+  };
+
+  // Format category name for display
+  const formatCategoryName = (category: string) => {
+    switch (category) {
+      case "AVENTURE":
+        return "Aventure";
+      case "DUREE":
+        return "Durée";
+      case "ENFANT":
+        return "Enfant";
+      case "HIVER":
+        return "Hiver";
+      case "LONGUE_DUREE":
+        return "Longue Durée";
+      default:
+        return category;
+    }
+  };
+
+  // Get background style based on bapteme categories
+  // If multiple categories: neutral background with colored border at bottom
+  // If single category: solid color background
+  const getBaptemeBackgroundStyle = (bapteme: Bapteme) => {
+    const categories = bapteme.categories || [];
+    
+    if (categories.length === 0) {
+      return { backgroundColor: "rgb(59, 130, 246)" }; // blue-500 default
+    }
+    
+    if (categories.length === 1) {
+      return { backgroundColor: getCategoryColor(categories[0]) };
+    }
+    
+    // Multiple categories: neutral gray background
+    return {
+      backgroundColor: "rgb(212, 212, 216)" // neutral-300
+    };
+  };
+
+  // Generate the colored border for multiple categories
+  const getCategoryBorder = (bapteme: Bapteme) => {
+    const categories = bapteme.categories || [];
+    
+    if (categories.length <= 1) {
+      return null;
+    }
+    
+    // Create sections for each category
+    const sectionWidth = 100 / categories.length;
+    
+    return (
+      <div className="absolute bottom-0 left-0 right-0 h-1 flex">
+        {categories.map((cat, index) => (
+          <div
+            key={`${cat}-${index}`}
+            style={{
+              backgroundColor: getCategoryColor(cat),
+              width: `${sectionWidth}%`
+            }}
+          />
+        ))}
+      </div>
+    );
+  };
+
   const renderWeekView = () => {
     const weekDays = eachDayOfInterval({ start, end });
     const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -128,25 +224,6 @@ export function CalendarScheduleBaptemes({
       const end2 = addMinutes(start2, bapteme2.duration);
 
       return start1 < end2 && start2 < end1;
-    };
-
-    // Generate a consistent blue shade for each bapteme based on its ID
-    const getBaptemeColor = (baptemeId: string, index: number) => {
-      // Create a simple hash from the ID
-      let hash = 0;
-      for (let i = 0; i < baptemeId.length; i++) {
-        hash = baptemeId.charCodeAt(i) + ((hash << 5) - hash);
-      }
-
-      // Add index variation to ensure different colors even for similar IDs
-      hash = hash + index * 137; // 137 is a prime number for better distribution
-
-      // Generate blue variations (hue around 210-250, saturation 65-85%, lightness 45-65%)
-      const hue = 210 + (Math.abs(hash) % 40); // 210-250 (wider range)
-      const saturation = 65 + (Math.abs(hash >> 8) % 20); // 65-85%
-      const lightness = 45 + (Math.abs(hash >> 16) % 20); // 45-65%
-
-      return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     };
 
     // Calculate position, height, z-index and horizontal offset for each bapteme
@@ -235,7 +312,7 @@ export function CalendarScheduleBaptemes({
         left: `${leftOffset}px`,
         width: `${widthPercentage}%`,
         zIndex: zIndex,
-        backgroundColor: getBaptemeColor(bapteme.id, baptemeIndex),
+        ...getBaptemeBackgroundStyle(bapteme),
       };
     };
 
@@ -252,7 +329,7 @@ export function CalendarScheduleBaptemes({
               className={`p-2 text-center border-l cursor-pointer hover:bg-muted/90 ${
                 isToday(day) ? "bg-primary/10 font-semibold" : ""
               }`}
-              onClick={() => onDayClick(day)}
+              onClick={() => handleDayClickInternal(day)}
             >
               <div className="text-sm font-medium">
                 {format(day, "EEE", { locale: fr })}
@@ -304,7 +381,7 @@ export function CalendarScheduleBaptemes({
                               isBottomBoundary ? 'border-b-[2px] border-b-foreground/30' : ''
                             }`}
                             style={{ height: `${HOUR_HEIGHT}px` }}
-                            onClick={() => onDayClick(day, hour)}
+                            onClick={() => handleDayClickInternal(day, hour)}
                           >
                             {/* Only render baptemes on the first hour they appear */}
                             {hour === 0 &&
@@ -318,28 +395,108 @@ export function CalendarScheduleBaptemes({
                                       dayBaptemes,
                                       index
                                     )}
-                                    className="text-white rounded-md p-2 text-xs cursor-pointer hover:opacity-90 shadow-sm border border-white/20 transition-opacity"
+                                    className={`rounded-md p-1.5 text-xs cursor-pointer hover:opacity-90 shadow-sm border transition-opacity overflow-hidden relative ${
+                                      bapteme.categories && bapteme.categories.length > 1
+                                        ? 'text-gray-800 border-gray-300'
+                                        : 'text-white border-white/20'
+                                    }`}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onBaptemeClick(bapteme);
                                     }}
                                   >
-                                    <div className="font-medium text-white text-xs">
-                                      {formatTime(new Date(bapteme.date))} -{" "}
-                                      {formatTime(getEndTime(bapteme))}
-                                    </div>
-                                    <div className="text-white/90 text-xs font-medium">
-                                      {bapteme.moniteurs?.length > 0
-                                        ? bapteme.moniteurs.length === 1
-                                          ? bapteme.moniteurs[0].moniteur.name
-                                          : `${bapteme.moniteurs[0].moniteur.name} +${bapteme.moniteurs.length - 1}`
-                                        : 'Aucun moniteur'
-                                      }
-                                    </div>
-                                    <div className="text-white/80 text-xs">
-                                      {bapteme.placesRestantes}/{bapteme.places}{" "}
-                                      places
-                                    </div>
+                                    {/* Affichage adaptatif selon la durée */}
+                                    {bapteme.duration <= 60 ? (
+                                      // Créneau court (1h ou moins) - affichage compact horizontal
+                                      <>
+                                        <div className={`font-medium text-xs mb-0.5 truncate ${
+                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900' : 'text-white'
+                                        }`}>
+                                          {formatTime(new Date(bapteme.date))} - {formatTime(getEndTime(bapteme))}
+                                        </div>
+                                        <div className="flex items-center justify-between gap-1">
+                                          <div className={`text-xs font-medium truncate flex-1 ${
+                                            bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700' : 'text-white/90'
+                                          }`}>
+                                            {bapteme.categories && bapteme.categories.length > 0 ? (
+                                              <>
+                                                {formatCategoryName(bapteme.categories[0])}
+                                                {bapteme.categories.length > 1 && (
+                                                  <span className={`ml-0.5 ${
+                                                    bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white/70'
+                                                  }`}>
+                                                    +{bapteme.categories.length - 1}
+                                                  </span>
+                                                )}
+                                              </>
+                                            ) : (
+                                              "Sans cat."
+                                            )}
+                                          </div>
+                                          <div className={`font-bold text-xs rounded px-1.5 py-0.5 whitespace-nowrap ${
+                                            bapteme.categories && bapteme.categories.length > 1
+                                              ? 'bg-gray-800 text-white'
+                                              : 'bg-white/20 text-white'
+                                          }`}>
+                                            {bapteme.placesRestantes}/{bapteme.places}
+                                          </div>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      // Créneau long (plus de 1h) - affichage vertical complet
+                                      <>
+                                        <div className={`font-medium text-xs mb-1 ${
+                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900' : 'text-white'
+                                        }`}>
+                                          {formatTime(new Date(bapteme.date))} -{" "}
+                                          {formatTime(getEndTime(bapteme))}
+                                        </div>
+                                        
+                                        {/* Categories */}
+                                        <div className={`text-xs font-medium mb-1 ${
+                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700' : 'text-white/90'
+                                        }`}>
+                                          {bapteme.categories && bapteme.categories.length > 0 ? (
+                                            <>
+                                              {formatCategoryName(bapteme.categories[0])}
+                                              {bapteme.categories.length > 1 && (
+                                                <span className={`ml-1 ${
+                                                  bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white/70'
+                                                }`}>
+                                                  +{bapteme.categories.length - 1}
+                                                </span>
+                                              )}
+                                            </>
+                                          ) : (
+                                            "Sans catégorie"
+                                          )}
+                                        </div>
+
+                                        {/* Moniteurs */}
+                                        <div className={`text-xs mb-1 truncate ${
+                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white/80'
+                                        }`}>
+                                          {bapteme.moniteurs?.length > 0
+                                            ? bapteme.moniteurs.length === 1
+                                              ? bapteme.moniteurs[0].moniteur.name
+                                              : `${bapteme.moniteurs[0].moniteur.name} +${bapteme.moniteurs.length - 1}`
+                                            : 'Aucun moniteur'
+                                          }
+                                        </div>
+
+                                        {/* Places - mise en valeur */}
+                                        <div className={`font-bold text-sm rounded px-2 py-0.5 inline-block ${
+                                          bapteme.categories && bapteme.categories.length > 1
+                                            ? 'bg-gray-800 text-white'
+                                            : 'bg-white/20 text-white'
+                                        }`}>
+                                          {bapteme.placesRestantes}/{bapteme.places} places
+                                        </div>
+                                      </>
+                                    )}
+                                    
+                                    {/* Liseré coloré pour les créneaux multi-catégories */}
+                                    {getCategoryBorder(bapteme)}
                                   </div>
                                 ));
                               })()}
@@ -355,6 +512,245 @@ export function CalendarScheduleBaptemes({
               ))}
             </div>
           </TooltipProvider>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDayView = () => {
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+    const HOUR_HEIGHT = 50; // Hauteur réduite pour tenir dans l'écran (24h * 50px = 1200px)
+    const dayBaptemes = getBaptemesForDay(selectedDayDate);
+
+    // Extraire tous les moniteurs uniques de la journée avec leurs horaires et avatars
+    const monitorsSchedule = new Map<string, {
+      id: string;
+      name: string;
+      avatarUrl: string;
+      minHour: number;
+      maxHour: number;
+      baptemes: any[]
+    }>();
+    
+    dayBaptemes.forEach((bapteme) => {
+      bapteme.moniteurs?.forEach((m: any) => {
+        const monitorId = m.moniteur.id;
+        const startHour = new Date(bapteme.date).getHours();
+        const endHour = startHour + Math.ceil(bapteme.duration / 60);
+        
+        if (monitorsSchedule.has(monitorId)) {
+          const existing = monitorsSchedule.get(monitorId)!;
+          existing.minHour = Math.min(existing.minHour, startHour);
+          existing.maxHour = Math.max(existing.maxHour, endHour);
+          existing.baptemes.push(bapteme);
+        } else {
+          monitorsSchedule.set(monitorId, {
+            id: monitorId,
+            name: m.moniteur.name,
+            avatarUrl: m.moniteur.avatarUrl,
+            minHour: startHour,
+            maxHour: endHour,
+            baptemes: [bapteme]
+          });
+        }
+      });
+    });
+
+    return (
+      <div className="flex h-full gap-4">
+        {/* Left side: Day schedule */}
+        <div className="flex-1 flex flex-col border-r">
+          <div className="border-b bg-muted/30 p-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold">
+                Planning de la journée
+              </h2>
+              <div className="text-sm text-muted-foreground">
+                {dayBaptemes.length} baptême{dayBaptemes.length > 1 ? 's' : ''}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto">
+            <TooltipProvider>
+              <div className="grid grid-cols-[80px_1fr] relative">
+                {/* Hour labels and schedule */}
+                {hours.map((hour) => (
+                  <React.Fragment key={hour}>
+                    <div
+                      className="p-2 text-xs font-medium text-muted-foreground border-b border-r bg-muted/20 flex items-center justify-center"
+                      style={{ height: `${HOUR_HEIGHT}px` }}
+                    >
+                      {hour.toString().padStart(2, "0")}h
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`border-b cursor-pointer hover:bg-gray-300/50 relative ${
+                            (hour >= 0 && hour < 6) || (hour >= 20 && hour < 24)
+                              ? 'bg-gray-300/10'
+                              : 'bg-white'
+                          } ${
+                            hour === 6 ? 'border-t-[2px] border-t-foreground/30' : ''
+                          } ${
+                            hour === 19 ? 'border-b-[2px] border-b-foreground/30' : ''
+                          }`}
+                          style={{ height: `${HOUR_HEIGHT}px` }}
+                          onClick={() => onDayClick(selectedDayDate, hour)}
+                        >
+                          {/* Render baptemes at hour 0 */}
+                          {hour === 0 &&
+                            dayBaptemes.map((bapteme, index) => {
+                              const baptemeStart = new Date(bapteme.date);
+                              const startHour = baptemeStart.getHours();
+                              const startMinutes = baptemeStart.getMinutes();
+                              const durationInHours = bapteme.duration / 60;
+
+                              const topOffset = startHour * HOUR_HEIGHT + (startMinutes * HOUR_HEIGHT) / 60;
+                              const height = durationInHours * HOUR_HEIGHT;
+
+                              return (
+                                <div
+                                  key={bapteme.id}
+                                  style={{
+                                    position: "absolute",
+                                    top: `${topOffset}px`,
+                                    height: `${height}px`,
+                                    left: "4px",
+                                    right: "4px",
+                                    zIndex: 1 + startHour,
+                                    ...getBaptemeBackgroundStyle(bapteme),
+                                  }}
+                                  className={`rounded-md p-1.5 text-xs cursor-pointer hover:opacity-90 shadow-md border transition-opacity overflow-hidden relative ${
+                                    bapteme.categories && bapteme.categories.length > 1
+                                      ? 'text-gray-800 border-gray-300'
+                                      : 'text-white border-white/20'
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onBaptemeClick(bapteme);
+                                  }}
+                                >
+                                  {/* Affichage compact pour tous les créneaux */}
+                                  <div className={`font-bold text-xs mb-0.5 truncate ${
+                                    bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900' : 'text-white'
+                                  }`}>
+                                    {formatTime(new Date(bapteme.date))} - {formatTime(getEndTime(bapteme))}
+                                  </div>
+                                  
+                                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                                    <div className={`text-xs font-medium truncate flex-1 ${
+                                      bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700' : 'text-white/90'
+                                    }`}>
+                                      {bapteme.categories && bapteme.categories.length > 0 ? (
+                                        <>
+                                          {formatCategoryName(bapteme.categories[0])}
+                                          {bapteme.categories.length > 1 && (
+                                            <span className={`ml-0.5 ${
+                                              bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white/70'
+                                            }`}>
+                                              +{bapteme.categories.length - 1}
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : (
+                                        "Sans cat."
+                                      )}
+                                    </div>
+                                    <div className={`font-bold text-xs rounded px-1.5 py-0.5 whitespace-nowrap ${
+                                      bapteme.categories && bapteme.categories.length > 1
+                                        ? 'bg-gray-800 text-white'
+                                        : 'bg-white/20 text-white'
+                                    }`}>
+                                      {bapteme.placesRestantes}/{bapteme.places}
+                                    </div>
+                                  </div>
+
+                                  {getCategoryBorder(bapteme)}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Ajouter un baptême à {hour.toString().padStart(2, "0")}h</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </React.Fragment>
+                ))}
+              </div>
+            </TooltipProvider>
+          </div>
+        </div>
+
+        {/* Right side: Monitors list */}
+        <div className="w-80 flex flex-col">
+          <div className="border-b bg-muted/30 p-3">
+            <h2 className="text-lg font-bold">
+              Moniteurs de service
+            </h2>
+            <div className="text-xs text-muted-foreground mt-1">
+              {monitorsSchedule.size} moniteur{monitorsSchedule.size > 1 ? 's' : ''}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto p-3 space-y-3">
+            {monitorsSchedule.size === 0 ? (
+              <div className="text-center text-muted-foreground text-sm py-8">
+                Aucun moniteur assigné pour cette journée
+              </div>
+            ) : (
+              Array.from(monitorsSchedule.entries()).map(([id, schedule]) => (
+                <div
+                  key={id}
+                  className="bg-card border rounded-lg p-3 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                        {schedule.avatarUrl ? (
+                          <img
+                            src={schedule.avatarUrl}
+                            alt={schedule.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg font-bold text-primary">
+                            {schedule.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm mb-1 truncate">
+                        {schedule.name}
+                      </div>
+                      
+                      {/* Amplitude horaire */}
+                      <div className="bg-primary/10 rounded px-2 py-1 mb-2">
+                        <div className="text-xs font-medium text-primary">
+                          {schedule.minHour.toString().padStart(2, '0')}h00 - {schedule.maxHour.toString().padStart(2, '0')}h00
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {schedule.maxHour - schedule.minHour}h de service
+                        </div>
+                      </div>
+
+                      {/* Nombre de baptêmes */}
+                      <div className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">
+                          {schedule.baptemes.length}
+                        </span> baptême{schedule.baptemes.length > 1 ? 's' : ''} assigné{schedule.baptemes.length > 1 ? 's' : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     );
@@ -399,7 +795,7 @@ export function CalendarScheduleBaptemes({
                 className={`border-r border-b last:border-r-0 p-2 cursor-pointer hover:bg-muted/50 ${
                   !isCurrentMonth ? "text-muted-foreground bg-muted/20" : ""
                 } ${isToday(day) ? "bg-primary/10" : ""}`}
-                onClick={() => onDayClick(day)}
+                onClick={() => handleDayClickInternal(day)}
               >
                 <div
                   className={`text-sm mb-1 ${
@@ -412,24 +808,66 @@ export function CalendarScheduleBaptemes({
                   {dayBaptemes.slice(0, 3).map((bapteme) => (
                     <div
                       key={bapteme.id}
-                      className="text-xs p-1 bg-primary/20 rounded cursor-pointer hover:bg-primary/30 truncate"
+                      className={`text-xs p-1.5 rounded cursor-pointer hover:opacity-90 relative overflow-hidden ${
+                        bapteme.categories && bapteme.categories.length > 1
+                          ? 'text-gray-800'
+                          : 'text-white'
+                      }`}
+                      style={getBaptemeBackgroundStyle(bapteme)}
                       onClick={(e) => {
                         e.stopPropagation();
                         onBaptemeClick(bapteme);
                       }}
                     >
-                      <div className="font-medium">
+                      <div className={`font-medium text-xs mb-0.5 truncate ${
+                        bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900' : 'text-white'
+                      }`}>
                         {formatTime(new Date(bapteme.date))} -{" "}
                         {formatTime(getEndTime(bapteme))}
                       </div>
-                      <div className="text-xs opacity-80">
-                        {bapteme.moniteurs?.length > 0
-                          ? bapteme.moniteurs.length === 1
-                            ? bapteme.moniteurs[0].moniteur.name
-                            : `${bapteme.moniteurs[0].moniteur.name} +${bapteme.moniteurs.length - 1}`
-                          : 'Aucun moniteur'
-                        } • {bapteme.placesRestantes}/{bapteme.places}
+                      
+                      {/* Categories */}
+                      <div className={`text-xs mb-0.5 truncate ${
+                        bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700' : 'text-white opacity-90'
+                      }`}>
+                        {bapteme.categories && bapteme.categories.length > 0 ? (
+                          <>
+                            {formatCategoryName(bapteme.categories[0])}
+                            {bapteme.categories.length > 1 && (
+                              <span className={`ml-1 ${
+                                bapteme.categories.length > 1 ? 'text-gray-600' : 'opacity-70'
+                              }`}>
+                                +{bapteme.categories.length - 1}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          "Sans catégorie"
+                        )}
                       </div>
+
+                      <div className="text-xs flex items-center justify-between gap-1">
+                        <span className={`truncate flex-1 min-w-0 ${
+                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white opacity-80'
+                        }`}>
+                          {bapteme.moniteurs?.length > 0
+                            ? bapteme.moniteurs.length === 1
+                              ? bapteme.moniteurs[0].moniteur.name
+                              : `${bapteme.moniteurs[0].moniteur.name} +${bapteme.moniteurs.length - 1}`
+                            : 'Aucun moniteur'
+                          }
+                        </span>
+                        <span className={`font-bold rounded px-1.5 py-0.5 whitespace-nowrap ${
+                          bapteme.categories && bapteme.categories.length > 1
+                            ? 'bg-gray-800 text-white'
+                            : 'bg-white/20 text-white'
+                        }`}>
+                          {bapteme.placesRestantes}/{bapteme.places}
+                        </span>
+                      </div>
+                      
+                      {/* Liseré coloré pour les créneaux multi-catégories */}
+                      {getCategoryBorder(bapteme)}
                     </div>
                   ))}
                   {dayBaptemes.length > 3 && (
@@ -464,7 +902,10 @@ export function CalendarScheduleBaptemes({
             </Button>
           </div>
           <h1 className="text-2xl font-bold capitalize">
-            {format(currentDate, "MMMM yyyy", { locale: fr })}
+            {view === "day"
+              ? format(selectedDayDate, "EEEE d MMMM yyyy", { locale: fr })
+              : format(currentDate, "MMMM yyyy", { locale: fr })
+            }
           </h1>
         </div>
 
@@ -477,8 +918,9 @@ export function CalendarScheduleBaptemes({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="month">Mois</SelectItem>
+              <SelectItem value="day">Jour</SelectItem>
               <SelectItem value="week">Semaine</SelectItem>
+              <SelectItem value="month">Mois</SelectItem>
             </SelectContent>
           </Select>
 
@@ -491,7 +933,7 @@ export function CalendarScheduleBaptemes({
 
       {/* Calendar content */}
       <div className="flex-1 overflow-hidden">
-        {view === "week" ? renderWeekView() : renderMonthView()}
+        {view === "day" ? renderDayView() : view === "week" ? renderWeekView() : renderMonthView()}
       </div>
     </div>
   );

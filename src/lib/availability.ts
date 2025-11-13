@@ -13,27 +13,52 @@ export class AvailabilityService {
   ) {
     const now = new Date();
     
+    // Nettoyer les items expirés pour cet item spécifique avant de vérifier les disponibilités
+    const whereExpired: any = {
+      expiresAt: { lte: now },
+      isExpired: false,
+    };
+    
+    if (type === 'stage') {
+      whereExpired.type = 'STAGE';
+      whereExpired.stageId = itemId;
+    } else if (type === 'bapteme') {
+      whereExpired.type = 'BAPTEME';
+      whereExpired.baptemeId = itemId;
+    }
+    
+    // Supprimer les items expirés
+    const deletedCount = await prisma.cartItem.deleteMany({
+      where: whereExpired,
+    });
+    
+    if (deletedCount.count > 0) {
+      console.log(`[AVAILABILITY CHECK] Nettoyé ${deletedCount.count} item(s) expiré(s) pour ${type} ${itemId}`);
+    }
+    
     if (type === 'stage') {
       const stage = await prisma.stage.findUnique({
         where: { id: itemId },
         include: {
           bookings: true,
-          temporaryReservations: {
-            where: {
-              expiresAt: { gt: now }
-            }
-          }
         }
       });
 
       if (!stage) return { available: false, reason: 'Stage introuvable' };
 
       const confirmedBookings = stage.bookings.length;
-      const temporaryReservations = stage.temporaryReservations.reduce(
-        (sum, res) => sum + res.quantity, 0
-      );
       
-      const totalReserved = confirmedBookings + temporaryReservations;
+      // Compter les réservations temporaires (items dans les paniers non expirés)
+      const temporaryCartItems = await prisma.cartItem.count({
+        where: {
+          type: 'STAGE',
+          stageId: itemId,
+          expiresAt: { gt: now },
+          isExpired: false,
+        }
+      });
+      
+      const totalReserved = confirmedBookings + temporaryCartItems;
       const availablePlaces = stage.places - totalReserved;
 
       return {
@@ -41,7 +66,7 @@ export class AvailabilityService {
         availablePlaces,
         totalPlaces: stage.places,
         confirmedBookings,
-        temporaryReservations,
+        temporaryReservations: temporaryCartItems,
         reason: availablePlaces < requestedQuantity ? 'Places insuffisantes' : null
       };
     }
@@ -51,22 +76,24 @@ export class AvailabilityService {
         where: { id: itemId },
         include: {
           bookings: true,
-          temporaryReservations: {
-            where: {
-              expiresAt: { gt: now }
-            }
-          }
         }
       });
 
       if (!bapteme) return { available: false, reason: 'Baptême introuvable' };
 
       const confirmedBookings = bapteme.bookings.length;
-      const temporaryReservations = bapteme.temporaryReservations.reduce(
-        (sum, res) => sum + res.quantity, 0
-      );
       
-      const totalReserved = confirmedBookings + temporaryReservations;
+      // Compter les réservations temporaires (items dans les paniers non expirés)
+      const temporaryCartItems = await prisma.cartItem.count({
+        where: {
+          type: 'BAPTEME',
+          baptemeId: itemId,
+          expiresAt: { gt: now },
+          isExpired: false,
+        }
+      });
+      
+      const totalReserved = confirmedBookings + temporaryCartItems;
       const availablePlaces = bapteme.places - totalReserved;
 
       return {
@@ -74,7 +101,7 @@ export class AvailabilityService {
         availablePlaces,
         totalPlaces: bapteme.places,
         confirmedBookings,
-        temporaryReservations,
+        temporaryReservations: temporaryCartItems,
         reason: availablePlaces < requestedQuantity ? 'Places insuffisantes' : null
       };
     }

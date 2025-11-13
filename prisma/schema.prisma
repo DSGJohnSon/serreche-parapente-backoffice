@@ -224,7 +224,7 @@ model Stagiaire {
   lastName  String
   email     String
   phone     String
-  birthDate DateTime?
+  birthDate DateTime? // Date de naissance (pour calculer l'âge)
   weight    Float
   height    Float
 
@@ -291,10 +291,16 @@ model CartItem {
   cartSessionId String
   cartSession   CartSession @relation(fields: [cartSessionId], references: [id], onDelete: Cascade)
 
+  // Système de réservation temporaire (1 heure pour STAGE/BAPTEME)
+  expiresAt DateTime? // Date d'expiration (createdAt + 1h pour STAGE/BAPTEME, null pour GIFT_CARD)
+  isExpired Boolean   @default(false) // Flag calculé pour identifier les items expirés
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([cartSessionId])
+  @@index([expiresAt])
+  @@index([isExpired])
 }
 
 // Réservation temporaire pour gérer les stocks

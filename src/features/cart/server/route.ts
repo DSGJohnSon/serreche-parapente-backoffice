@@ -58,8 +58,10 @@ const app = new Hono()
   .get("items", publicAPIMiddleware, cartSessionMiddleware, async (c) => {
     try {
       const cartSession = c.get("cartSession");
+      const now = new Date();
       
-      const cartItems = await prisma.cartItem.findMany({
+      // Récupérer tous les items du panier
+      const allCartItems = await prisma.cartItem.findMany({
         where: {
           cartSessionId: cartSession.id,
         },
@@ -72,9 +74,33 @@ const app = new Hono()
         },
       });
 
-      // Calculer le total
+      // Identifier et supprimer les items expirés
+      const expiredItemIds: string[] = [];
+      const validItems = allCartItems.filter(item => {
+        // Vérifier si l'item a une date d'expiration et si elle est dépassée
+        if ((item.type === 'STAGE' || item.type === 'BAPTEME') && item.expiresAt) {
+          const isExpired = new Date(item.expiresAt) <= now;
+          if (isExpired) {
+            expiredItemIds.push(item.id);
+            return false; // Exclure cet item
+          }
+        }
+        return true; // Garder cet item
+      });
+
+      // Supprimer les items expirés de la base de données
+      if (expiredItemIds.length > 0) {
+        await prisma.cartItem.deleteMany({
+          where: {
+            id: { in: expiredItemIds },
+          },
+        });
+        console.log(`[CART CLEANUP] Supprimé ${expiredItemIds.length} item(s) expiré(s)`);
+      }
+
+      // Calculer le total avec les items valides uniquement
       let totalAmount = 0;
-      for (const item of cartItems) {
+      for (const item of validItems) {
         if (item.type === 'STAGE' && item.stage) {
           totalAmount += item.stage.price * item.quantity;
         } else if (item.type === 'BAPTEME' && item.bapteme) {
@@ -96,9 +122,9 @@ const app = new Hono()
       return c.json({
         success: true,
         data: {
-          items: cartItems,
+          items: validItems,
           totalAmount,
-          itemCount: cartItems.length,
+          itemCount: validItems.length,
         },
       });
     } catch (error) {
@@ -160,6 +186,12 @@ const app = new Hono()
           );
         }
 
+        // Calculer l'expiration pour STAGE et BAPTEME (1 heure)
+        const now = new Date();
+        const expiresAt = (type === 'STAGE' || type === 'BAPTEME')
+          ? new Date(now.getTime() + 60 * 60 * 1000) // +1 heure
+          : null; // Pas d'expiration pour GIFT_CARD
+
         // Créer l'item dans le panier
         const cartItem = await prisma.cartItem.create({
           data: {
@@ -170,6 +202,8 @@ const app = new Hono()
             giftCardAmount: type === 'GIFT_CARD' ? giftCardAmount : null,
             participantData,
             cartSessionId: cartSession.id,
+            expiresAt,
+            isExpired: false,
           },
           include: {
             stage: true,

@@ -20,7 +20,9 @@ const app = new Hono()
     if (date) where.date = new Date(date);
 
     try {
-      const result = await prisma.bapteme.findMany({
+      const now = new Date();
+      
+      const baptemes = await prisma.bapteme.findMany({
         where,
         include: {
           bookings: true,
@@ -31,7 +33,34 @@ const app = new Hono()
           },
         },
       });
-      return c.json({ success: true, message: "", data: result });
+
+      // Enrichir chaque baptême avec les disponibilités en temps réel
+      const enrichedBaptemes = await Promise.all(
+        baptemes.map(async (bapteme) => {
+          const confirmedBookings = bapteme.bookings.length;
+          
+          // Compter les réservations temporaires (items dans les paniers non expirés)
+          const temporaryReservations = await prisma.cartItem.count({
+            where: {
+              type: 'BAPTEME',
+              baptemeId: bapteme.id,
+              expiresAt: { gt: now },
+              isExpired: false,
+            }
+          });
+          
+          const availablePlaces = bapteme.places - confirmedBookings - temporaryReservations;
+          
+          return {
+            ...bapteme,
+            availablePlaces: Math.max(0, availablePlaces),
+            confirmedBookings,
+            temporaryReservations,
+          };
+        })
+      );
+
+      return c.json({ success: true, message: "", data: enrichedBaptemes });
     } catch (error) {
       return c.json({ success: false, message: "Erreur lors de la récupération des créneaux", data: null });
     }

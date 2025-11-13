@@ -16,7 +16,9 @@ const app = new Hono()
     if (date) where.startDate = new Date(date);
 
     try {
-      const result = await prisma.stage.findMany({
+      const now = new Date();
+      
+      const stages = await prisma.stage.findMany({
         where,
         include: {
           bookings: true,
@@ -27,8 +29,35 @@ const app = new Hono()
           },
         },
       });
-      console.log(result);
-      return c.json({ success: true, message: "", data: result });
+
+      // Enrichir chaque stage avec les disponibilités en temps réel
+      const enrichedStages = await Promise.all(
+        stages.map(async (stage) => {
+          const confirmedBookings = stage.bookings.length;
+          
+          // Compter les réservations temporaires (items dans les paniers non expirés)
+          const temporaryReservations = await prisma.cartItem.count({
+            where: {
+              type: 'STAGE',
+              stageId: stage.id,
+              expiresAt: { gt: now },
+              isExpired: false,
+            }
+          });
+          
+          const availablePlaces = stage.places - confirmedBookings - temporaryReservations;
+          
+          return {
+            ...stage,
+            availablePlaces: Math.max(0, availablePlaces),
+            confirmedBookings,
+            temporaryReservations,
+          };
+        })
+      );
+
+      console.log(enrichedStages);
+      return c.json({ success: true, message: "", data: enrichedStages });
     } catch (error) {
       return c.json({ success: false, message: "Erreur lors de la récupération des stages", data: null });
     }
