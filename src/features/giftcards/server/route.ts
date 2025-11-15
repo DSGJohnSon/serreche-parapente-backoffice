@@ -233,20 +233,25 @@ const app = new Hono()
           }, 404);
         }
         
-        // Check if gift card is already used
-        if (giftCard.isUsed) {
+        // Calculate remaining amount (use remainingAmount if set, otherwise use amount)
+        const remainingAmount = giftCard.remainingAmount || giftCard.amount;
+        
+        // Check if gift card is already fully used
+        if (giftCard.isUsed || remainingAmount <= 0) {
           return c.json({
             success: false,
             message: "Bon cadeau déjà utilisé",
           }, 400);
         }
         
-        // Check if gift card has remaining amount
-        if (giftCard.amount <= 0) {
-          console.log("Gift card not found for code:", code);
+        // Check expiration date (12 months from creation)
+        const expirationDate = new Date(giftCard.createdAt);
+        expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+        
+        if (new Date() > expirationDate) {
           return c.json({
             success: false,
-            message: "Bon cadeau invalide, expiré ou déjà utilisé",
+            message: "Bon cadeau expiré",
           }, 400);
         }
 
@@ -256,8 +261,8 @@ const app = new Hono()
           data: {
             giftCard: {
               code: giftCard.code,
-              remainingAmount: giftCard.amount,
-              expirationDate: null, // No expiration date in current schema
+              remainingAmount: remainingAmount,
+              expirationDate: expirationDate.toISOString(),
               isValid: true,
             },
           },

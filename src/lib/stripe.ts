@@ -13,14 +13,38 @@ export const createPaymentIntent = async (order: {
   id: string;
   orderNumber: string;
   totalAmount: number;
+  sessionId?: string; // ID de session du panier pour vider le panier après paiement
+  customerEmail?: string; // Email du client pour créer le client après paiement
+  customerData?: any; // Données complètes du client
 }) => {
   if (!stripe) {
-    // Mode test sans Stripe
+    // Mode test sans Stripe - Générer un client_secret au format valide
+    const timestamp = Date.now();
+    const randomSecret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     return {
-      id: `pi_test_${Date.now()}`,
-      client_secret: `pi_test_${Date.now()}_secret_test`,
+      id: `pi_test_${timestamp}`,
+      client_secret: `pi_test_${timestamp}_secret_${randomSecret}`,
       amount: Math.round(order.totalAmount * 100),
     };
+  }
+
+  // Préparer les métadonnées (Stripe limite à 500 caractères par valeur)
+  const metadata: Record<string, string> = {
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+  };
+
+  if (order.sessionId) {
+    metadata.sessionId = order.sessionId;
+  }
+
+  if (order.customerEmail) {
+    metadata.customerEmail = order.customerEmail;
+  }
+
+  // Stocker les données client en JSON (si elles existent)
+  if (order.customerData) {
+    metadata.customerData = JSON.stringify(order.customerData);
   }
 
   return await stripe!.paymentIntents.create({
@@ -29,10 +53,7 @@ export const createPaymentIntent = async (order: {
     automatic_payment_methods: {
       enabled: true,
     },
-    metadata: {
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-    },
+    metadata,
   });
 };
 
@@ -77,10 +98,12 @@ export const createPaymentWithIdempotency = async (order: {
   customerEmail: string;
 }) => {
   if (!stripe) {
-    // Mode test sans Stripe
+    // Mode test sans Stripe - Générer un client_secret au format valide
+    const timestamp = Date.now();
+    const randomSecret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     return {
-      id: `pi_test_${Date.now()}`,
-      client_secret: `pi_test_${Date.now()}_secret_test`,
+      id: `pi_test_${timestamp}`,
+      client_secret: `pi_test_${timestamp}_secret_${randomSecret}`,
       amount: Math.round(order.totalAmount * 100),
     };
   }

@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const CreateOrderSchema = z.object({
   customerEmail: z.string().email("Email invalide"),
-  appliedGiftCardCode: z.string().optional(),
+  appliedGiftCardCodes: z.array(z.string()).optional().default([]), // Array of gift card codes
+  appliedGiftCardCode: z.string().optional(), // Deprecated: kept for backward compatibility
   customerData: z.object({
     firstName: z.string().min(1, "Prénom requis"),
     lastName: z.string().min(1, "Nom requis"),

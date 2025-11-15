@@ -9,7 +9,6 @@ import {
   LucideGraduationCap,
   LucideHouse,
   LucidePencilLine,
-  LucideTicket,
   LucideUsers2,
   LucideUsersRound,
   LucideUserCheck,
@@ -160,28 +159,6 @@ export function NavMain() {
               <SidebarMenuButton tooltip={"Clients"}>
                 <LucideGift className="size-4" />
                 <span>Bons Cadeaux</span>
-              </SidebarMenuButton>
-            </Link>
-          </SidebarMenuItem>
-          <SidebarMenuItem
-            className={cn(
-              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition group/external-link"
-            )}
-          >
-            <Link href={"https://dashboard.stripe.com/coupons"} target="_blank">
-              <SidebarMenuButton
-                tooltip={"Codes Promo - External"}
-                className="justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <LucideTicket className="size-4" />
-                  <span>Codes Promo</span>
-                </div>
-                <LucideExternalLink
-                  className={cn(
-                    "transition opacity-0 group-hover/external-link:opacity-50"
-                  )}
-                />
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>
