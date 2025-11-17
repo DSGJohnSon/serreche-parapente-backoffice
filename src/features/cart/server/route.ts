@@ -22,6 +22,8 @@ const AddToCartSchema = z.object({
     // Pour baptêmes
     selectedCategory: z.string().optional(),
     hasVideo: z.boolean().optional(),
+    // Pour stages
+    selectedStageType: z.string().optional(),
     // Pour bons cadeaux
     recipientName: z.string().optional(),
     recipientEmail: z.string().optional(),
