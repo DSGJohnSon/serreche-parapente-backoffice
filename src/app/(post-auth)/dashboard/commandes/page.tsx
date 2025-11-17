@@ -1,15 +1,15 @@
 import { Metadata } from "next";
-import { StagiairesList } from "./stagiaires-list";
+import { OrdersList } from "./orders-list";
 
 export const metadata: Metadata = {
-  title: "Stage de Parapente - BackOffice | Stagiaires",
-  description: "Gestion des stagiaires",
+  title: "Stage de Parapente - BackOffice | Commandes",
+  description: "Gestion des commandes",
 };
 
 export default async function Page() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-16">
-      <StagiairesList />
+      <OrdersList />
     </main>
   );
 }

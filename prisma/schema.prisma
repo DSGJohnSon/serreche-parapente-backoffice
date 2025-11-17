@@ -51,6 +51,8 @@ enum CartItemType {
 enum OrderStatus {
   PENDING
   PAID
+  PARTIALLY_PAID
+  FULLY_PAID
   CONFIRMED
   CANCELLED
   REFUNDED
@@ -62,6 +64,13 @@ enum PaymentStatus {
   FAILED
   CANCELLED
   REFUNDED
+}
+
+enum ManualPaymentMethod {
+  CARD
+  BANK_TRANSFER
+  CASH
+  CHECK
 }
 
 //Catégories de baptêmes avec leurs prix fixes
@@ -253,6 +262,9 @@ model User {
   // Relations many-to-many avec les stages et baptêmes
   stageMoniteurs   StageMoniteur[]   @relation("StageMoniteurs")
   baptemeMoniteurs BaptemeMoniteur[] @relation("BaptemeMoniteurs")
+
+  // Paiements enregistrés par cet utilisateur
+  recordedPayments Payment[]
 }
 
 // Session temporaire pour les paniers non-authentifiés
@@ -403,6 +415,13 @@ model OrderItem {
   // Données du participant (historique JSON)
   participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
 
+  // Gestion des acomptes (stages uniquement)
+  depositAmount    Float?    // Montant de l'acompte payé (pour les stages)
+  remainingAmount  Float?    // Montant restant à payer (pour les stages)
+  isFullyPaid      Boolean   @default(false) // True quand tout est payé
+  finalPaymentDate DateTime? // Date du paiement final en physique
+  finalPaymentNote String?   // Note optionnelle sur le paiement final
+
   // Réservations créées (liées au stagiaire)
   stageBookingId String?       @unique
   stageBooking   StageBooking? @relation(fields: [stageBookingId], references: [id])
@@ -410,9 +429,30 @@ model OrderItem {
   baptemeBookingId String?         @unique
   baptemeBooking   BaptemeBooking? @relation(fields: [baptemeBookingId], references: [id])
 
+  // Relation avec les paiements (many-to-many)
+  paymentAllocations PaymentAllocation[]
+
   createdAt DateTime @default(now())
 
   @@index([orderId])
+}
+
+// Table de liaison pour répartir les paiements entre les OrderItems
+model PaymentAllocation {
+  id            String  @id @default(cuid())
+  paymentId     String
+  payment       Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  orderItemId   String
+  orderItem     OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  
+  // Montant alloué de ce paiement à cet OrderItem
+  allocatedAmount Float
+  
+  createdAt DateTime @default(now())
+
+  @@unique([paymentId, orderItemId])
+  @@index([paymentId])
+  @@index([orderItemId])
 }
 
 // Paiements
@@ -421,13 +461,23 @@ model Payment {
   orderId String
   order   Order  @relation(fields: [orderId], references: [id])
 
-  stripePaymentIntentId String        @unique
+  stripePaymentIntentId String?       @unique // Optionnel pour les paiements manuels
   status                PaymentStatus @default(PENDING)
   amount                Float
   currency              String        @default("eur")
 
   // Métadonnées Stripe
   stripeMetadata Json?
+
+  // Pour les paiements manuels
+  isManual              Boolean                @default(false)
+  manualPaymentMethod   ManualPaymentMethod?
+  manualPaymentNote     String?
+  recordedBy            String?                // ID de l'admin/moniteur qui a enregistré le paiement
+  recordedByUser        User?                  @relation(fields: [recordedBy], references: [id])
+  
+  // Relation avec les OrderItems (many-to-many via PaymentAllocation)
+  allocations PaymentAllocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

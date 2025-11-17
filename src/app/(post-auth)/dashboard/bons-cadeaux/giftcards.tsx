@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LucideFrown, LucideRefreshCcw, LucideGift, LucideEye, LucideEyeOff, LucideEdit, LucideTrash2, LucideUser, LucidePlus } from "lucide-react";
+import { LucideFrown, LucideRefreshCcw, LucideGift, LucideEye, LucideEyeOff, LucideEdit, LucideTrash2, LucideUser, LucidePlus, LucideExternalLink } from "lucide-react";
 import { EditGiftCardDialog } from "./edit-giftcard-dialog";
 import { AddGiftCardDialog } from "./add-giftcard-dialog";
 import { Button } from "@/components/ui/button";
@@ -155,15 +155,24 @@ export function GiftCards() {
             </p>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {unusedGiftCards.map((giftCard) => (
+              {unusedGiftCards.map((giftCard) => {
+                const remainingAmount = giftCard.remainingAmount || giftCard.amount;
+                return (
                 <Card key={giftCard.id} className="border-l-4 border-l-green-500">
                   <CardContent className="p-4">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <Badge variant="secondary">Non utilisé</Badge>
-                        <span className="text-lg font-bold text-green-600">
-                          {giftCard.amount.toFixed(2)}€
-                        </span>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-green-600">
+                            {remainingAmount.toFixed(2)}€
+                          </div>
+                          {remainingAmount < giftCard.amount && (
+                            <div className="text-xs text-muted-foreground">
+                              sur {giftCard.amount.toFixed(2)}€
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       <div className="space-y-2">
@@ -204,6 +213,15 @@ export function GiftCards() {
                       </div>
                       
                       <div className="flex gap-2 pt-2">
+                        <Link href={`/dashboard/bons-cadeaux/${giftCard.id}`} className="flex-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                          >
+                            <LucideExternalLink className="h-4 w-4" />
+                          </Button>
+                        </Link>
                         <Button
                           variant="outline"
                           size="sm"
@@ -225,7 +243,8 @@ export function GiftCards() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              );
+              })}
             </div>
           )}
         </CardContent>
@@ -263,15 +282,22 @@ export function GiftCards() {
                 </p>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {usedGiftCards.map((giftCard) => (
+                  {usedGiftCards.map((giftCard) => {
+                    const remainingAmount = giftCard.remainingAmount || 0;
+                    return (
                     <Card key={giftCard.id} className="border-l-4 border-l-red-500">
                       <CardContent className="p-4">
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <Badge variant="destructive">Utilisé</Badge>
-                            <span className="text-lg font-bold text-red-600">
-                              {giftCard.amount.toFixed(2)}€
-                            </span>
+                            <div className="text-right">
+                              <div className="text-lg font-bold text-red-600">
+                                {remainingAmount.toFixed(2)}€
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                sur {giftCard.amount.toFixed(2)}€
+                              </div>
+                            </div>
                           </div>
                           
                           <div className="space-y-2">
@@ -314,14 +340,18 @@ export function GiftCards() {
                           </div>
                           
                           <div className="pt-2">
-                            <span className="text-xs text-muted-foreground">
-                              Non modifiable
-                            </span>
+                            <Link href={`/dashboard/bons-cadeaux/${giftCard.id}`}>
+                              <Button variant="outline" size="sm" className="w-full">
+                                <LucideExternalLink className="h-4 w-4 mr-2" />
+                                Voir détails
+                              </Button>
+                            </Link>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
             </CardContent>

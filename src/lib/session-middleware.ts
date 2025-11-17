@@ -23,7 +23,11 @@ export const sessionMiddleware = createMiddleware(async (c, next) => {
   await next();
 });
 
-export const adminSessionMiddleware = createMiddleware(async (c, next) => {
+export const adminSessionMiddleware = createMiddleware<{
+  Variables: {
+    userId: string;
+  };
+}>(async (c, next) => {
   const session = getCookie(c, AUTH_COOKIE);
   if (!session) {
     return c.json({ error: "Unauthorized, admin only" }, 401);
@@ -45,6 +49,9 @@ export const adminSessionMiddleware = createMiddleware(async (c, next) => {
 
   if (userToVerify === null || userToVerify.role !== "ADMIN")
     return c.json({ error: "Unauthorized, admin only" }, 401);
+
+  // Stocker l'ID utilisateur dans le contexte pour les endpoints
+  c.set("userId", userToVerify.id);
 
   await next();
 });

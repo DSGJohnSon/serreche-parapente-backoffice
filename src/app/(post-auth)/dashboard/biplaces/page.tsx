@@ -52,7 +52,7 @@ export default function Page() {
   // Prevent hydration mismatch
   if (!mounted) {
     return (
-      <main className="flex flex-1 flex-col gap-4 p-16">
+      <main className="flex flex-1 flex-col gap-4 p-4">
         <div className="flex items-center justify-center h-64">
           <div className="text-lg text-muted-foreground">Chargement...</div>
         </div>
@@ -160,7 +160,7 @@ export default function Page() {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-4 p-16">
+    <main className="flex flex-1 flex-col gap-4 p-4">
       <CalendarScheduleBaptemes
         baptemes={baptemes}
         onBaptemeClick={handleBaptemeClick}

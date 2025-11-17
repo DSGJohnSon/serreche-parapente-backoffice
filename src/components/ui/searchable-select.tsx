@@ -82,7 +82,7 @@ export const SearchableSelect: React.FC<{
     if (isPopoverOpen && value !== selectedValue) {
       setSelectedValue(value);
     }
-  }, [isPopoverOpen]);
+  }, [isPopoverOpen, value, selectedValue]);
 
   return (
     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} modal>

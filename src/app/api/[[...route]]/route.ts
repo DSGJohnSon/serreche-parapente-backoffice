@@ -15,6 +15,8 @@ import availability from "@/features/availability/server/route";
 import orders from "@/features/orders/server/route";
 import checkout from "@/features/checkout/server/route";
 import tarifs from "@/features/tarifs/server/route";
+import payments from "@/features/payments/server/route";
+import dashboard from "@/features/dashboard/server/route";
 import { cors } from "hono/cors";
 
 const app = new Hono().basePath("/api");
@@ -55,7 +57,9 @@ const routes = app
   .route("/availability", availability)
   .route("/orders", orders)
   .route("/checkout", checkout)
-  .route("/tarifs", tarifs);
+  .route("/tarifs", tarifs)
+  .route("/payments", payments)
+  .route("/dashboard", dashboard);
 
 export const GET = handle(app);
 export const POST = handle(app);

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { ReservationsView } from "./reservations-view";
+import { ReservationsList } from "./reservations-list";
 
 export const metadata: Metadata = {
   title: "Stage de Parapente - BackOffice | Réservations",
@@ -8,8 +8,8 @@ export const metadata: Metadata = {
 
 export default async function ReservationsPage() {
   return (
-    <main className="flex flex-1 flex-col gap-4 p-4">
-      <ReservationsView />
+    <main className="flex flex-1 flex-col gap-4 p-16">
+      <ReservationsList />
     </main>
   );
 }

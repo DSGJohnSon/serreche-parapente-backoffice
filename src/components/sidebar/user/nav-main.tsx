@@ -9,9 +9,11 @@ import {
   LucideGraduationCap,
   LucideHouse,
   LucidePencilLine,
+  LucideShoppingCart,
   LucideUsers2,
   LucideUsersRound,
   LucideUserCheck,
+  LucideCreditCard,
 } from "lucide-react";
 
 import {
@@ -105,6 +107,40 @@ export function NavMain() {
               <SidebarMenuButton tooltip={"Réservations"}>
                 <LucideCalendarCheck className="size-4" />
                 <span>Réservations</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem
+            className={cn(
+              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+              slugToKnowIfActive[0] === "commandes"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
+            )}
+          >
+            <Link
+              href={`/${pathname.split("/").slice(1, 2).join("/")}/commandes`}
+            >
+              <SidebarMenuButton tooltip={"Commandes"}>
+                <LucideShoppingCart className="size-4" />
+                <span>Commandes</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem
+            className={cn(
+              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+              slugToKnowIfActive[0] === "paiements"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
+            )}
+          >
+            <Link
+              href={`/${pathname.split("/").slice(1, 2).join("/")}/paiements`}
+            >
+              <SidebarMenuButton tooltip={"Paiements"}>
+                <LucideCreditCard className="size-4" />
+                <span>Paiements</span>
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>

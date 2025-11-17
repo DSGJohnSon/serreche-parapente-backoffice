@@ -1,4 +1,3 @@
-import AddFloatingButton from "@/components/add-floating-button";
 import { AppSidebar } from "@/components/sidebar/user/app-sidebar";
 import {
   SidebarInset,
@@ -27,7 +26,6 @@ export default async function DashboardClientLayout({
       <AppSidebar user={user} />
       <SidebarInset className="relative">
         {children}
-        <AddFloatingButton className="fixed bottom-6 right-6" />
       </SidebarInset>
     </SidebarProvider>
   );

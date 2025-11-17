@@ -35,6 +35,7 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Bapteme, User, BaptemeBooking } from "@prisma/client";
+import Image from "next/image";
 
 interface BaptemeWithDetails extends Bapteme {
   moniteurs: Array<{
@@ -129,8 +130,8 @@ export function CalendarScheduleBaptemes({
     return endTime;
   };
 
-  // Get color for a single category
-  const getCategoryColor = (category: string) => {
+  // Get color for a single category (light mode)
+  const getCategoryColorLight = (category: string) => {
     switch (category) {
       case "AVENTURE":
         return "rgb(16, 185, 129)"; // emerald-500
@@ -144,6 +145,24 @@ export function CalendarScheduleBaptemes({
         return "rgb(234, 179, 8)"; // yellow-500
       default:
         return "rgb(59, 130, 246)"; // blue-500 (fallback)
+    }
+  };
+
+  // Get color for a single category (dark mode - more vibrant)
+  const getCategoryColorDark = (category: string) => {
+    switch (category) {
+      case "AVENTURE":
+        return "rgb(52, 211, 153)"; // emerald-400
+      case "DUREE":
+        return "rgb(251, 146, 60)"; // orange-400
+      case "ENFANT":
+        return "rgb(129, 140, 248)"; // indigo-400
+      case "HIVER":
+        return "rgb(148, 163, 184)"; // slate-400
+      case "LONGUE_DUREE":
+        return "rgb(250, 204, 21)"; // yellow-400
+      default:
+        return "rgb(96, 165, 250)"; // blue-400 (fallback)
     }
   };
 
@@ -170,24 +189,32 @@ export function CalendarScheduleBaptemes({
   // If single category: solid color background
   const getBaptemeBackgroundStyle = (bapteme: Bapteme) => {
     const categories = bapteme.categories || [];
+    const isDark = document.documentElement.classList.contains('dark');
     
     if (categories.length === 0) {
-      return { backgroundColor: "rgb(59, 130, 246)" }; // blue-500 default
+      return {
+        backgroundColor: isDark ? "rgb(96, 165, 250)" : "rgb(59, 130, 246)"
+      };
     }
     
     if (categories.length === 1) {
-      return { backgroundColor: getCategoryColor(categories[0]) };
+      return {
+        backgroundColor: isDark
+          ? getCategoryColorDark(categories[0])
+          : getCategoryColorLight(categories[0])
+      };
     }
     
-    // Multiple categories: neutral gray background
+    // Multiple categories: neutral background (darker in dark mode)
     return {
-      backgroundColor: "rgb(212, 212, 216)" // neutral-300
+      backgroundColor: isDark ? "rgb(71, 85, 105)" : "rgb(212, 212, 216)" // slate-600 : neutral-300
     };
   };
 
   // Generate the colored border for multiple categories
   const getCategoryBorder = (bapteme: Bapteme) => {
     const categories = bapteme.categories || [];
+    const isDark = document.documentElement.classList.contains('dark');
     
     if (categories.length <= 1) {
       return null;
@@ -202,7 +229,9 @@ export function CalendarScheduleBaptemes({
           <div
             key={`${cat}-${index}`}
             style={{
-              backgroundColor: getCategoryColor(cat),
+              backgroundColor: isDark
+                ? getCategoryColorDark(cat)
+                : getCategoryColorLight(cat),
               width: `${sectionWidth}%`
             }}
           />
@@ -326,8 +355,8 @@ export function CalendarScheduleBaptemes({
           {weekDays.map((day) => (
             <div
               key={day.toISOString()}
-              className={`p-2 text-center border-l cursor-pointer hover:bg-muted/90 ${
-                isToday(day) ? "bg-primary/10 font-semibold" : ""
+              className={`p-2 text-center border-l cursor-pointer hover:bg-muted/50 transition-colors ${
+                isToday(day) ? "bg-primary/20 dark:bg-primary/30 font-semibold" : ""
               }`}
               onClick={() => handleDayClickInternal(day)}
             >
@@ -373,12 +402,12 @@ export function CalendarScheduleBaptemes({
                       <Tooltip key={`${day.toISOString()}-${hour}`}>
                         <TooltipTrigger asChild>
                           <div
-                            className={`border-b border-l cursor-pointer hover:bg-gray-300/50 relative ${
-                              isGrayedOut ? 'bg-gray-300/10' : 'bg-white'
+                            className={`border-b border-l cursor-pointer hover:bg-accent/50 relative transition-colors ${
+                              isGrayedOut ? 'bg-muted/30 dark:bg-muted/20' : 'bg-card dark:bg-card'
                             } ${
-                              isTopBoundary ? 'border-t-[2px] border-t-foreground/30' : ''
+                              isTopBoundary ? 'border-t-[2px] border-t-primary/40' : ''
                             } ${
-                              isBottomBoundary ? 'border-b-[2px] border-b-foreground/30' : ''
+                              isBottomBoundary ? 'border-b-[2px] border-b-primary/40' : ''
                             }`}
                             style={{ height: `${HOUR_HEIGHT}px` }}
                             onClick={() => handleDayClickInternal(day, hour)}
@@ -395,10 +424,10 @@ export function CalendarScheduleBaptemes({
                                       dayBaptemes,
                                       index
                                     )}
-                                    className={`rounded-md p-1.5 text-xs cursor-pointer hover:opacity-90 shadow-sm border transition-opacity overflow-hidden relative ${
+                                    className={`rounded-md p-1.5 text-xs cursor-pointer hover:opacity-90 shadow-md border transition-all overflow-hidden relative ${
                                       bapteme.categories && bapteme.categories.length > 1
-                                        ? 'text-gray-800 border-gray-300'
-                                        : 'text-white border-white/20'
+                                        ? 'text-gray-900 dark:text-gray-100 border-gray-400 dark:border-slate-500'
+                                        : 'text-white border-white/20 dark:border-white/30'
                                     }`}
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -410,20 +439,20 @@ export function CalendarScheduleBaptemes({
                                       // Créneau court (1h ou moins) - affichage compact horizontal
                                       <>
                                         <div className={`font-medium text-xs mb-0.5 truncate ${
-                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900' : 'text-white'
+                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900 dark:text-gray-100' : 'text-white'
                                         }`}>
                                           {formatTime(new Date(bapteme.date))} - {formatTime(getEndTime(bapteme))}
                                         </div>
                                         <div className="flex items-center justify-between gap-1">
                                           <div className={`text-xs font-medium truncate flex-1 ${
-                                            bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700' : 'text-white/90'
+                                            bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700 dark:text-gray-300' : 'text-white/90'
                                           }`}>
                                             {bapteme.categories && bapteme.categories.length > 0 ? (
                                               <>
                                                 {formatCategoryName(bapteme.categories[0])}
                                                 {bapteme.categories.length > 1 && (
                                                   <span className={`ml-0.5 ${
-                                                    bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white/70'
+                                                    bapteme.categories.length > 1 ? 'text-gray-600 dark:text-gray-400' : 'text-white/70'
                                                   }`}>
                                                     +{bapteme.categories.length - 1}
                                                   </span>
@@ -435,8 +464,8 @@ export function CalendarScheduleBaptemes({
                                           </div>
                                           <div className={`font-bold text-xs rounded px-1.5 py-0.5 whitespace-nowrap ${
                                             bapteme.categories && bapteme.categories.length > 1
-                                              ? 'bg-gray-800 text-white'
-                                              : 'bg-white/20 text-white'
+                                              ? 'bg-gray-800 dark:bg-slate-200 text-white dark:text-slate-900'
+                                              : 'bg-white/20 dark:bg-white/30 text-white'
                                           }`}>
                                             {bapteme.placesRestantes}/{bapteme.places}
                                           </div>
@@ -446,7 +475,7 @@ export function CalendarScheduleBaptemes({
                                       // Créneau long (plus de 1h) - affichage vertical complet
                                       <>
                                         <div className={`font-medium text-xs mb-1 ${
-                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900' : 'text-white'
+                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900 dark:text-gray-100' : 'text-white'
                                         }`}>
                                           {formatTime(new Date(bapteme.date))} -{" "}
                                           {formatTime(getEndTime(bapteme))}
@@ -454,14 +483,14 @@ export function CalendarScheduleBaptemes({
                                         
                                         {/* Categories */}
                                         <div className={`text-xs font-medium mb-1 ${
-                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700' : 'text-white/90'
+                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700 dark:text-gray-300' : 'text-white/90'
                                         }`}>
                                           {bapteme.categories && bapteme.categories.length > 0 ? (
                                             <>
                                               {formatCategoryName(bapteme.categories[0])}
                                               {bapteme.categories.length > 1 && (
                                                 <span className={`ml-1 ${
-                                                  bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white/70'
+                                                  bapteme.categories.length > 1 ? 'text-gray-600 dark:text-gray-400' : 'text-white/70'
                                                 }`}>
                                                   +{bapteme.categories.length - 1}
                                                 </span>
@@ -474,7 +503,7 @@ export function CalendarScheduleBaptemes({
 
                                         {/* Moniteurs */}
                                         <div className={`text-xs mb-1 truncate ${
-                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white/80'
+                                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-600 dark:text-gray-400' : 'text-white/80'
                                         }`}>
                                           {bapteme.moniteurs?.length > 0
                                             ? bapteme.moniteurs.length === 1
@@ -487,8 +516,8 @@ export function CalendarScheduleBaptemes({
                                         {/* Places - mise en valeur */}
                                         <div className={`font-bold text-sm rounded px-2 py-0.5 inline-block ${
                                           bapteme.categories && bapteme.categories.length > 1
-                                            ? 'bg-gray-800 text-white'
-                                            : 'bg-white/20 text-white'
+                                            ? 'bg-gray-800 dark:bg-slate-200 text-white dark:text-slate-900'
+                                            : 'bg-white/20 dark:bg-white/30 text-white'
                                         }`}>
                                           {bapteme.placesRestantes}/{bapteme.places} places
                                         </div>
@@ -586,14 +615,14 @@ export function CalendarScheduleBaptemes({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div
-                          className={`border-b cursor-pointer hover:bg-gray-300/50 relative ${
+                          className={`border-b cursor-pointer hover:bg-accent/50 relative transition-colors ${
                             (hour >= 0 && hour < 6) || (hour >= 20 && hour < 24)
-                              ? 'bg-gray-300/10'
-                              : 'bg-white'
+                              ? 'bg-muted/30 dark:bg-muted/20'
+                              : 'bg-card dark:bg-card'
                           } ${
-                            hour === 6 ? 'border-t-[2px] border-t-foreground/30' : ''
+                            hour === 6 ? 'border-t-[2px] border-t-primary/40' : ''
                           } ${
-                            hour === 19 ? 'border-b-[2px] border-b-foreground/30' : ''
+                            hour === 19 ? 'border-b-[2px] border-b-primary/40' : ''
                           }`}
                           style={{ height: `${HOUR_HEIGHT}px` }}
                           onClick={() => onDayClick(selectedDayDate, hour)}
@@ -621,10 +650,10 @@ export function CalendarScheduleBaptemes({
                                     zIndex: 1 + startHour,
                                     ...getBaptemeBackgroundStyle(bapteme),
                                   }}
-                                  className={`rounded-md p-1.5 text-xs cursor-pointer hover:opacity-90 shadow-md border transition-opacity overflow-hidden relative ${
+                                  className={`rounded-md p-1.5 text-xs cursor-pointer hover:opacity-90 shadow-md border transition-all overflow-hidden relative ${
                                     bapteme.categories && bapteme.categories.length > 1
-                                      ? 'text-gray-800 border-gray-300'
-                                      : 'text-white border-white/20'
+                                      ? 'text-gray-900 dark:text-gray-100 border-gray-400 dark:border-slate-500'
+                                      : 'text-white border-white/20 dark:border-white/30'
                                   }`}
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -633,21 +662,21 @@ export function CalendarScheduleBaptemes({
                                 >
                                   {/* Affichage compact pour tous les créneaux */}
                                   <div className={`font-bold text-xs mb-0.5 truncate ${
-                                    bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900' : 'text-white'
+                                    bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900 dark:text-gray-100' : 'text-white'
                                   }`}>
                                     {formatTime(new Date(bapteme.date))} - {formatTime(getEndTime(bapteme))}
                                   </div>
                                   
                                   <div className="flex items-center justify-between gap-1 mb-0.5">
                                     <div className={`text-xs font-medium truncate flex-1 ${
-                                      bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700' : 'text-white/90'
+                                      bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700 dark:text-gray-300' : 'text-white/90'
                                     }`}>
                                       {bapteme.categories && bapteme.categories.length > 0 ? (
                                         <>
                                           {formatCategoryName(bapteme.categories[0])}
                                           {bapteme.categories.length > 1 && (
                                             <span className={`ml-0.5 ${
-                                              bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white/70'
+                                              bapteme.categories.length > 1 ? 'text-gray-600 dark:text-gray-400' : 'text-white/70'
                                             }`}>
                                               +{bapteme.categories.length - 1}
                                             </span>
@@ -659,8 +688,8 @@ export function CalendarScheduleBaptemes({
                                     </div>
                                     <div className={`font-bold text-xs rounded px-1.5 py-0.5 whitespace-nowrap ${
                                       bapteme.categories && bapteme.categories.length > 1
-                                        ? 'bg-gray-800 text-white'
-                                        : 'bg-white/20 text-white'
+                                        ? 'bg-gray-800 dark:bg-slate-200 text-white dark:text-slate-900'
+                                        : 'bg-white/20 dark:bg-white/30 text-white'
                                     }`}>
                                       {bapteme.placesRestantes}/{bapteme.places}
                                     </div>
@@ -703,14 +732,14 @@ export function CalendarScheduleBaptemes({
               Array.from(monitorsSchedule.entries()).map(([id, schedule]) => (
                 <div
                   key={id}
-                  className="bg-card border rounded-lg p-3 hover:shadow-md transition-shadow"
+                  className="bg-card border rounded-lg p-3 hover:shadow-md transition-all hover:border-primary/50"
                 >
                   <div className="flex items-start gap-3">
                     {/* Avatar */}
                     <div className="flex-shrink-0">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                      <div className="w-12 h-12 rounded-full bg-primary/20 dark:bg-primary/30 flex items-center justify-center overflow-hidden border border-primary/20">
                         {schedule.avatarUrl ? (
-                          <img
+                          <Image
                             src={schedule.avatarUrl}
                             alt={schedule.name}
                             className="w-full h-full object-cover"
@@ -730,7 +759,7 @@ export function CalendarScheduleBaptemes({
                       </div>
                       
                       {/* Amplitude horaire */}
-                      <div className="bg-primary/10 rounded px-2 py-1 mb-2">
+                      <div className="bg-primary/20 dark:bg-primary/30 rounded px-2 py-1 mb-2">
                         <div className="text-xs font-medium text-primary">
                           {schedule.minHour.toString().padStart(2, '0')}h00 - {schedule.maxHour.toString().padStart(2, '0')}h00
                         </div>
@@ -792,9 +821,9 @@ export function CalendarScheduleBaptemes({
             return (
               <div
                 key={day.toISOString()}
-                className={`border-r border-b last:border-r-0 p-2 cursor-pointer hover:bg-muted/50 ${
+                className={`border-r border-b last:border-r-0 p-2 cursor-pointer hover:bg-muted/50 transition-colors ${
                   !isCurrentMonth ? "text-muted-foreground bg-muted/20" : ""
-                } ${isToday(day) ? "bg-primary/10" : ""}`}
+                } ${isToday(day) ? "bg-primary/20 dark:bg-primary/30" : ""}`}
                 onClick={() => handleDayClickInternal(day)}
               >
                 <div
@@ -808,9 +837,9 @@ export function CalendarScheduleBaptemes({
                   {dayBaptemes.slice(0, 3).map((bapteme) => (
                     <div
                       key={bapteme.id}
-                      className={`text-xs p-1.5 rounded cursor-pointer hover:opacity-90 relative overflow-hidden ${
+                      className={`text-xs p-1.5 rounded cursor-pointer hover:opacity-90 relative overflow-hidden transition-all ${
                         bapteme.categories && bapteme.categories.length > 1
-                          ? 'text-gray-800'
+                          ? 'text-gray-900 dark:text-gray-100'
                           : 'text-white'
                       }`}
                       style={getBaptemeBackgroundStyle(bapteme)}
@@ -820,7 +849,7 @@ export function CalendarScheduleBaptemes({
                       }}
                     >
                       <div className={`font-medium text-xs mb-0.5 truncate ${
-                        bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900' : 'text-white'
+                        bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-900 dark:text-gray-100' : 'text-white'
                       }`}>
                         {formatTime(new Date(bapteme.date))} -{" "}
                         {formatTime(getEndTime(bapteme))}
@@ -828,14 +857,14 @@ export function CalendarScheduleBaptemes({
                       
                       {/* Categories */}
                       <div className={`text-xs mb-0.5 truncate ${
-                        bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700' : 'text-white opacity-90'
+                        bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-700 dark:text-gray-300' : 'text-white opacity-90'
                       }`}>
                         {bapteme.categories && bapteme.categories.length > 0 ? (
                           <>
                             {formatCategoryName(bapteme.categories[0])}
                             {bapteme.categories.length > 1 && (
                               <span className={`ml-1 ${
-                                bapteme.categories.length > 1 ? 'text-gray-600' : 'opacity-70'
+                                bapteme.categories.length > 1 ? 'text-gray-600 dark:text-gray-400' : 'opacity-70'
                               }`}>
                                 +{bapteme.categories.length - 1}
                               </span>
@@ -848,7 +877,7 @@ export function CalendarScheduleBaptemes({
 
                       <div className="text-xs flex items-center justify-between gap-1">
                         <span className={`truncate flex-1 min-w-0 ${
-                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-600' : 'text-white opacity-80'
+                          bapteme.categories && bapteme.categories.length > 1 ? 'text-gray-600 dark:text-gray-400' : 'text-white opacity-80'
                         }`}>
                           {bapteme.moniteurs?.length > 0
                             ? bapteme.moniteurs.length === 1
@@ -859,8 +888,8 @@ export function CalendarScheduleBaptemes({
                         </span>
                         <span className={`font-bold rounded px-1.5 py-0.5 whitespace-nowrap ${
                           bapteme.categories && bapteme.categories.length > 1
-                            ? 'bg-gray-800 text-white'
-                            : 'bg-white/20 text-white'
+                            ? 'bg-gray-800 dark:bg-slate-200 text-white dark:text-slate-900'
+                            : 'bg-white/20 dark:bg-white/30 text-white'
                         }`}>
                           {bapteme.placesRestantes}/{bapteme.places}
                         </span>

@@ -103,7 +103,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   console.log(`Processing successful payment for order: ${orderId}`);
 
   try {
-    // 1. CRÉER OU RÉCUPÉRER LE CLIENT
+    // 1. CRÉER OU METTRE À JOUR LE CLIENT
     let client;
     if (customerEmail) {
       // Chercher si le client existe déjà
@@ -111,23 +111,35 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
         where: { email: customerEmail },
       });
 
-      // Si le client n'existe pas, le créer avec les données des métadonnées
-      if (!client && customerDataStr) {
+      // Si les données client sont fournies dans les métadonnées
+      if (customerDataStr) {
         try {
           const customerData = JSON.parse(customerDataStr);
-          client = await prisma.client.create({
-            data: {
-              email: customerEmail,
-              firstName: customerData.firstName || '',
-              lastName: customerData.lastName || '',
-              phone: customerData.phone || '',
-              address: customerData.address || '',
-              postalCode: customerData.postalCode || '',
-              city: customerData.city || '',
-              country: customerData.country || 'France',
-            },
-          });
-          console.log(`Client created: ${client.id} (${client.email})`);
+          const clientData = {
+            email: customerEmail,
+            firstName: customerData.firstName || '',
+            lastName: customerData.lastName || '',
+            phone: customerData.phone || '',
+            address: customerData.address || '',
+            postalCode: customerData.postalCode || '',
+            city: customerData.city || '',
+            country: customerData.country || 'France',
+          };
+
+          if (!client) {
+            // Créer un nouveau client
+            client = await prisma.client.create({
+              data: clientData,
+            });
+            console.log(`Client created: ${client.id} (${client.email})`);
+          } else {
+            // Mettre à jour le client existant
+            client = await prisma.client.update({
+              where: { email: customerEmail },
+              data: clientData,
+            });
+            console.log(`Client updated: ${client.id} (${client.email})`);
+          }
         } catch (parseError) {
           console.error("Error parsing customer data:", parseError);
         }
@@ -136,19 +148,46 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       }
     }
 
-    // 2. Mettre à jour le statut du paiement
-    await prisma.payment.update({
+    // 2. Récupérer la commande avec tous ses items
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderItems: {
+          include: {
+            stage: true,
+            bapteme: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    // 3. Mettre à jour le statut du paiement et créer les allocations
+    const payment = await prisma.payment.update({
       where: { stripePaymentIntentId: paymentIntent.id },
       data: {
         status: "SUCCEEDED",
       },
     });
 
-    // 3. Mettre à jour la commande avec le client et le statut PAID
-    const order = await prisma.order.update({
+    // 4. Répartir le paiement entre les OrderItems selon la logique de priorité
+    await allocatePaymentToOrderItems(payment, order.orderItems);
+
+    // 5. Déterminer le statut de la commande
+    const hasStagesWithRemainingAmount = order.orderItems.some(
+      item => item.type === 'STAGE' && item.remainingAmount && item.remainingAmount > 0
+    );
+
+    const newStatus = hasStagesWithRemainingAmount ? "PARTIALLY_PAID" : "PAID";
+
+    // 6. Mettre à jour la commande avec le client et le statut approprié
+    const updatedOrder = await prisma.order.update({
       where: { id: orderId },
       data: {
-        status: "PAID",
+        status: newStatus,
         ...(client && { clientId: client.id }), // Lier le client si créé/trouvé
       },
       include: {
@@ -162,10 +201,10 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       },
     });
 
-    // Créer les réservations pour chaque item
-    await createBookingsFromOrder(order);
+    // 7. Créer les réservations pour chaque item
+    await createBookingsFromOrder(updatedOrder);
 
-    // 4. VIDER LE PANIER après confirmation du paiement
+    // 8. VIDER LE PANIER après confirmation du paiement
     const sessionId = paymentIntent.metadata.sessionId;
     
     if (sessionId) {
@@ -185,7 +224,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       console.log("No sessionId in payment intent metadata - cart not cleared");
     }
 
-    console.log(`Order ${order.orderNumber} confirmed, client ${client ? 'created/linked' : 'not found'}, and cart cleared`);
+    console.log(`Order ${updatedOrder.orderNumber} confirmed with status ${newStatus}, client ${client ? 'created/linked' : 'not found'}, and cart cleared`);
   } catch (error) {
     console.error("Error handling payment success:", error);
     throw error;
@@ -231,12 +270,15 @@ async function createBookingsFromOrder(order: any) {
       // Créer ou récupérer le stagiaire
       const stagiaire = await findOrCreateStagiaire(item.participantData);
 
+      // Récupérer le type de stage depuis participantData ou utiliser le type du stage
+      const stageType = item.participantData.stageType || item.stage?.type || 'INITIATION';
+
       // Créer la réservation de stage
       const booking = await prisma.stageBooking.create({
         data: {
           stageId: item.stageId,
           stagiaireId: stagiaire.id,
-          type: item.stage.type,
+          type: stageType as any,
         },
       });
 
@@ -245,6 +287,8 @@ async function createBookingsFromOrder(order: any) {
         where: { id: item.id },
         data: { stageBookingId: booking.id },
       });
+
+      console.log(`Stage booking created: ${booking.id} for stagiaire ${stagiaire.id}`);
     }
 
     if (item.type === "BAPTEME" && item.baptemeId) {
@@ -274,6 +318,8 @@ async function createBookingsFromOrder(order: any) {
         where: { id: item.id },
         data: { baptemeBookingId: booking.id },
       });
+
+      console.log(`Bapteme booking created: ${booking.id} for stagiaire ${stagiaire.id}`);
     }
 
     if (item.type === "GIFT_CARD") {
@@ -297,28 +343,38 @@ async function createBookingsFromOrder(order: any) {
   }
 }
 
-// Fonction pour trouver ou créer un stagiaire
+// Fonction pour trouver ou créer/mettre à jour un stagiaire
 async function findOrCreateStagiaire(participantData: any) {
   // Chercher d'abord par email
   let stagiaire = await prisma.stagiaire.findFirst({
     where: { email: participantData.email },
   });
 
+  const stagiaireData = {
+    firstName: participantData.firstName,
+    lastName: participantData.lastName,
+    email: participantData.email,
+    phone: participantData.phone,
+    weight: participantData.weight,
+    height: participantData.height,
+    birthDate: participantData.birthDate
+      ? new Date(participantData.birthDate)
+      : null,
+  };
+
   if (!stagiaire) {
     // Créer un nouveau stagiaire
     stagiaire = await prisma.stagiaire.create({
-      data: {
-        firstName: participantData.firstName,
-        lastName: participantData.lastName,
-        email: participantData.email,
-        phone: participantData.phone,
-        weight: participantData.weight,
-        height: participantData.height,
-        birthDate: participantData.birthDate
-          ? new Date(participantData.birthDate)
-          : null,
-      },
+      data: stagiaireData,
     });
+    console.log(`Stagiaire created: ${stagiaire.id} (${stagiaire.email})`);
+  } else {
+    // Mettre à jour le stagiaire existant
+    stagiaire = await prisma.stagiaire.update({
+      where: { id: stagiaire.id },
+      data: stagiaireData,
+    });
+    console.log(`Stagiaire updated: ${stagiaire.id} (${stagiaire.email})`);
   }
 
   return stagiaire;
@@ -342,4 +398,37 @@ async function generateUniqueGiftCardCode(): Promise<string> {
   } while (exists);
 
   return code;
+}
+
+// Fonction pour répartir un paiement entre les OrderItems
+async function allocatePaymentToOrderItems(payment: any, orderItems: any[]) {
+  console.log(`Allocating payment ${payment.id} (${payment.amount}€) to ${orderItems.length} items`);
+  
+  // Créer les allocations pour chaque OrderItem selon son prix
+  for (const item of orderItems) {
+    let allocatedAmount = 0;
+    
+    if (item.type === 'STAGE') {
+      // Pour les stages, allouer le montant de l'acompte
+      allocatedAmount = item.depositAmount || 0;
+    } else if (item.type === 'BAPTEME') {
+      // Pour les baptêmes, allouer le prix total
+      allocatedAmount = item.totalPrice;
+    } else if (item.type === 'GIFT_CARD') {
+      // Pour les bons cadeaux, allouer le montant du bon
+      allocatedAmount = item.giftCardAmount || 0;
+    }
+    
+    if (allocatedAmount > 0) {
+      await prisma.paymentAllocation.create({
+        data: {
+          paymentId: payment.id,
+          orderItemId: item.id,
+          allocatedAmount,
+        },
+      });
+      
+      console.log(`Allocated ${allocatedAmount}€ from payment ${payment.id} to item ${item.id} (${item.type})`);
+    }
+  }
 }

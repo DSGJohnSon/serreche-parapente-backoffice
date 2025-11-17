@@ -108,7 +108,7 @@ export function BaptemeDetailsDialog({
           {/* Informations générales */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+              <CalendarIcon className="h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">
                   {format(bapteme.date, "EEEE d MMMM yyyy", { locale: fr })}
@@ -120,7 +120,7 @@ export function BaptemeDetailsDialog({
             </div>
 
             <div className="flex items-center gap-3">
-              <ClockIcon className="h-5 w-5 text-muted-foreground" />
+              <ClockIcon className="h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Durée</p>
                 <p className="text-sm text-muted-foreground">
@@ -130,7 +130,7 @@ export function BaptemeDetailsDialog({
             </div>
 
             <div className="flex items-center gap-3">
-              <UsersIcon className="h-5 w-5 text-muted-foreground" />
+              <UsersIcon className="h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Places disponibles</p>
                 <p className="text-sm text-muted-foreground">
@@ -140,13 +140,13 @@ export function BaptemeDetailsDialog({
             </div>
 
             <div className="flex items-center gap-3">
-              <TagIcon className="h-5 w-5 text-muted-foreground" />
+              <TagIcon className="h-5 w-5 text-primary" />
               <div>
                 <p className="font-medium">Catégories disponibles</p>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {bapteme.categories && bapteme.categories.length > 0 ? (
                     bapteme.categories.map((category) => (
-                      <Badge key={category} variant="secondary" className="text-xs">
+                      <Badge key={category} variant="secondary" className="text-xs bg-primary/20 dark:bg-primary/30 text-primary-foreground dark:text-foreground border-primary/30">
                         {CATEGORY_LABELS[category]} ({CATEGORY_PRICES[category]}€)
                       </Badge>
                     ))
@@ -159,14 +159,14 @@ export function BaptemeDetailsDialog({
           </div>
 
           {/* Informations des moniteurs */}
-          <div className="border-t pt-4">
+          <div className="border-t border-border pt-4">
             <h3 className="font-medium mb-3">
               Moniteur{bapteme.moniteurs.length > 1 ? 's' : ''} assigné{bapteme.moniteurs.length > 1 ? 's' : ''}
             </h3>
             <div className="space-y-3">
               {bapteme.moniteurs.map((moniteurData, index) => (
-                <div key={moniteurData.moniteur.id} className="flex items-start gap-3">
-                  <Avatar className="h-12 w-12">
+                <div key={moniteurData.moniteur.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                  <Avatar className="h-12 w-12 border-2 border-primary/20">
                     <AvatarImage src={moniteurData.moniteur.avatarUrl} alt={moniteurData.moniteur.name} />
                     <AvatarFallback>
                       {moniteurData.moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
@@ -175,12 +175,12 @@ export function BaptemeDetailsDialog({
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{moniteurData.moniteur.name}</p>
-                      <Badge variant={moniteurData.moniteur.role === 'ADMIN' ? 'default' : 'secondary'}>
+                      <Badge variant={moniteurData.moniteur.role === 'ADMIN' ? 'default' : 'secondary'} className="bg-primary/20 dark:bg-primary/30">
                         {moniteurData.moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MailIcon className="h-4 w-4" />
+                      <MailIcon className="h-4 w-4 text-primary" />
                       <span>{moniteurData.moniteur.email}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">

@@ -1,0 +1,482 @@
+"use client";
+
+import { useState } from "react";
+import { useGetReservations } from "@/features/reservations/api/use-get-reservations";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, ChevronLeft, ChevronRight, Video, Filter, X, ExternalLink } from "lucide-react";
+import { format, addMonths } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
+
+export function ReservationsList() {
+  const router = useRouter();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [type, setType] = useState<"ALL" | "STAGE" | "BAPTEME">("ALL");
+  const [status, setStatus] = useState<string>("");
+  const [category, setCategory] = useState<string>("");
+  const [dateRange, setDateRange] = useState({
+    start: format(new Date(), "yyyy-MM-dd"),
+    end: format(addMonths(new Date(), 12), "yyyy-MM-dd"),
+  });
+
+  const { data, isLoading, error } = useGetReservations({
+    page,
+    limit: 20,
+    search: search || undefined,
+    type,
+    status: status || undefined,
+    category: category || undefined,
+    startDate: dateRange.start,
+    endDate: dateRange.end,
+  });
+
+  const reservations = data?.data?.reservations || [];
+  const pagination = data?.data?.pagination;
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleTypeChange = (value: string) => {
+    setType(value as "ALL" | "STAGE" | "BAPTEME");
+    setPage(1);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setStatus(value);
+    setPage(1);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setCategory(value);
+    setPage(1);
+  };
+
+  const handleDateRangeChange = (field: "start" | "end", value: string) => {
+    setDateRange(prev => ({ ...prev, [field]: value }));
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setType("ALL");
+    setStatus("");
+    setCategory("");
+    setDateRange({
+      start: format(new Date(), "yyyy-MM-dd"),
+      end: format(addMonths(new Date(), 12), "yyyy-MM-dd"),
+    });
+    setPage(1);
+  };
+
+  const hasActiveFilters = search || type !== "ALL" || status || category;
+
+  const getBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'PAID':
+      case 'FULLY_PAID':
+        return 'default';
+      case 'PARTIALLY_PAID':
+        return 'secondary';
+      case 'CONFIRMED':
+        return 'secondary';
+      case 'PENDING':
+        return 'outline';
+      default:
+        return 'outline';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'PAID':
+        return 'Payé';
+      case 'PARTIALLY_PAID':
+        return 'Acompte payé';
+      case 'FULLY_PAID':
+        return 'Entièrement payé';
+      case 'CONFIRMED':
+        return 'Confirmé';
+      case 'PENDING':
+        return 'En attente';
+      default:
+        return status;
+    }
+  };
+
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      'AVENTURE': 'Aventure',
+      'DUREE': 'Durée',
+      'LONGUE_DUREE': 'Longue Durée',
+      'ENFANT': 'Enfant',
+      'HIVER': 'Hiver',
+      'INITIATION': 'Initiation',
+      'PROGRESSION': 'Progression',
+      'AUTONOMIE': 'Autonomie',
+    };
+    return labels[category] || category;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(amount);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Réservations</h1>
+          <p className="text-muted-foreground">
+            Recherchez et filtrez toutes les réservations
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              <CardTitle>Filtres</CardTitle>
+            </div>
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-2" />
+                Réinitialiser
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher par nom, email ou numéro de commande..."
+              value={search}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Filter Row */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={type} onValueChange={handleTypeChange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Tous</SelectItem>
+                  <SelectItem value="STAGE">Stages</SelectItem>
+                  <SelectItem value="BAPTEME">Baptêmes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Statut</Label>
+              <Select value={status || "ALL_STATUS"} onValueChange={(v) => handleStatusChange(v === "ALL_STATUS" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tous les statuts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL_STATUS">Tous</SelectItem>
+                  <SelectItem value="PAID">Payé</SelectItem>
+                  <SelectItem value="PARTIALLY_PAID">Acompte payé</SelectItem>
+                  <SelectItem value="FULLY_PAID">Entièrement payé</SelectItem>
+                  <SelectItem value="CONFIRMED">Confirmé</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Catégorie</Label>
+              <Select value={category || "ALL_CATEGORIES"} onValueChange={(v) => handleCategoryChange(v === "ALL_CATEGORIES" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Toutes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL_CATEGORIES">Toutes</SelectItem>
+                  {type !== "BAPTEME" && (
+                    <>
+                      <SelectItem value="INITIATION">Initiation</SelectItem>
+                      <SelectItem value="PROGRESSION">Progression</SelectItem>
+                      <SelectItem value="AUTONOMIE">Autonomie</SelectItem>
+                    </>
+                  )}
+                  {type !== "STAGE" && (
+                    <>
+                      <SelectItem value="AVENTURE">Aventure</SelectItem>
+                      <SelectItem value="DUREE">Durée</SelectItem>
+                      <SelectItem value="LONGUE_DUREE">Longue Durée</SelectItem>
+                      <SelectItem value="ENFANT">Enfant</SelectItem>
+                      <SelectItem value="HIVER">Hiver</SelectItem>
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Date de début</Label>
+              <Input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => handleDateRangeChange("start", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Date de fin</Label>
+              <Input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => handleDateRangeChange("end", e.target.value)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Results Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Résultats {pagination && `(${pagination.total})`}
+          </CardTitle>
+          <CardDescription>
+            {pagination && `Page ${pagination.page} sur ${pagination.totalPages}`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Erreur lors du chargement des réservations
+            </div>
+          ) : reservations.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Aucune réservation trouvée
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Date du stage</TableHead>
+                    <TableHead>Stagiaire</TableHead>
+                    <TableHead>Catégorie</TableHead>
+                    <TableHead>Commande</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="text-right">Paiements effectués</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reservations.map((reservation: any) => {
+                    const isStage = reservation.bookingType === 'STAGE';
+                    const stagiaire = reservation.stagiaire;
+                    const order = reservation.orderItem?.order;
+                    const orderItem = reservation.orderItem;
+                    const date = isStage ? reservation.stage.startDate : reservation.bapteme.date;
+                    const categoryValue = isStage ? reservation.type : reservation.category;
+                    
+                    // Calcul des montants
+                    const totalPrice = orderItem?.totalPrice || 0;
+                    const depositAmount = orderItem?.depositAmount || 0;
+                    const remainingAmount = orderItem?.remainingAmount || 0;
+                    const isFullyPaid = orderItem?.isFullyPaid || false;
+                    // Pour les stages uniquement, on affiche l'acompte. Pour les baptêmes, c'est un paiement complet
+                    const hasDeposit = isStage && depositAmount > 0;
+                    // Les baptêmes sont toujours entièrement payés dès qu'ils sont commandés et payés
+                    const isBaptemeFullyPaid = !isStage && (order?.status === 'PAID' || order?.status === 'FULLY_PAID' || order?.status === 'PARTIALLY_PAID');
+                    
+                    return (
+                      <TableRow
+                        key={reservation.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => router.push(`/dashboard/reservations/${reservation.id}`)}
+                      >
+                        <TableCell>
+                          <Badge variant={isStage ? "default" : "secondary"}>
+                            {isStage ? "Stage" : "Baptême"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {format(new Date(date), "dd/MM/yyyy", { locale: fr })}
+                            </span>
+                            {!isStage && (
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(date), "HH:mm", { locale: fr })}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {stagiaire.firstName} {stagiaire.lastName}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {stagiaire.email}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <span>{getCategoryLabel(categoryValue)}</span>
+                            {!isStage && reservation.hasVideo && (
+                              <Badge variant="outline" className="w-fit">
+                                <Video className="h-3 w-3 mr-1" />
+                                Vidéo
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            #{order?.orderNumber}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getBadgeVariant(
+                            // Pour les baptêmes, ils sont toujours entièrement payés dès qu'ils sont commandés
+                            isStage ? order?.status : 'FULLY_PAID'
+                          )}>
+                            {getStatusLabel(
+                              // Pour les baptêmes, ils sont toujours entièrement payés dès qu'ils sont commandés
+                              isStage ? order?.status : 'FULLY_PAID'
+                            )}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {hasDeposit ? (
+                            <div className="flex flex-col items-end">
+                              <span className="font-medium text-green-600">
+                                {formatCurrency(isFullyPaid ? totalPrice : (totalPrice - remainingAmount))}
+                              </span>
+                              {!isFullyPaid && remainingAmount > 0 && (
+                                <span className="text-xs text-orange-600">
+                                  Reste: {formatCurrency(remainingAmount)}
+                                </span>
+                              )}
+                              {isFullyPaid && (
+                                <span className="text-xs text-green-600">
+                                  ✓ Soldé
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-end">
+                              <span className="font-medium text-green-600">
+                                {formatCurrency(totalPrice)}
+                              </span>
+                              {isBaptemeFullyPaid && (
+                                <span className="text-xs text-green-600">
+                                  ✓ Payé
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <span className="font-medium">{formatCurrency(totalPrice)}</span>
+                            <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                Affichage de {((pagination.page - 1) * pagination.limit) + 1} à{" "}
+                {Math.min(pagination.page * pagination.limit, pagination.total)} sur{" "}
+                {pagination.total} résultats
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={pagination.page === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Précédent
+                </Button>
+                <div className="flex items-center gap-1">
+                  {[...Array(Math.min(5, pagination.totalPages))].map((_, i) => {
+                    let pageNum;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+                    
+                    return (
+                      <Button
+                        key={i}
+                        variant={pagination.page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  disabled={pagination.page === pagination.totalPages}
+                >
+                  Suivant
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

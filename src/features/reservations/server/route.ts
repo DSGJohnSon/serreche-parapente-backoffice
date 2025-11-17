@@ -4,134 +4,216 @@ import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 
+const RecordManualPaymentSchema = z.object({
+  orderItemId: z.string(),
+  amount: z.number().positive(),
+  paymentMethod: z.enum(["CARD", "BANK_TRANSFER", "CASH", "CHECK"]),
+  note: z.string().optional(),
+});
+
 const GetReservationsSchema = z.object({
-  month: z.string().optional(),
-  year: z.string().optional(),
+  page: z.string().optional().default("1"),
+  limit: z.string().optional().default("20"),
+  search: z.string().optional(),
+  type: z.enum(["ALL", "STAGE", "BAPTEME"]).optional().default("ALL"),
+  status: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  category: z.string().optional(),
 });
 
 const app = new Hono()
-  // GET all reservations with filters
+  // GET all reservations with advanced filters and pagination
   .get(
     "/",
     adminSessionMiddleware,
     zValidator("query", GetReservationsSchema),
     async (c) => {
       try {
-        const { month, year } = c.req.valid("query");
+        const { page, limit, search, type, status, startDate, endDate, category } = c.req.valid("query");
         
-        // Définir les dates de début et fin pour le filtre
-        const now = new Date();
-        const currentYear = year ? parseInt(year) : now.getFullYear();
-        const currentMonth = month ? parseInt(month) - 1 : now.getMonth(); // JavaScript months are 0-indexed
-        
-        const startDate = new Date(currentYear, currentMonth, 1);
-        const endDate = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59);
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
 
-        // Récupérer les réservations de stages
-        const stageBookings = await prisma.stageBooking.findMany({
-          where: {
-            stage: {
-              startDate: {
-                gte: startDate,
-                lte: endDate,
-              },
-            },
-            orderItem: {
-              order: {
-                status: {
-                  in: ['PAID', 'CONFIRMED'],
-                },
-              },
-            },
-          },
-          include: {
-            stagiaire: true,
-            stage: {
-              include: {
-                moniteurs: {
-                  include: {
-                    moniteur: true,
-                  },
-                },
-              },
-            },
-            orderItem: {
-              include: {
-                order: true,
-              },
-            },
-          },
-          orderBy: {
-            stage: {
-              startDate: 'asc',
-            },
-          },
-        });
-
-        // Récupérer les réservations de baptêmes
-        const baptemeBookings = await prisma.baptemeBooking.findMany({
-          where: {
-            bapteme: {
-              date: {
-                gte: startDate,
-                lte: endDate,
-              },
-            },
-            orderItem: {
-              order: {
-                status: {
-                  in: ['PAID', 'CONFIRMED'],
-                },
-              },
-            },
-          },
-          include: {
-            stagiaire: true,
-            bapteme: {
-              include: {
-                moniteurs: {
-                  include: {
-                    moniteur: true,
-                  },
-                },
-              },
-            },
-            orderItem: {
-              include: {
-                order: true,
-              },
-            },
-          },
-          orderBy: {
-            bapteme: {
-              date: 'asc',
-            },
-          },
-        });
-
-        // Calculer les statistiques vidéo pour les baptêmes
-        const videoStats = {
-          totalVideos: baptemeBookings.filter(booking => booking.hasVideo).length,
-          videosByDate: baptemeBookings.reduce((acc, booking) => {
-            if (booking.hasVideo) {
-              const dateKey = booking.bapteme.date.toISOString().split('T')[0];
-              acc[dateKey] = (acc[dateKey] || 0) + 1;
-            }
-            return acc;
-          }, {} as Record<string, number>),
+        // Build date filters
+        const dateFilter = {
+          ...(startDate && { gte: new Date(startDate) }),
+          ...(endDate && { lte: new Date(endDate) }),
         };
+
+        // Build status filter
+        const statusFilter = status ? { in: status.split(",") } : { in: ['PAID', 'CONFIRMED', 'PARTIALLY_PAID', 'FULLY_PAID'] };
+
+        let stageBookings: any[] = [];
+        let stageCount = 0;
+        let baptemeBookings: any[] = [];
+        let baptemeCount = 0;
+
+        // Fetch stage bookings if needed
+        if (type === "ALL" || type === "STAGE") {
+          const stageWhere: any = {
+            orderItem: {
+              is: {
+                order: {
+                  status: statusFilter,
+                },
+              },
+            },
+          };
+
+          if (Object.keys(dateFilter).length > 0) {
+            stageWhere.stage = { startDate: dateFilter };
+          }
+
+          if (search) {
+            stageWhere.OR = [
+              { stagiaire: { firstName: { contains: search, mode: 'insensitive' } } },
+              { stagiaire: { lastName: { contains: search, mode: 'insensitive' } } },
+              { stagiaire: { email: { contains: search, mode: 'insensitive' } } },
+              { orderItem: { is: { order: { orderNumber: { contains: search, mode: 'insensitive' } } } } },
+            ];
+          }
+
+          if (category) {
+            stageWhere.type = category;
+          }
+
+          [stageBookings, stageCount] = await Promise.all([
+            prisma.stageBooking.findMany({
+              where: stageWhere,
+              include: {
+                stagiaire: true,
+                stage: {
+                  include: {
+                    moniteurs: {
+                      include: {
+                        moniteur: true,
+                      },
+                    },
+                  },
+                },
+                orderItem: {
+                  include: {
+                    order: true,
+                  },
+                },
+              },
+              orderBy: {
+                stage: {
+                  startDate: 'desc',
+                },
+              },
+              skip: type === "STAGE" ? skip : 0,
+              take: type === "STAGE" ? limitNum : undefined,
+            }),
+            prisma.stageBooking.count({ where: stageWhere }),
+          ]);
+        }
+
+        // Fetch bapteme bookings if needed
+        if (type === "ALL" || type === "BAPTEME") {
+          const baptemeWhere: any = {
+            orderItem: {
+              is: {
+                order: {
+                  status: statusFilter,
+                },
+              },
+            },
+          };
+
+          if (Object.keys(dateFilter).length > 0) {
+            baptemeWhere.bapteme = { date: dateFilter };
+          }
+
+          if (search) {
+            baptemeWhere.OR = [
+              { stagiaire: { firstName: { contains: search, mode: 'insensitive' } } },
+              { stagiaire: { lastName: { contains: search, mode: 'insensitive' } } },
+              { stagiaire: { email: { contains: search, mode: 'insensitive' } } },
+              { orderItem: { is: { order: { orderNumber: { contains: search, mode: 'insensitive' } } } } },
+            ];
+          }
+
+          if (category) {
+            baptemeWhere.category = category;
+          }
+
+          [baptemeBookings, baptemeCount] = await Promise.all([
+            prisma.baptemeBooking.findMany({
+              where: baptemeWhere,
+              include: {
+                stagiaire: true,
+                bapteme: {
+                  include: {
+                    moniteurs: {
+                      include: {
+                        moniteur: true,
+                      },
+                    },
+                  },
+                },
+                orderItem: {
+                  include: {
+                    order: true,
+                  },
+                },
+              },
+              orderBy: {
+                bapteme: {
+                  date: 'desc',
+                },
+              },
+              skip: type === "BAPTEME" ? skip : 0,
+              take: type === "BAPTEME" ? limitNum : undefined,
+            }),
+            prisma.baptemeBooking.count({ where: baptemeWhere }),
+          ]);
+        }
+
+        // Combine and sort results for "ALL" type
+        let combinedResults = [];
+        let totalCount = 0;
+
+        if (type === "ALL") {
+          // Combine both arrays
+          const allBookings = [
+            ...stageBookings.map(b => ({ ...b, bookingType: 'STAGE' as const, date: b.stage.startDate })),
+            ...baptemeBookings.map(b => ({ ...b, bookingType: 'BAPTEME' as const, date: b.bapteme.date })),
+          ];
+
+          // Sort by date descending
+          allBookings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+          // Apply pagination
+          combinedResults = allBookings.slice(skip, skip + limitNum);
+          totalCount = stageCount + baptemeCount;
+        } else if (type === "STAGE") {
+          combinedResults = stageBookings.map(b => ({ ...b, bookingType: 'STAGE' as const }));
+          totalCount = stageCount;
+        } else {
+          combinedResults = baptemeBookings.map(b => ({ ...b, bookingType: 'BAPTEME' as const }));
+          totalCount = baptemeCount;
+        }
+
+        const totalPages = Math.ceil(totalCount / limitNum);
 
         return c.json({
           success: true,
           data: {
-            stageBookings,
-            baptemeBookings,
-            videoStats,
-            period: {
-              month: currentMonth + 1,
-              year: currentYear,
-              startDate,
-              endDate,
+            reservations: combinedResults,
+            pagination: {
+              page: pageNum,
+              limit: limitNum,
+              total: totalCount,
+              totalPages,
+              hasMore: pageNum < totalPages,
+            },
+            stats: {
+              totalStages: stageCount,
+              totalBaptemes: baptemeCount,
+              total: stageCount + baptemeCount,
             },
           },
         });
@@ -142,38 +224,21 @@ const app = new Hono()
           success: false,
           message: "Erreur lors de la récupération des réservations",
           data: null,
-        });
+        }, 500);
       }
     }
   )
-
-  // GET reservations for today
+  // GET single reservation by ID with complete details
   .get(
-    "/today",
+    "/:id",
     adminSessionMiddleware,
     async (c) => {
       try {
-        const today = new Date();
-        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+        const id = c.req.param("id");
 
-        // Réservations de stages pour aujourd'hui
-        const todayStageBookings = await prisma.stageBooking.findMany({
-          where: {
-            stage: {
-              startDate: {
-                gte: startOfDay,
-                lte: endOfDay,
-              },
-            },
-            orderItem: {
-              order: {
-                status: {
-                  in: ['PAID', 'CONFIRMED'],
-                },
-              },
-            },
-          },
+        // Try to find as stage booking first
+        let stageBooking = await prisma.stageBooking.findUnique({
+          where: { id },
           include: {
             stagiaire: true,
             stage: {
@@ -183,33 +248,81 @@ const app = new Hono()
                     moniteur: true,
                   },
                 },
+                bookings: {
+                  where: {
+                    orderItem: {
+                      is: {
+                        order: {
+                          status: {
+                            in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED']
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
               },
             },
             orderItem: {
               include: {
-                order: true,
+                order: {
+                  include: {
+                    client: true,
+                    payments: {
+                      include: {
+                        recordedByUser: true,
+                      },
+                      orderBy: {
+                        createdAt: 'asc',
+                      },
+                    },
+                    orderGiftCards: {
+                      include: {
+                        giftCard: true,
+                      },
+                    },
+                  },
+                },
+                paymentAllocations: {
+                  include: {
+                    payment: {
+                      include: {
+                        recordedByUser: true,
+                      },
+                    },
+                  },
+                  orderBy: {
+                    createdAt: 'asc',
+                  },
+                } as any,
               },
             },
           },
         });
 
-        // Réservations de baptêmes pour aujourd'hui
-        const todayBaptemeBookings = await prisma.baptemeBooking.findMany({
-          where: {
-            bapteme: {
-              date: {
-                gte: startOfDay,
-                lte: endOfDay,
+        if (stageBooking) {
+          // Calculate remaining places
+          const totalPlaces = (stageBooking as any).stage.places;
+          const confirmedBookings = (stageBooking as any).stage.bookings.length;
+          const remainingPlaces = totalPlaces - confirmedBookings;
+
+          return c.json({
+            success: true,
+            data: {
+              type: 'STAGE',
+              booking: stageBooking,
+              availablePlaces: {
+                total: totalPlaces,
+                confirmed: confirmedBookings,
+                remaining: remainingPlaces,
               },
             },
-            orderItem: {
-              order: {
-                status: {
-                  in: ['PAID', 'CONFIRMED'],
-                },
-              },
-            },
-          },
+          });
+        }
+
+        // Try to find as bapteme booking
+        let baptemeBooking = await prisma.baptemeBooking.findUnique({
+          where: { id },
           include: {
             stagiaire: true,
             bapteme: {
@@ -219,35 +332,231 @@ const app = new Hono()
                     moniteur: true,
                   },
                 },
+                bookings: {
+                  where: {
+                    orderItem: {
+                      is: {
+                        order: {
+                          status: {
+                            in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED']
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
               },
             },
             orderItem: {
               include: {
-                order: true,
+                order: {
+                  include: {
+                    client: true,
+                    payments: {
+                      orderBy: {
+                        createdAt: 'asc',
+                      },
+                    },
+                    orderGiftCards: {
+                      include: {
+                        giftCard: true,
+                      },
+                    },
+                  },
+                },
+                paymentAllocations: {
+                  include: {
+                    payment: true,
+                  },
+                  orderBy: {
+                    createdAt: 'asc',
+                  },
+                } as any,
               },
             },
           },
         });
 
-        const todayVideoCount = todayBaptemeBookings.filter(booking => booking.hasVideo).length;
+        if (baptemeBooking) {
+          // Calculate remaining places
+          const totalPlaces = (baptemeBooking as any).bapteme.places;
+          const confirmedBookings = (baptemeBooking as any).bapteme.bookings.length;
+          const remainingPlaces = totalPlaces - confirmedBookings;
+
+          return c.json({
+            success: true,
+            data: {
+              type: 'BAPTEME',
+              booking: baptemeBooking,
+              availablePlaces: {
+                total: totalPlaces,
+                confirmed: confirmedBookings,
+                remaining: remainingPlaces,
+              },
+            },
+          });
+        }
+
+        return c.json({
+          success: false,
+          message: "Réservation non trouvée",
+          data: null,
+        }, 404);
+
+      } catch (error) {
+        console.error('Erreur récupération détails réservation:', error);
+        return c.json({
+          success: false,
+          message: "Erreur lors de la récupération des détails de la réservation",
+          data: null,
+        }, 500);
+      }
+    }
+  )
+  // POST - Record a manual payment for a reservation
+  .post(
+    "/manual-payment",
+    adminSessionMiddleware,
+    zValidator("json", RecordManualPaymentSchema),
+    async (c) => {
+      try {
+        const { orderItemId, amount, paymentMethod, note } = c.req.valid("json");
+
+        // Get the order item with order details
+        const orderItem = await prisma.orderItem.findUnique({
+          where: { id: orderItemId },
+          include: {
+            order: true,
+          },
+        });
+
+        if (!orderItem) {
+          return c.json({
+            success: false,
+            message: "Réservation non trouvée",
+          }, 404);
+        }
+
+        const order = orderItem.order;
+
+        // Create the manual payment record
+        const payment = await prisma.payment.create({
+          data: {
+            orderId: order.id,
+            amount,
+            currency: "eur",
+            status: "SUCCEEDED",
+            isManual: true,
+            manualPaymentMethod: paymentMethod,
+            manualPaymentNote: note,
+            recordedBy: c.get("userId"), // ID de l'admin/moniteur qui enregistre le paiement
+          },
+        });
+
+        // Create payment allocation for this specific OrderItem
+        await (prisma as any).paymentAllocation.create({
+          data: {
+            paymentId: payment.id,
+            orderItemId: orderItem.id,
+            allocatedAmount: amount,
+          },
+        });
+
+        // Calculate new amounts
+        const depositAmount = orderItem.depositAmount || 0;
+        const remainingAmount = orderItem.remainingAmount || 0;
+        const totalPrice = orderItem.totalPrice;
+
+        // Determine if this is a deposit payment or remaining payment
+        let newDepositAmount = depositAmount;
+        let newRemainingAmount = remainingAmount;
+        let isFullyPaid = orderItem.isFullyPaid;
+
+        if (depositAmount === 0) {
+          // This is the first payment (deposit)
+          newDepositAmount = amount;
+          newRemainingAmount = totalPrice - amount;
+        } else {
+          // This is a payment towards the remaining amount
+          newRemainingAmount = Math.max(0, remainingAmount - amount);
+          if (newRemainingAmount === 0) {
+            isFullyPaid = true;
+          }
+        }
+
+        // Update ONLY this specific order item (not the whole order)
+        await prisma.orderItem.update({
+          where: { id: orderItemId },
+          data: {
+            depositAmount: newDepositAmount,
+            remainingAmount: newRemainingAmount,
+            isFullyPaid,
+            ...(isFullyPaid && {
+              finalPaymentDate: new Date(),
+              finalPaymentNote: note || `Paiement manuel par ${paymentMethod}`,
+            }),
+          },
+        });
+
+        // Check if ALL order items are fully paid to update order status
+        const allOrderItems = await prisma.orderItem.findMany({
+          where: { orderId: order.id },
+        });
+
+        const allItemsFullyPaid = allOrderItems.every(item => {
+          // Gift cards are always considered "paid" since they're generated
+          if (item.type === 'GIFT_CARD') return true;
+          // Baptemes are paid in full upfront
+          if (item.type === 'BAPTEME') return true;
+          // Stages need to check isFullyPaid
+          if (item.type === 'STAGE') return item.id === orderItemId ? isFullyPaid : item.isFullyPaid;
+          return false;
+        });
+
+        const hasAnyPartialPayment = allOrderItems.some(item => {
+          if (item.type === 'STAGE') {
+            const itemIsFullyPaid = item.id === orderItemId ? isFullyPaid : item.isFullyPaid;
+            return !itemIsFullyPaid && (item.depositAmount || 0) > 0;
+          }
+          return false;
+        });
+
+        // Update order status based on ALL items
+        let newOrderStatus = order.status;
+        if (allItemsFullyPaid) {
+          newOrderStatus = "FULLY_PAID";
+        } else if (hasAnyPartialPayment) {
+          newOrderStatus = "PARTIALLY_PAID";
+        }
+
+        if (newOrderStatus !== order.status) {
+          await prisma.order.update({
+            where: { id: order.id },
+            data: {
+              status: newOrderStatus,
+            },
+          });
+        }
 
         return c.json({
           success: true,
+          message: "Paiement enregistré avec succès",
           data: {
-            stageBookings: todayStageBookings,
-            baptemeBookings: todayBaptemeBookings,
-            videoCount: todayVideoCount,
-            date: today,
+            payment,
+            orderItem: {
+              depositAmount: newDepositAmount,
+              remainingAmount: newRemainingAmount,
+              isFullyPaid,
+            },
           },
         });
 
       } catch (error) {
-        console.error('Erreur récupération réservations du jour:', error);
+        console.error('Erreur enregistrement paiement manuel:', error);
         return c.json({
           success: false,
-          message: "Erreur lors de la récupération des réservations du jour",
-          data: null,
-        });
+          message: "Erreur lors de l'enregistrement du paiement",
+        }, 500);
       }
     }
   );

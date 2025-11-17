@@ -122,30 +122,30 @@ export function CalendarScheduleStages({
   const getTypeColor = (type: string) => {
     switch (type) {
       case "INITIATION":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800";
       case "PROGRESSION":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800";
       case "AUTONOMIE":
-        return "bg-purple-100 text-purple-800 border-purple-200";
+        return "bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-200 border-purple-200 dark:border-purple-800";
       case "DOUBLE":
-        return "bg-orange-100 text-orange-800 border-orange-200";
+        return "bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700";
     }
   };
 
   const getTypeRingColor = (type: string) => {
     switch (type) {
       case "INITIATION":
-        return "ring-blue-500";
+        return "ring-blue-500 dark:ring-blue-400";
       case "PROGRESSION":
-        return "ring-green-500";
+        return "ring-green-500 dark:ring-green-400";
       case "AUTONOMIE":
-        return "ring-purple-500";
+        return "ring-purple-500 dark:ring-purple-400";
       case "DOUBLE":
-        return "ring-orange-500";
+        return "ring-orange-500 dark:ring-orange-400";
       default:
-        return "ring-gray-500";
+        return "ring-gray-500 dark:ring-gray-400";
     }
   };
 
@@ -372,7 +372,7 @@ export function CalendarScheduleStages({
                               {stage.type === "DOUBLE" && "Double"}
                             </div>
                             <div className="text-[10px] opacity-80 truncate leading-tight">
-                              <span className={`font-bold ${(stage.placesRestantes || 0) <= 2 ? 'text-red-600' : ''}`}>{stage.placesRestantes || 0} places restantes</span> • {stage.bookings?.length || 0} réservations • {stage.duration}j
+                              <span className={`font-bold ${(stage.placesRestantes || 0) <= 2 ? 'text-red-600 dark:text-red-400' : ''}`}>{stage.placesRestantes || 0} places restantes</span> • {stage.bookings?.length || 0} réservations • {stage.duration}j
                             </div>
                           </div>
                         );

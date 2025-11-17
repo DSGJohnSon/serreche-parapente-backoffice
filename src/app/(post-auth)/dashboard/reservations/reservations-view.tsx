@@ -7,9 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, Users, Video, Clock, MapPin, Phone, Mail, User } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { CalendarDays, Users, Video, Clock, MapPin, Phone, Mail, User, CheckCircle, Euro } from "lucide-react";
 import { format, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useConfirmFinalPayment } from "@/features/orders/api/use-confirm-final-payment";
 
 interface Customer {
   id: string;
@@ -59,6 +63,11 @@ interface StageBooking {
   customer: Customer;
   stage: Stage;
   orderItem: {
+    id: string;
+    depositAmount: number | null;
+    remainingAmount: number | null;
+    isFullyPaid: boolean;
+    totalPrice: number;
     order: {
       orderNumber: string;
       status: string;
@@ -110,6 +119,26 @@ export function ReservationsView() {
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState("today");
+  const [confirmingPayment, setConfirmingPayment] = useState<string | null>(null);
+  const [paymentNote, setPaymentNote] = useState("");
+
+  const confirmFinalPayment = useConfirmFinalPayment();
+
+  const handleConfirmPayment = async (orderItemId: string) => {
+    try {
+      await confirmFinalPayment.mutateAsync({
+        orderItemId,
+        note: paymentNote || undefined,
+      });
+      setConfirmingPayment(null);
+      setPaymentNote("");
+      // Rafraîchir les données
+      fetchTodayReservations();
+      fetchReservations(currentDate);
+    } catch (error) {
+      console.error("Error confirming payment:", error);
+    }
+  };
 
   const fetchReservations = async (date: Date) => {
     try {
@@ -167,6 +196,10 @@ export function ReservationsView() {
     switch (status) {
       case 'PAID':
         return 'default';
+      case 'PARTIALLY_PAID':
+        return 'secondary';
+      case 'FULLY_PAID':
+        return 'default';
       case 'CONFIRMED':
         return 'secondary';
       case 'PENDING':
@@ -180,6 +213,10 @@ export function ReservationsView() {
     switch (status) {
       case 'PAID':
         return 'Payé';
+      case 'PARTIALLY_PAID':
+        return 'Acompte payé';
+      case 'FULLY_PAID':
+        return 'Entièrement payé';
       case 'CONFIRMED':
         return 'Confirmé';
       case 'PENDING':
@@ -282,7 +319,12 @@ export function ReservationsView() {
                         Aucun stage prévu aujourd&apos;hui
                       </p>
                     ) : (
-                      todayData.stageBookings.map((booking) => (
+                      todayData.stageBookings.map((booking) => {
+                        const hasRemainingAmount = booking.orderItem.remainingAmount && booking.orderItem.remainingAmount > 0;
+                        const depositPaid = booking.orderItem.depositAmount || 0;
+                        const remaining = booking.orderItem.remainingAmount || 0;
+                        
+                        return (
                         <div key={booking.id} className="border rounded-lg p-4 space-y-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -293,10 +335,85 @@ export function ReservationsView() {
                                 #{booking.orderItem.order.orderNumber}
                               </span>
                             </div>
-                            <span className="font-medium">
-                              {formatCurrency(booking.orderItem.order.totalAmount)}
-                            </span>
+                            <div className="text-right">
+                              <div className="font-medium">
+                                {formatCurrency(booking.orderItem.totalPrice)}
+                              </div>
+                              {hasRemainingAmount && (
+                                <div className="text-xs text-muted-foreground">
+                                  Acompte: {formatCurrency(depositPaid)}
+                                </div>
+                              )}
+                            </div>
                           </div>
+                          
+                          {hasRemainingAmount && !booking.orderItem.isFullyPaid && (
+                            <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-md p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Euro className="h-4 w-4 text-orange-600" />
+                                  <span className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                                    Reste à payer
+                                  </span>
+                                </div>
+                                <span className="text-lg font-bold text-orange-600">
+                                  {formatCurrency(remaining)}
+                                </span>
+                              </div>
+                              <Dialog open={confirmingPayment === booking.orderItem.id} onOpenChange={(open) => !open && setConfirmingPayment(null)}>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={() => setConfirmingPayment(booking.orderItem.id)}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Confirmer le paiement final
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Confirmer le paiement final</DialogTitle>
+                                    <DialogDescription>
+                                      Confirmez que le client a payé le solde de {formatCurrency(remaining)} en physique.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="note">Note (optionnel)</Label>
+                                      <Input
+                                        id="note"
+                                        value={paymentNote}
+                                        onChange={(e) => setPaymentNote(e.target.value)}
+                                        placeholder="Ex: Payé en espèces"
+                                        disabled={confirmFinalPayment.isPending}
+                                      />
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                          setConfirmingPayment(null);
+                                          setPaymentNote("");
+                                        }}
+                                        disabled={confirmFinalPayment.isPending}
+                                        className="flex-1"
+                                      >
+                                        Annuler
+                                      </Button>
+                                      <Button
+                                        onClick={() => handleConfirmPayment(booking.orderItem.id)}
+                                        disabled={confirmFinalPayment.isPending}
+                                        className="flex-1"
+                                      >
+                                        {confirmFinalPayment.isPending ? "Confirmation..." : "Confirmer"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                            </div>
+                          )}
                           
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
@@ -335,7 +452,8 @@ export function ReservationsView() {
                             )}
                           </div>
                         </div>
-                      ))
+                      );
+                      })
                     )}
                   </CardContent>
                 </Card>

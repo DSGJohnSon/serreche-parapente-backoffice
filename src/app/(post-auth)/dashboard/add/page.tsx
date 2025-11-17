@@ -78,26 +78,8 @@ export default function TabsDemo() {
           <TabsList>
             <TabsTrigger value="bapteme-biplace">Bapteme BiPlace</TabsTrigger>
             <TabsTrigger value="stage">Stage</TabsTrigger>
-            <TabsTrigger value="reservation-stage">
-              Réservation de stage
-            </TabsTrigger>
-            <TabsTrigger value="customer">Client</TabsTrigger>
-            <TabsTrigger value="gift-card">Bon Cadeau</TabsTrigger>
             <TabsTrigger value="monitor">Moniteur</TabsTrigger>
           </TabsList>
-          <TabsContent value="customer" className="w-full max-w-xl">
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle>Client</CardTitle>
-                <CardDescription>
-                  Ajouter un nouveau client à la base de données.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="w-full">
-                <CustomersAddForm />
-              </CardContent>
-            </Card>
-          </TabsContent>
           <TabsContent value="monitor" className="w-full max-w-xl">
             <Card className="w-full">
               <CardHeader>
@@ -108,20 +90,6 @@ export default function TabsDemo() {
               </CardHeader>
               <CardContent className="w-full">
                 <MonitorAddForm />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="reservation-stage" className="w-full max-w-xl">
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle>Réservation de stage</CardTitle>
-                <CardDescription>
-                  Ajouter une nouvelle réservation de stage à la base de
-                  données.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="w-full">
-                <ReservationStageAddForm />
               </CardContent>
             </Card>
           </TabsContent>
@@ -136,19 +104,6 @@ export default function TabsDemo() {
               </CardHeader>
               <CardContent className="w-full">
                 <BaptemeBiPlaceAddForm />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="gift-card" className="w-full max-w-xl">
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle>Bon Cadeau</CardTitle>
-                <CardDescription>
-                  Ajouter un nouveau bon cadeau à la base de données.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="w-full">
-                <GiftCardAddForm />
               </CardContent>
             </Card>
           </TabsContent>

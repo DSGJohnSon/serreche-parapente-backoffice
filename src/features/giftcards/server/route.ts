@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { adminSessionMiddleware, sessionMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
 import { CreateGiftCardSchema, UpdateGiftCardSchema, UseGiftCardSchema, ValidateGiftCardSchema } from "../schemas";
 
 const app = new Hono()
@@ -75,6 +76,83 @@ const app = new Hono()
         return c.json({
           success: false,
           message: "Erreur lors de la récupération du bon cadeau",
+          data: null,
+        });
+      }
+    }
+  )
+
+  // Get gift card usage history
+  .get(
+    "getHistory/:id",
+    adminSessionMiddleware,
+    async (c) => {
+      try {
+        const id = c.req.param("id");
+        if (!id) {
+          return c.json({
+            success: false,
+            message: "ID requis",
+            data: null,
+          });
+        }
+        
+        // Get gift card with all its usage history
+        const giftCard = await prisma.giftCard.findUnique({
+          where: { id },
+          include: {
+            client: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            appliedToOrders: {
+              include: {
+                order: {
+                  select: {
+                    id: true,
+                    orderNumber: true,
+                    createdAt: true,
+                    status: true,
+                    client: {
+                      select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
+              },
+              orderBy: {
+                createdAt: 'desc',
+              },
+            },
+          },
+        });
+
+        if (!giftCard) {
+          return c.json({
+            success: false,
+            message: "Bon cadeau introuvable",
+            data: null,
+          });
+        }
+        
+        return c.json({ 
+          success: true, 
+          message: "", 
+          data: giftCard 
+        });
+      } catch (error) {
+        console.error("Error fetching gift card history:", error);
+        return c.json({
+          success: false,
+          message: "Erreur lors de la récupération de l'historique",
           data: null,
         });
       }
@@ -181,6 +259,7 @@ const app = new Hono()
           data: {
             code,
             amount,
+            remainingAmount: amount,
             clientId: customerId,
           },
           include: {
@@ -272,6 +351,146 @@ const app = new Hono()
           success: false,
           message: "Erreur lors de la validation du bon cadeau",
         }, 500);
+      }
+    }
+  )
+
+  // Add manual usage to gift card
+  .post(
+    "/addUsage/:id",
+    adminSessionMiddleware,
+    zValidator("json", z.object({
+      orderId: z.string().min(1, { message: "L'ID de commande est requis" }),
+      usedAmount: z.number().min(0.01, { message: "Le montant doit être supérieur à 0" }),
+    })),
+    async (c) => {
+      const id = c.req.param("id");
+      const { orderId, usedAmount } = c.req.valid("json");
+
+      if (!id) {
+        return c.json({
+          success: false,
+          message: "ID requis",
+          data: null,
+        });
+      }
+
+      try {
+        // Check if gift card exists
+        const giftCard = await prisma.giftCard.findUnique({
+          where: { id },
+        });
+
+        if (!giftCard) {
+          return c.json({
+            success: false,
+            message: "Bon cadeau introuvable",
+            data: null,
+          });
+        }
+
+        // Check if order exists
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+        });
+
+        if (!order) {
+          return c.json({
+            success: false,
+            message: "Commande introuvable",
+            data: null,
+          });
+        }
+
+        // Calculate remaining amount
+        const currentRemaining = giftCard.remainingAmount || giftCard.amount;
+
+        // Check if there's enough balance
+        if (usedAmount > currentRemaining) {
+          return c.json({
+            success: false,
+            message: `Solde insuffisant. Montant disponible: ${currentRemaining.toFixed(2)}€`,
+            data: null,
+          });
+        }
+
+        // Check if this gift card is already applied to this order
+        const existingUsage = await prisma.orderGiftCard.findUnique({
+          where: {
+            orderId_giftCardId: {
+              orderId,
+              giftCardId: id,
+            },
+          },
+        });
+
+        if (existingUsage) {
+          return c.json({
+            success: false,
+            message: "Ce bon cadeau est déjà appliqué à cette commande",
+            data: null,
+          });
+        }
+
+        // Create the usage record and update gift card in a transaction
+        const result = await prisma.$transaction(async (tx) => {
+          // Create OrderGiftCard record
+          const orderGiftCard = await tx.orderGiftCard.create({
+            data: {
+              orderId,
+              giftCardId: id,
+              usedAmount,
+            },
+          });
+
+          // Update gift card remaining amount
+          const newRemainingAmount = currentRemaining - usedAmount;
+          const updatedGiftCard = await tx.giftCard.update({
+            where: { id },
+            data: {
+              remainingAmount: newRemainingAmount,
+              isUsed: newRemainingAmount <= 0,
+              usedAt: giftCard.usedAt || new Date(), // Set usedAt on first usage
+            },
+            include: {
+              client: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
+              },
+              appliedToOrders: {
+                include: {
+                  order: {
+                    select: {
+                      id: true,
+                      orderNumber: true,
+                      createdAt: true,
+                      status: true,
+                    },
+                  },
+                },
+              },
+            },
+          });
+
+          return { orderGiftCard, updatedGiftCard };
+        });
+
+        return c.json({
+          success: true,
+          message: `Utilisation de ${usedAmount.toFixed(2)}€ ajoutée avec succès. Solde restant: ${result.updatedGiftCard.remainingAmount.toFixed(2)}€`,
+          data: result.updatedGiftCard,
+        });
+      } catch (error) {
+        console.error("Error adding gift card usage:", error);
+        return c.json({
+          success: false,
+          message: "Erreur lors de l'ajout de l'utilisation",
+          data: null,
+        });
       }
     }
   )

@@ -141,15 +141,25 @@ const app = new Hono()
             orderItems: {
               create: await Promise.all(cartItems.map(async item => {
                 let unitPrice = 0;
+                let depositAmount: number | null = null;
+                let remainingAmount: number | null = null;
+                let isFullyPaid = false;
+
                 if (item.type === 'STAGE' && item.stage) {
                   unitPrice = item.stage.price;
+                  const depositPrice = item.stage.acomptePrice;
+                  depositAmount = depositPrice * item.quantity;
+                  remainingAmount = (unitPrice - depositPrice) * item.quantity;
+                  isFullyPaid = false; // Stages: paiement partiel
                 } else if (item.type === 'BAPTEME') {
                   const participantData = item.participantData as any;
                   const basePrice = await getBaptemePrice(participantData.selectedCategory);
                   const videoPrice = participantData.hasVideo ? 25 : 0;
                   unitPrice = basePrice + videoPrice;
+                  isFullyPaid = true; // Baptêmes: paiement complet
                 } else if (item.type === 'GIFT_CARD') {
                   unitPrice = item.giftCardAmount || 0;
+                  isFullyPaid = true; // Bons cadeaux: paiement complet
                 }
 
                 return {
@@ -157,6 +167,9 @@ const app = new Hono()
                   quantity: item.quantity,
                   unitPrice,
                   totalPrice: unitPrice * item.quantity,
+                  depositAmount,
+                  remainingAmount,
+                  isFullyPaid,
                   stageId: item.stageId,
                   baptemeId: item.baptemeId,
                   giftCardAmount: item.giftCardAmount,
@@ -366,6 +379,278 @@ const app = new Hono()
         return c.json({
           success: false,
           message: "Erreur lors de la mise à jour de la commande",
+          data: null,
+        });
+      }
+    }
+  )
+
+  // SEARCH orders (admin only)
+  .get(
+    "search",
+    adminSessionMiddleware,
+    async (c) => {
+      try {
+        const query = c.req.query("q") || "";
+        
+        if (!query || query.length < 2) {
+          return c.json({
+            success: true,
+            data: [],
+          });
+        }
+
+        const orders = await prisma.order.findMany({
+          where: {
+            OR: [
+              {
+                orderNumber: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                client: {
+                  OR: [
+                    {
+                      firstName: {
+                        contains: query,
+                        mode: 'insensitive',
+                      },
+                    },
+                    {
+                      lastName: {
+                        contains: query,
+                        mode: 'insensitive',
+                      },
+                    },
+                    {
+                      email: {
+                        contains: query,
+                        mode: 'insensitive',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+          include: {
+            client: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            orderItems: {
+              select: {
+                id: true,
+                type: true,
+                quantity: true,
+                totalPrice: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 10, // Limiter à 10 résultats
+        });
+
+        return c.json({
+          success: true,
+          data: orders,
+        });
+
+      } catch (error) {
+        console.error('Erreur recherche commandes:', error);
+        return c.json({
+          success: false,
+          message: "Erreur lors de la recherche des commandes",
+          data: null,
+        });
+      }
+    }
+  )
+
+  // GET all orders (admin only)
+  .get(
+    "getAll",
+    adminSessionMiddleware,
+    async (c) => {
+      try {
+        // Calculate the cutoff time (6 hours ago)
+        const sixHoursAgo = new Date();
+        sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
+
+        const orders = await prisma.order.findMany({
+          where: {
+            OR: [
+              // Include all non-PENDING orders
+              {
+                status: {
+                  not: 'PENDING',
+                },
+              },
+              // Include PENDING orders updated within the last 6 hours
+              {
+                AND: [
+                  {
+                    status: 'PENDING',
+                  },
+                  {
+                    updatedAt: {
+                      gte: sixHoursAgo,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          include: {
+            client: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            orderItems: {
+              select: {
+                id: true,
+                type: true,
+                quantity: true,
+                totalPrice: true,
+              },
+            },
+            payments: {
+              select: {
+                id: true,
+                status: true,
+                amount: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        });
+
+        return c.json({
+          success: true,
+          data: orders,
+        });
+
+      } catch (error) {
+        console.error('Erreur récupération commandes:', error);
+        return c.json({
+          success: false,
+          message: "Erreur lors de la récupération des commandes",
+          data: null,
+        });
+      }
+    }
+  )
+
+  // CONFIRM final payment for an OrderItem (admin only)
+  .post(
+    "/confirmFinalPayment/:orderItemId",
+    adminSessionMiddleware,
+    zValidator("json", z.object({
+      note: z.string().optional(),
+    })),
+    async (c) => {
+      const orderItemId = c.req.param("orderItemId");
+      const { note } = c.req.valid("json");
+
+      if (!orderItemId) {
+        return c.json({
+          success: false,
+          message: "ID de l'article requis",
+          data: null,
+        });
+      }
+
+      try {
+        // 1. Récupérer l'OrderItem
+        const orderItem = await prisma.orderItem.findUnique({
+          where: { id: orderItemId },
+          include: {
+            order: {
+              include: {
+                orderItems: true,
+              },
+            },
+          },
+        });
+
+        if (!orderItem) {
+          return c.json({
+            success: false,
+            message: "Article de commande introuvable",
+            data: null,
+          });
+        }
+
+        // 2. Vérifier que c'est un stage
+        if (orderItem.type !== 'STAGE') {
+          return c.json({
+            success: false,
+            message: "Seuls les stages nécessitent un paiement final",
+            data: null,
+          });
+        }
+
+        // 3. Vérifier qu'il n'est pas déjà entièrement payé
+        if (orderItem.isFullyPaid) {
+          return c.json({
+            success: false,
+            message: "Cet article est déjà entièrement payé",
+            data: null,
+          });
+        }
+
+        // 4. Mettre à jour l'OrderItem
+        const updatedOrderItem = await prisma.orderItem.update({
+          where: { id: orderItemId },
+          data: {
+            isFullyPaid: true,
+            finalPaymentDate: new Date(),
+            finalPaymentNote: note,
+            remainingAmount: 0,
+          },
+        });
+
+        // 5. Vérifier si tous les items de la commande sont entièrement payés
+        const allItemsFullyPaid = orderItem.order.orderItems.every(
+          item => item.id === orderItemId || item.isFullyPaid
+        );
+
+        // 6. Mettre à jour le statut de la commande si nécessaire
+        if (allItemsFullyPaid) {
+          await prisma.order.update({
+            where: { id: orderItem.orderId },
+            data: { status: 'FULLY_PAID' },
+          });
+        }
+
+        return c.json({
+          success: true,
+          message: `Paiement final confirmé. ${allItemsFullyPaid ? 'Commande entièrement payée.' : 'Il reste des articles à payer.'}`,
+          data: {
+            orderItem: updatedOrderItem,
+            orderFullyPaid: allItemsFullyPaid,
+          },
+        });
+
+      } catch (error) {
+        console.error('Erreur confirmation paiement final:', error);
+        return c.json({
+          success: false,
+          message: "Erreur lors de la confirmation du paiement final",
           data: null,
         });
       }
