@@ -35,9 +35,9 @@ export const useGetUserById = (id: string) => {
   const query = useQuery({
     queryKey: ["user", id],
     queryFn: async () => {
-      const res = await client.api.users.getById[":userId"]["$get"]({
+      const res = await client.api.users.getById[":id"]["$get"]({
         param: {
-          userId: id,
+          id,
         },
       });
       if (!res.ok) {
@@ -62,7 +62,7 @@ export const useGetUsersByRole = (role: Role) => {
   const query = useQuery({
     queryKey: ["users", role],
     queryFn: async () => {
-      const res = await client.api.users.getByRole[":role"]["$get"]({
+      const res = await client.api.users.getByRole[":role"].$get({
         param: {
           role,
         },

@@ -18,13 +18,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { StageType } from "@prisma/client";
 import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
+import { useGetStageBasePrices } from "@/features/tarifs/api/use-get-stage-base-prices";
 import { MultiSelect } from "@/components/ui/multi-select";
-import { get } from "http";
 
 interface StageAddFormProps {
   selectedDate?: Date | null;
@@ -45,8 +45,12 @@ export function StageAddForm({
   onSubmit,
   onCancel,
 }: StageAddFormProps) {
-  //Récupérer la liste des moniteurs
+  // Récupérer la liste des moniteurs
   const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
+  
+  // Récupérer les prix de base des stages depuis la configuration
+  const { data: stagePrices, isLoading: isLoadingStagePrices } = useGetStageBasePrices();
+  
   // Durées par défaut selon le type de stage
   const getDefaultDuration = (type: StageType): number => {
     switch (type) {
@@ -59,17 +63,26 @@ export function StageAddForm({
         return 7; // 1 semaine
     }
   };
-  // Prix par défaut selon le type de stage
+  
+  // Prix par défaut selon le type de stage (depuis la configuration)
   const getDefaultPrice = (type: StageType): number => {
-    switch (type) {
-      case StageType.AUTONOMIE:
-        return 1200.0; // Prix plus élevé pour 2 semaines
-      case StageType.INITIATION:
-      case StageType.PROGRESSION:
-      case StageType.DOUBLE:
-      default:
-        return 700.0; // Prix standard pour 1 semaine
+    if (!stagePrices) {
+      // Valeurs de fallback si les prix ne sont pas encore chargés
+      switch (type) {
+        case StageType.AUTONOMIE:
+          return 450.0;
+        case StageType.PROGRESSION:
+          return 400.0;
+        case StageType.INITIATION:
+          return 350.0;
+        case StageType.DOUBLE:
+        default:
+          return 350.0;
+      }
     }
+    
+    const priceConfig = stagePrices.find((p) => p.stageType === type);
+    return priceConfig?.price || 350.0;
   };
   
   // État du formulaire
@@ -87,12 +100,14 @@ export function StageAddForm({
 
   // Initialiser la durée et le prix selon le type de stage
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      duration: getDefaultDuration(prev.type),
-      price: getDefaultPrice(prev.type),
-    }));
-  }, []);
+    if (stagePrices) {
+      setFormData((prev) => ({
+        ...prev,
+        duration: getDefaultDuration(prev.type),
+        price: getDefaultPrice(prev.type),
+      }));
+    }
+  }, [stagePrices]);
 
   //Modifier le montant de l'acompte d'office quand le prix change (le passer à 2/5 du prix)
   useEffect(() => {
@@ -111,11 +126,12 @@ export function StageAddForm({
 
   // Mettre à jour la durée et le prix quand le type change
   const handleTypeChange = (type: StageType) => {
+    const newPrice = getDefaultPrice(type);
     setFormData((prev) => ({
       ...prev,
       type,
       duration: getDefaultDuration(type),
-      price: getDefaultPrice(type),
+      price: newPrice,
     }));
   };
 
@@ -146,6 +162,16 @@ export function StageAddForm({
       setShowCalendar(false);
     }
   };
+
+  // Afficher un loader pendant le chargement des prix
+  if (isLoadingStagePrices) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Chargement des tarifs...</span>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -242,6 +268,9 @@ export function StageAddForm({
           }
           required
         />
+        <p className="text-xs text-muted-foreground">
+          Prix de base configuré : {getDefaultPrice(formData.type).toFixed(2)}€
+        </p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="acomptePrice">Prix de l&apos;acompte (€)</Label>

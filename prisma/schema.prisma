@@ -83,6 +83,25 @@ model BaptemeCategoryPrice {
   updatedAt DateTime @updatedAt
 }
 
+// Prix de l'option vidéo pour les baptêmes
+model VideoOptionPrice {
+  id    String @id @default(cuid())
+  price Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Prix de base des stages par type
+model StageBasePrice {
+  id        String    @id @default(cuid())
+  stageType StageType @unique
+  price     Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 //Créneau de stage de parapente (similaire aux baptêmes)
 model Stage {
   id               String    @id @default(cuid())

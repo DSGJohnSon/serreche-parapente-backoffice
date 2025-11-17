@@ -13,7 +13,7 @@ const app = new Hono()
   //ALL GET REQUESTS API
   //*------------------*//
   //Get all users of the database
-  .get("getAll", adminSessionMiddleware, async (c) => {
+  .get("/getAll", adminSessionMiddleware, async (c) => {
     try {
       const result = await prisma.user.findMany();
       return c.json({ success: true, message: "", data: result });
@@ -27,9 +27,9 @@ const app = new Hono()
   })
   //
   //Get one user by id
-  .get("getById/:userId", adminSessionMiddleware, async (c) => {
-    const { userId } = c.req.param();
-    if (!userId) {
+  .get("/getById/:id", sessionMiddleware, async (c) => {
+    const { id } = c.req.param();
+    if (!id) {
       return c.json({
         success: false,
         message: "User ID is required",
@@ -38,9 +38,9 @@ const app = new Hono()
     }
 
     try {
-      const result = await prisma.user.findMany({
+      const result = await prisma.user.findUnique({
         where: {
-          id: userId,
+          id,
         },
       });
       return c.json({ success: true, message: "", data: result });
@@ -54,7 +54,7 @@ const app = new Hono()
   })
   //
   //Get all users by type
-  .get("getByRole/:role", adminSessionMiddleware, async (c) => {
+  .get("/getByRole/:role", adminSessionMiddleware, async (c) => {
     const { role } = c.req.param();
     const typedRole = role as Role;
     if (!role || !Object.values(Role).includes(typedRole)) {

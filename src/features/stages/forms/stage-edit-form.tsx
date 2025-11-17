@@ -33,8 +33,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
+import { useGetStageBasePrices } from "@/features/tarifs/api/use-get-stage-base-prices";
 import { MultiSelect } from "@/components/ui/multi-select";
 
 interface StageData {
@@ -69,7 +71,15 @@ export function StageEditForm({
 }: StageEditFormProps) {
   const updateStage = useUpdateStage();
   const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
+  const { data: stagePrices } = useGetStageBasePrices();
   const [showCalendar, setShowCalendar] = useState(false);
+
+  // Fonction pour obtenir le prix de base configuré selon le type
+  const getConfiguredPrice = (type: StageType): number => {
+    if (!stagePrices) return 0;
+    const priceConfig = stagePrices.find((p) => p.stageType === type);
+    return priceConfig?.price || 0;
+  };
 
   const form = useForm<z.infer<typeof UpdateStageSchema>>({
     resolver: zodResolver(UpdateStageSchema),
@@ -243,6 +253,9 @@ export function StageEditForm({
                   disabled={updateStage.isPending}
                 />
               </FormControl>
+              <FormDescription>
+                Prix de base configuré : {getConfiguredPrice(form.watch("type")).toFixed(2)}€
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
