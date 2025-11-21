@@ -21,6 +21,9 @@ export const CreateBaptemeSchema = z.object({
   categories: z.array(z.nativeEnum(BaptemeCategory)).min(1, {
     message: "Au moins une catégorie doit être sélectionnée.",
   }),
+  acomptePrice: z.number().min(0, {
+    message: "Le montant de l'acompte doit être positif.",
+  }),
 });
 
 export const UpdateBaptemeSchema = z.object({
@@ -41,6 +44,9 @@ export const UpdateBaptemeSchema = z.object({
   }),
   categories: z.array(z.nativeEnum(BaptemeCategory)).min(1, {
     message: "Au moins une catégorie doit être sélectionnée.",
+  }),
+  acomptePrice: z.number().min(0, {
+    message: "Le montant de l'acompte doit être positif.",
   }),
 });
 

@@ -323,7 +323,7 @@ Je dois implémenter un système de réservation temporaire de places dans le pa
    - Quand un client ajoute un stage ou baptême au panier, la place doit être bloquée pendant 1 heure
    - Ajouter les champs `createdAt` et `expiresAt` au modèle CartItem
    - `expiresAt = createdAt + 1 heure` pour les types STAGE et BAPTEME
-   - Les bons cadeaux (GIFT_CARD) n'ont pas d'expiration
+   - Les cartes cadeaux (GIFT_CARD) n'ont pas d'expiration
 
 2. CALCUL DES DISPONIBILITÉS :
    - Les places disponibles = places totales - réservations confirmées - places bloquées dans les paniers non expirés

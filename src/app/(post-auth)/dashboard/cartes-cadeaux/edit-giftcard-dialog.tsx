@@ -57,7 +57,7 @@ export function EditGiftCardDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Modifier le Bon Cadeau</DialogTitle>
+          <DialogTitle>Modifier la Carte Cadeau</DialogTitle>
         </DialogHeader>
 
         <GiftCardEditForm

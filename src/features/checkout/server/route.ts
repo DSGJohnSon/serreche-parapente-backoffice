@@ -44,7 +44,7 @@ const app = new Hono()
         // Créer les réservations pour chaque item
         await createBookingsFromOrder(order);
 
-        // Marquer les bons cadeaux comme utilisés si applicable
+        // Marquer les cartes cadeaux comme utilisées si applicable
         if (order.appliedGiftCardId) {
           await prisma.giftCard.update({
             where: { id: order.appliedGiftCardId },
@@ -126,7 +126,7 @@ async function createBookingsFromOrder(order: any) {
     }
 
     if (item.type === 'GIFT_CARD') {
-      // Générer un code unique pour le bon cadeau
+      // Générer un code unique pour la carte cadeau
       const code = await generateUniqueGiftCardCode();
       
       const giftCard = await prisma.giftCard.create({
@@ -137,7 +137,7 @@ async function createBookingsFromOrder(order: any) {
         },
       });
 
-      // Lier le bon cadeau à l'order item
+      // Lier la carte cadeau à l'order item
       await prisma.orderItem.update({
         where: { id: item.id },
         data: { generatedGiftCardId: giftCard.id },
@@ -171,7 +171,7 @@ async function findOrCreateStagiaire(participantData: any) {
   return stagiaire;
 }
 
-// Fonction pour générer un code unique de bon cadeau
+// Fonction pour générer un code unique de carte cadeau
 async function generateUniqueGiftCardCode(): Promise<string> {
   let code: string;
   let exists = true;

@@ -43,7 +43,7 @@ const app = new Hono()
           });
         }
 
-        // Calculer le total (avec acomptes pour les stages)
+        // Calculer le total (avec acomptes pour les stages ET baptêmes)
         let subtotal = 0;
         let depositTotal = 0; // Montant à payer aujourd'hui (acomptes)
         
@@ -53,21 +53,22 @@ const app = new Hono()
             const depositPrice = item.stage.acomptePrice * item.quantity;
             subtotal += fullPrice;
             depositTotal += depositPrice;
-          } else if (item.type === 'BAPTEME') {
+          } else if (item.type === 'BAPTEME' && item.bapteme) {
             const participantData = item.participantData as any;
             const basePrice = await getBaptemePrice(participantData.selectedCategory);
             const videoPrice = participantData.hasVideo ? 25 : 0;
-            const itemTotal = (basePrice + videoPrice) * item.quantity;
-            subtotal += itemTotal;
-            depositTotal += itemTotal; // Baptêmes: paiement complet
+            const fullPrice = (basePrice + videoPrice) * item.quantity;
+            const depositPrice = (item.bapteme.acomptePrice + videoPrice) * item.quantity; // Acompte + vidéo
+            subtotal += fullPrice;
+            depositTotal += depositPrice; // Baptêmes: acompte + vidéo
           } else if (item.type === 'GIFT_CARD') {
             const amount = item.giftCardAmount || 0;
             subtotal += amount;
-            depositTotal += amount; // Bons cadeaux: paiement complet
+            depositTotal += amount; // Cartes cadeaux: paiement complet
           }
         }
 
-        // Valider et appliquer les bons cadeaux (sur le montant de l'acompte)
+        // Valider et appliquer les cartes cadeaux (sur le montant de l'acompte)
         let discountAmount = 0;
         const validGiftCards: Array<{ giftCard: any; usedAmount: number }> = [];
 
@@ -84,7 +85,7 @@ const app = new Hono()
             if (!giftCard) {
               return c.json({
                 success: false,
-                message: `Bon cadeau invalide: ${code}`,
+                message: `Carte cadeau invalide: ${code}`,
                 data: null,
               });
             }
@@ -96,7 +97,7 @@ const app = new Hono()
             if (new Date() > expirationDate) {
               return c.json({
                 success: false,
-                message: `Bon cadeau expiré: ${code}`,
+                message: `Carte cadeau expirée: ${code}`,
                 data: null,
               });
             }
@@ -106,12 +107,12 @@ const app = new Hono()
             if (availableAmount <= 0) {
               return c.json({
                 success: false,
-                message: `Bon cadeau déjà utilisé: ${code}`,
+                message: `Carte cadeau déjà utilisée: ${code}`,
                 data: null,
               });
             }
 
-            // Calculer le montant à utiliser de ce bon cadeau
+            // Calculer le montant à utiliser de cette carte cadeau
             const usedAmount = Math.min(availableAmount, remainingOrderAmount);
             discountAmount += usedAmount;
             remainingOrderAmount -= usedAmount;
@@ -151,15 +152,20 @@ const app = new Hono()
                   depositAmount = depositPrice * item.quantity;
                   remainingAmount = (unitPrice - depositPrice) * item.quantity;
                   isFullyPaid = false; // Stages: paiement partiel
-                } else if (item.type === 'BAPTEME') {
+                } else if (item.type === 'BAPTEME' && item.bapteme) {
                   const participantData = item.participantData as any;
                   const basePrice = await getBaptemePrice(participantData.selectedCategory);
                   const videoPrice = participantData.hasVideo ? 25 : 0;
                   unitPrice = basePrice + videoPrice;
-                  isFullyPaid = true; // Baptêmes: paiement complet
+                  const depositPrice = item.bapteme.acomptePrice + videoPrice; // Acompte + vidéo
+                  depositAmount = depositPrice * item.quantity;
+                  remainingAmount = (basePrice - item.bapteme.acomptePrice) * item.quantity; // Reste du baptême seulement
+                  isFullyPaid = false; // Baptêmes: paiement partiel (acompte + vidéo maintenant, reste plus tard)
+                  
+                  console.log(`BAPTEME OrderItem creation: basePrice=${basePrice}, videoPrice=${videoPrice}, unitPrice=${unitPrice}, depositAmount=${depositAmount}, remainingAmount=${remainingAmount}`);
                 } else if (item.type === 'GIFT_CARD') {
                   unitPrice = item.giftCardAmount || 0;
-                  isFullyPaid = true; // Bons cadeaux: paiement complet
+                  isFullyPaid = true; // Cartes cadeaux: paiement complet
                 }
 
                 return {
@@ -195,7 +201,7 @@ const app = new Hono()
           },
         });
 
-        // Mettre à jour les bons cadeaux utilisés
+        // Mettre à jour les cartes cadeaux utilisées
         for (const { giftCard, usedAmount } of validGiftCards) {
           const newRemainingAmount = (giftCard.remainingAmount || giftCard.amount) - usedAmount;
           await prisma.giftCard.update({
@@ -243,15 +249,35 @@ const app = new Hono()
         // NE PAS vider le panier ici - il sera vidé lors de la confirmation du paiement via webhook
         // Le panier reste disponible si l'utilisateur ferme la page et revient plus tard
 
-        // Calculer les détails des paiements restants par stage
-        const remainingPayments = cartItems
-          .filter(item => item.type === 'STAGE' && item.stage)
-          .map(item => ({
-            stageId: item.stage!.id,
-            stageStartDate: item.stage!.startDate,
-            remainingAmount: (item.stage!.price - item.stage!.acomptePrice) * item.quantity,
-            dueDate: item.stage!.startDate, // À payer avant le début du stage
-          }));
+        // Calculer les détails des paiements restants par stage ET baptême
+        const remainingPayments = [
+          // Stages
+          ...cartItems
+            .filter(item => item.type === 'STAGE' && item.stage)
+            .map(item => ({
+              type: 'STAGE' as const,
+              itemId: item.stage!.id,
+              itemDate: item.stage!.startDate,
+              remainingAmount: (item.stage!.price - item.stage!.acomptePrice) * item.quantity,
+              dueDate: item.stage!.startDate, // À payer avant le début du stage
+            })),
+          // Baptêmes
+          ...(await Promise.all(cartItems
+            .filter(item => item.type === 'BAPTEME' && item.bapteme)
+            .map(async item => {
+              const participantData = item.participantData as any;
+              const basePrice = await getBaptemePrice(participantData.selectedCategory);
+              const videoPrice = participantData.hasVideo ? 25 : 0;
+              const remaining = basePrice - item.bapteme!.acomptePrice; // Reste du baptême seulement (vidéo déjà payée)
+              return {
+                type: 'BAPTEME' as const,
+                itemId: item.bapteme!.id,
+                itemDate: item.bapteme!.date,
+                remainingAmount: remaining * item.quantity,
+                dueDate: item.bapteme!.date, // À payer le jour du baptême
+              };
+            })))
+        ];
 
         const totalRemainingAmount = remainingPayments.reduce((sum, payment) => sum + payment.remainingAmount, 0);
 
@@ -264,7 +290,7 @@ const app = new Hono()
               orderNumber: order.orderNumber,
               totalAmount: order.totalAmount, // Montant total de la commande
               subtotal: order.subtotal, // Sous-total avant réductions
-              discountAmount: order.discountAmount, // Montant des réductions (bons cadeaux)
+              discountAmount: order.discountAmount, // Montant des réductions (cartes cadeaux)
               depositAmount: depositAmount, // Montant à payer AUJOURD'HUI
               remainingAmount: totalRemainingAmount, // Montant restant à payer plus tard
               customerEmail: customerEmail,
@@ -595,11 +621,11 @@ const app = new Hono()
           });
         }
 
-        // 2. Vérifier que c'est un stage
-        if (orderItem.type !== 'STAGE') {
+        // 2. Vérifier que c'est un stage ou un baptême
+        if (orderItem.type !== 'STAGE' && orderItem.type !== 'BAPTEME') {
           return c.json({
             success: false,
-            message: "Seuls les stages nécessitent un paiement final",
+            message: "Seuls les stages et baptêmes nécessitent un paiement final",
             data: null,
           });
         }

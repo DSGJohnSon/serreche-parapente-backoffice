@@ -24,7 +24,7 @@ const AddToCartSchema = z.object({
     hasVideo: z.boolean().optional(),
     // Pour stages
     selectedStageType: z.string().optional(),
-    // Pour bons cadeaux
+    // Pour cartes cadeaux
     recipientName: z.string().optional(),
     recipientEmail: z.string().optional(),
     personalMessage: z.string().optional(),
@@ -104,18 +104,12 @@ const app = new Hono()
       let totalAmount = 0;
       for (const item of validItems) {
         if (item.type === 'STAGE' && item.stage) {
-          totalAmount += item.stage.price * item.quantity;
+          // Pour les stages: on paie l'acompte maintenant
+          totalAmount += item.stage.acomptePrice * item.quantity;
         } else if (item.type === 'BAPTEME' && item.bapteme) {
-          // Calculer le prix selon la catégorie
-          const participantData = item.participantData as any;
-          if (participantData.selectedCategory) {
-            const basePrice = await getBaptemePrice(participantData.selectedCategory);
-            const videoPrice = participantData.hasVideo ? 25 : 0;
-            totalAmount += (basePrice + videoPrice) * item.quantity;
-          } else {
-            // Prix par défaut si pas de catégorie
-            totalAmount += 110 * item.quantity;
-          }
+          // Pour les baptêmes: on paie l'acompte maintenant (pas la vidéo)
+          const acomptePrice = item.bapteme.acomptePrice;
+          totalAmount += acomptePrice * item.quantity;
         } else if (item.type === 'GIFT_CARD') {
           totalAmount += item.giftCardAmount || 0;
         }
@@ -155,7 +149,7 @@ const app = new Hono()
           if (!giftCardAmount || giftCardAmount < 50) {
             return c.json({
               success: false,
-              message: "Montant minimum pour un bon cadeau : 50€",
+              message: "Montant minimum pour une carte cadeau : 50€",
               data: null,
             });
           }
@@ -444,18 +438,12 @@ const app = new Hono()
         let totalAmount = 0;
         for (const item of allCartItems) {
           if (item.type === "STAGE" && item.stage) {
-            totalAmount += item.stage.price * item.quantity;
+            // Pour les stages: on paie l'acompte maintenant
+            totalAmount += item.stage.acomptePrice * item.quantity;
           } else if (item.type === "BAPTEME" && item.bapteme) {
-            const participantData = item.participantData as any;
-            if (participantData.selectedCategory) {
-              const basePrice = await getBaptemePrice(
-                participantData.selectedCategory
-              );
-              const videoPrice = participantData.hasVideo ? 25 : 0;
-              totalAmount += (basePrice + videoPrice) * item.quantity;
-            } else {
-              totalAmount += 110 * item.quantity;
-            }
+            // Pour les baptêmes: on paie l'acompte maintenant (pas la vidéo)
+            const acomptePrice = item.bapteme.acomptePrice;
+            totalAmount += acomptePrice * item.quantity;
           } else if (item.type === "GIFT_CARD") {
             totalAmount += item.giftCardAmount || 0;
           }

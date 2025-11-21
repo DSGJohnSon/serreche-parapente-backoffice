@@ -156,6 +156,16 @@ export function BaptemeDetailsDialog({
                 </div>
               </div>
             </div>
+
+            <div className="flex items-center gap-3">
+              <div className="h-5 w-5 flex items-center justify-center text-primary font-bold">€</div>
+              <div>
+                <p className="font-medium">Montant de l&apos;acompte</p>
+                <p className="text-sm text-muted-foreground">
+                  {bapteme.acomptePrice}€ à payer lors de la réservation
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Informations des moniteurs */}

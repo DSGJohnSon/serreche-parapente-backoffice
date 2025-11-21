@@ -100,9 +100,7 @@ const app = new Hono()
                 },
               },
               orderBy: {
-                stage: {
-                  startDate: 'desc',
-                },
+                createdAt: 'desc',
               },
               skip: type === "STAGE" ? skip : 0,
               take: type === "STAGE" ? limitNum : undefined,
@@ -161,9 +159,7 @@ const app = new Hono()
                 },
               },
               orderBy: {
-                bapteme: {
-                  date: 'desc',
-                },
+                createdAt: 'desc',
               },
               skip: type === "BAPTEME" ? skip : 0,
               take: type === "BAPTEME" ? limitNum : undefined,
@@ -183,8 +179,8 @@ const app = new Hono()
             ...baptemeBookings.map(b => ({ ...b, bookingType: 'BAPTEME' as const, date: b.bapteme.date })),
           ];
 
-          // Sort by date descending
-          allBookings.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          // Sort by creation date descending (most recent first)
+          allBookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
           // Apply pagination
           combinedResults = allBookings.slice(skip, skip + limitNum);

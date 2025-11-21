@@ -20,3 +20,9 @@ export const UpdateStageBasePriceSchema = z.object({
 });
 
 export type UpdateStageBasePriceInput = z.infer<typeof UpdateStageBasePriceSchema>;
+
+export const UpdateBaptemeDepositPriceSchema = z.object({
+  price: z.number().positive("Le prix doit être positif"),
+});
+
+export type UpdateBaptemeDepositPriceInput = z.infer<typeof UpdateBaptemeDepositPriceSchema>;

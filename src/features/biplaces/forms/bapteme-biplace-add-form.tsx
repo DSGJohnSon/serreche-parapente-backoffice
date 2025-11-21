@@ -15,6 +15,7 @@ interface BaptemeData {
   places: number;
   moniteurIds: string[];
   categories: BaptemeCategory[];
+  acomptePrice: number;
 }
 
 interface BaptemeBiPlaceAddFormProps {
@@ -65,6 +66,7 @@ export function BaptemeBiPlaceAddForm({
         places: baptemeData.places,
         moniteurIds: baptemeData.moniteurIds,
         categories: baptemeData.categories,
+        acomptePrice: baptemeData.acomptePrice,
       };
 
       console.log('Sending to API:', apiData);

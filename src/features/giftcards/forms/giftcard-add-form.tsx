@@ -78,7 +78,7 @@ export function GiftCardAddForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="code">Code du bon cadeau *</Label>
+        <Label htmlFor="code">Code de la carte cadeau *</Label>
         <div className="flex gap-2">
           <Input
             id="code"
@@ -171,7 +171,7 @@ export function GiftCardAddForm({
           </Button>
         )}
         <Button type="submit" disabled={isLoading} className="flex-1">
-          {isLoading ? "Création..." : "Créer le bon cadeau"}
+          {isLoading ? "Création..." : "Créer la carte cadeau"}
         </Button>
       </div>
     </form>

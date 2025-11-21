@@ -16,6 +16,17 @@ async function main() {
   });
   console.log("✅ Video option price seeded:", videoPrice);
 
+  // Seed bapteme deposit price
+  const baptemeDepositPrice = await prisma.baptemeDepositPrice.upsert({
+    where: { id: "default" },
+    update: {},
+    create: {
+      id: "default",
+      price: 35.0, // Default bapteme deposit price
+    },
+  });
+  console.log("✅ Bapteme deposit price seeded:", baptemeDepositPrice);
+
   // Seed stage base prices
   const stageTypes = [
     { type: StageType.INITIATION, price: 350.0 },

@@ -4,7 +4,7 @@
 `PATCH /api/cart/update/:itemId`
 
 ## Description
-Met à jour les informations d'un participant dans le panier avec recalcul automatique du prix total. Supporte la modification des données personnelles et des options (vidéo pour baptêmes, informations bénéficiaire pour bons cadeaux).
+Met à jour les informations d'un participant dans le panier avec recalcul automatique du prix total. Supporte la modification des données personnelles et des options (vidéo pour baptêmes, informations bénéficiaire pour cartes cadeaux).
 
 ## ✅ CORS Configuration
 Le endpoint supporte maintenant la méthode PATCH avec la configuration CORS appropriée.
@@ -100,7 +100,7 @@ Content-Type: application/json
 - Prix fixe du stage × quantité
 - Pas d'options supplémentaires
 
-### Pour les Bons Cadeaux
+### Pour les Cartes Cadeaux
 - Montant fixe défini lors de l'ajout
 
 ## Réponses
@@ -241,7 +241,7 @@ curl -X PATCH https://api.example.com/api/cart/update/item_789 \
   }'
 ```
 
-### Exemple 4: Modification d'un bon cadeau
+### Exemple 4: Modification d'une carte cadeau
 
 ```bash
 curl -X PATCH https://api.example.com/api/cart/update/item_101 \

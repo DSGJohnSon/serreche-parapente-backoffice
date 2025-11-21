@@ -181,7 +181,7 @@ export function NavMain() {
           <SidebarMenuItem
             className={cn(
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-              slugToKnowIfActive[0] === "bons-cadeaux"
+              slugToKnowIfActive[0] === "cartes-cadeaux"
                 ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
                 : ""
             )}
@@ -190,11 +190,11 @@ export function NavMain() {
               href={`/${pathname
                 .split("/")
                 .slice(1, 2)
-                .join("/")}/bons-cadeaux`}
+                .join("/")}/cartes-cadeaux`}
             >
               <SidebarMenuButton tooltip={"Clients"}>
                 <LucideGift className="size-4" />
-                <span>Bons Cadeaux</span>
+                <span>Cartes Cadeaux</span>
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>

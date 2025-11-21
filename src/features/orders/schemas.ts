@@ -27,7 +27,7 @@ export const CancelOrderSchema = z.object({
 
 export const ApplyGiftCardSchema = z.object({
   orderId: z.string(),
-  giftCardCode: z.string().min(1, "Code bon cadeau requis"),
+  giftCardCode: z.string().min(1, "Code carte cadeau requis"),
 });
 
 export const CreatePaymentIntentSchema = z.object({

@@ -22,7 +22,7 @@ const paymentMethodLabels = {
 const itemTypeLabels = {
   STAGE: "Stage",
   BAPTEME: "Baptême",
-  GIFT_CARD: "Bon cadeau",
+  GIFT_CARD: "Carte cadeau",
 };
 
 const stageTypeLabels = {
@@ -230,7 +230,7 @@ export function PaymentsList() {
                                     )}
                                     {allocation.orderItem.type === "GIFT_CARD" && (
                                       <div className="text-muted-foreground">
-                                        Bon cadeau de {allocation.orderItem.giftCardAmount?.toFixed(2)}€
+                                        Carte cadeau de {allocation.orderItem.giftCardAmount?.toFixed(2)}€
                                       </div>
                                     )}
                                   </div>

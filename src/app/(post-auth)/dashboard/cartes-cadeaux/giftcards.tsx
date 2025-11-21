@@ -40,7 +40,7 @@ export function GiftCards() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir supprimer ce bon cadeau ?")) {
+    if (confirm("Êtes-vous sûr de vouloir supprimer cette carte cadeau ?")) {
       await deleteGiftCard.mutateAsync({ id });
     }
   };
@@ -74,7 +74,7 @@ export function GiftCards() {
       <div className="bg-slate-200 text-slate-800 rounded-md p-8 flex flex-col items-center justify-center border border-slate-400 gap-4">
         <LucideFrown />
         <div className="flex flex-col items-center">
-          <p>Aucun bon cadeau n&apos;a été trouvé.</p>
+          <p>Aucune carte cadeau n&apos;a été trouvée.</p>
           <p className="text-xs">
             Ceci peut être dû à une erreur de connexion avec la base de données.
           </p>
@@ -99,14 +99,14 @@ export function GiftCards() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bons Cadeaux</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Cartes Cadeaux</h1>
           <p className="text-muted-foreground">
-            Gérez les bons cadeaux de votre établissement
+            Gérez les cartes cadeaux de votre établissement
           </p>
         </div>
         <Button onClick={() => setShowAddDialog(true)}>
           <LucidePlus className="h-4 w-4 mr-2" />
-          Ajouter un bon cadeau
+          Ajouter une carte cadeau
         </Button>
       </div>
 
@@ -114,7 +114,7 @@ export function GiftCards() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bons non utilisés</CardTitle>
+            <CardTitle className="text-sm font-medium">Cartes non utilisées</CardTitle>
             <LucideGift className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -126,7 +126,7 @@ export function GiftCards() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bons utilisés</CardTitle>
+            <CardTitle className="text-sm font-medium">Cartes utilisées</CardTitle>
             <LucideGift className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -143,15 +143,15 @@ export function GiftCards() {
       {/* Unused Gift Cards Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Bons Cadeaux Non Utilisés</CardTitle>
+          <CardTitle>Cartes Cadeaux Non Utilisées</CardTitle>
           <CardDescription>
-            Liste des bons cadeaux disponibles à l&apos;utilisation
+            Liste des cartes cadeaux disponibles à l&apos;utilisation
           </CardDescription>
         </CardHeader>
         <CardContent>
           {unusedGiftCards.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              Aucun bon cadeau non utilisé
+              Aucune carte cadeau non utilisée
             </p>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -213,7 +213,7 @@ export function GiftCards() {
                       </div>
                       
                       <div className="flex gap-2 pt-2">
-                        <Link href={`/dashboard/bons-cadeaux/${giftCard.id}`} className="flex-1">
+                        <Link href={`/dashboard/cartes-cadeaux/${giftCard.id}`} className="flex-1">
                           <Button
                             variant="outline"
                             size="sm"
@@ -257,9 +257,9 @@ export function GiftCards() {
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Bons Cadeaux Utilisés</CardTitle>
+                  <CardTitle>Cartes Cadeaux Utilisées</CardTitle>
                   <CardDescription>
-                    Historique des bons cadeaux utilisés
+                    Historique des cartes cadeaux utilisées
                   </CardDescription>
                 </div>
                 <Button variant="ghost" size="sm">
@@ -278,7 +278,7 @@ export function GiftCards() {
                 </div>
               ) : !usedGiftCards || usedGiftCards.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  Aucun bon cadeau utilisé
+                  Aucune carte cadeau utilisée
                 </p>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -340,7 +340,7 @@ export function GiftCards() {
                           </div>
                           
                           <div className="pt-2">
-                            <Link href={`/dashboard/bons-cadeaux/${giftCard.id}`}>
+                            <Link href={`/dashboard/cartes-cadeaux/${giftCard.id}`}>
                               <Button variant="outline" size="sm" className="w-full">
                                 <LucideExternalLink className="h-4 w-4 mr-2" />
                                 Voir détails

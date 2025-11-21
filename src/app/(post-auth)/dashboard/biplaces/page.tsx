@@ -31,6 +31,7 @@ interface BaptemeData {
   places: number;
   moniteurIds: string[];
   categories: BaptemeCategory[];
+  acomptePrice: number;
 }
 
 export default function Page() {
@@ -88,6 +89,7 @@ export default function Page() {
     date: new Date(bapteme.date),
     duration: bapteme.duration,
     places: bapteme.places,
+    acomptePrice: bapteme.acomptePrice,
     categories: bapteme.categories || [],
     createdAt: new Date(bapteme.createdAt),
     updatedAt: new Date(bapteme.updatedAt),
@@ -138,6 +140,7 @@ export default function Page() {
       places: newBapteme.places,
       categories: newBapteme.categories,
       moniteurIds: newBapteme.moniteurIds,
+      acomptePrice: newBapteme.acomptePrice,
     };
 
     createBapteme.mutate(baptemeData, {

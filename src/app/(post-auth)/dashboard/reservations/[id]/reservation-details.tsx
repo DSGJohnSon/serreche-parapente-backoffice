@@ -216,7 +216,8 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
   const depositAmount = orderItem?.depositAmount || 0;
   const remainingAmount = orderItem?.remainingAmount || 0;
   const isFullyPaid = orderItem?.isFullyPaid || false;
-  const hasDeposit = isStage && depositAmount > 0;
+  // Both stages and baptemes can have deposits (bapteme: acompte + video paid upfront)
+  const hasDeposit = depositAmount > 0;
   
   // Calculate total paid amount from allocations for THIS OrderItem only
   const totalPaidAmount = paymentAllocations.reduce((sum: number, allocation: any) => {
@@ -431,7 +432,7 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
             <div>
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                Bons cadeaux utilisés
+                Cartes cadeaux utilisées
               </h4>
               <div className="space-y-2">
                 {giftCards.map((gc: any) => (

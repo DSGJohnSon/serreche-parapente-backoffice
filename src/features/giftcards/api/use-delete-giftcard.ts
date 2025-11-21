@@ -26,7 +26,7 @@ export const useDeleteGiftCard = () => {
       }
     },
     onError: () => {
-      toast.error("Erreur lors de la suppression du bon cadeau");
+      toast.error("Erreur lors de la suppression de la carte cadeau");
     },
   });
 

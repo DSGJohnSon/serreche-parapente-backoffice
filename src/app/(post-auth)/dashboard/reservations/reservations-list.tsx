@@ -287,6 +287,7 @@ export function ReservationsList() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Réservé le</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Date du stage</TableHead>
                     <TableHead>Stagiaire</TableHead>
@@ -306,15 +307,19 @@ export function ReservationsList() {
                     const date = isStage ? reservation.stage.startDate : reservation.bapteme.date;
                     const categoryValue = isStage ? reservation.type : reservation.category;
                     
+                    // Check if reservation is recent (less than 24 hours old)
+                    const createdAt = new Date(reservation.createdAt);
+                    const now = new Date();
+                    const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+                    const isRecent = hoursSinceCreation < 12;
+                    
                     // Calcul des montants
                     const totalPrice = orderItem?.totalPrice || 0;
                     const depositAmount = orderItem?.depositAmount || 0;
                     const remainingAmount = orderItem?.remainingAmount || 0;
                     const isFullyPaid = orderItem?.isFullyPaid || false;
-                    // Pour les stages uniquement, on affiche l'acompte. Pour les baptêmes, c'est un paiement complet
-                    const hasDeposit = isStage && depositAmount > 0;
-                    // Les baptêmes sont toujours entièrement payés dès qu'ils sont commandés et payés
-                    const isBaptemeFullyPaid = !isStage && (order?.status === 'PAID' || order?.status === 'FULLY_PAID' || order?.status === 'PARTIALLY_PAID');
+                    // Both stages and baptemes can have deposits (bapteme: acompte + video paid upfront)
+                    const hasDeposit = depositAmount > 0;
                     
                     return (
                       <TableRow
@@ -323,9 +328,25 @@ export function ReservationsList() {
                         onClick={() => router.push(`/dashboard/reservations/${reservation.id}`)}
                       >
                         <TableCell>
-                          <Badge variant={isStage ? "default" : "secondary"}>
-                            {isStage ? "Stage" : "Baptême"}
-                          </Badge>
+                          <div className="flex flex-col">
+                            <span className="text-sm">
+                              {format(createdAt, "dd/MM/yyyy", { locale: fr })}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {format(createdAt, "HH'h'mm", { locale: fr })}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="relative inline-block">
+                            <Badge variant={isStage ? "default" : "secondary"}>
+                              {isStage ? "Stage" : "Baptême"}
+                            </Badge>
+                            {isRecent && (
+                              <span className="block w-3 h-3 absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 bg-green-500  rounded-full">
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
@@ -366,45 +387,26 @@ export function ReservationsList() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getBadgeVariant(
-                            // Pour les baptêmes, ils sont toujours entièrement payés dès qu'ils sont commandés
-                            isStage ? order?.status : 'FULLY_PAID'
-                          )}>
-                            {getStatusLabel(
-                              // Pour les baptêmes, ils sont toujours entièrement payés dès qu'ils sont commandés
-                              isStage ? order?.status : 'FULLY_PAID'
-                            )}
+                          <Badge variant={getBadgeVariant(order?.status || '')}>
+                            {getStatusLabel(order?.status || '')}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {hasDeposit ? (
-                            <div className="flex flex-col items-end">
-                              <span className="font-medium text-green-600">
-                                {formatCurrency(isFullyPaid ? totalPrice : (totalPrice - remainingAmount))}
+                          <div className="flex flex-col items-end">
+                            <span className="font-medium text-green-600">
+                              {formatCurrency(isFullyPaid ? totalPrice : (totalPrice - remainingAmount))}
+                            </span>
+                            {!isFullyPaid && remainingAmount > 0 && (
+                              <span className="text-xs text-orange-600">
+                                Reste: {formatCurrency(remainingAmount)}
                               </span>
-                              {!isFullyPaid && remainingAmount > 0 && (
-                                <span className="text-xs text-orange-600">
-                                  Reste: {formatCurrency(remainingAmount)}
-                                </span>
-                              )}
-                              {isFullyPaid && (
-                                <span className="text-xs text-green-600">
-                                  ✓ Soldé
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-end">
-                              <span className="font-medium text-green-600">
-                                {formatCurrency(totalPrice)}
+                            )}
+                            {isFullyPaid && (
+                              <span className="text-xs text-green-600">
+                                ✓ Soldé
                               </span>
-                              {isBaptemeFullyPaid && (
-                                <span className="text-xs text-green-600">
-                                  ✓ Payé
-                                </span>
-                              )}
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">

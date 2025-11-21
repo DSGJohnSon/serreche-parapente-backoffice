@@ -95,7 +95,7 @@ const app = new Hono()
     adminSessionMiddleware,
     async (c) => {
       try {
-        const { date, duration, places, moniteurIds, categories } = c.req.valid("json");
+        const { date, duration, places, moniteurIds, categories, acomptePrice } = c.req.valid("json");
         const dateObj = new Date(date);
 
         const result = await prisma.bapteme.create({
@@ -104,6 +104,7 @@ const app = new Hono()
             duration,
             places,
             categories,
+            acomptePrice,
             moniteurs: {
               create: moniteurIds.map((moniteurId) => ({
                 moniteurId,
@@ -162,7 +163,7 @@ const app = new Hono()
     adminSessionMiddleware,
     async (c) => {
       try {
-        const { originalDate, date, duration, places, moniteurIds, categories } = c.req.valid("json");
+        const { originalDate, date, duration, places, moniteurIds, categories, acomptePrice } = c.req.valid("json");
         const originalDateObj = new Date(originalDate);
         const newDateObj = new Date(date);
 
@@ -193,6 +194,7 @@ const app = new Hono()
             duration,
             places,
             categories,
+            acomptePrice,
             moniteurs: {
               deleteMany: {},
               create: moniteurIds.map((moniteurId) => ({

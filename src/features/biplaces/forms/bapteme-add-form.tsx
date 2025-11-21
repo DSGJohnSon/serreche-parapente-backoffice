@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BaptemeCategory } from "@/features/biplaces/schemas";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { useGetTarifs } from "@/features/tarifs/api/use-get-tarifs";
+import { useGetBaptemeDepositPrice } from "@/features/tarifs/api/use-get-bapteme-deposit-price";
 
 interface BaptemeData {
   date: Date;
@@ -34,6 +35,7 @@ interface BaptemeData {
   places: number;
   moniteurIds: string[];
   categories: BaptemeCategory[];
+  acomptePrice: number;
 }
 
 interface BaptemeAddFormProps {
@@ -61,6 +63,7 @@ export function BaptemeAddForm({
 }: BaptemeAddFormProps) {
   const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
   const { data: tarifs, isLoading: isLoadingTarifs } = useGetTarifs();
+  const { data: depositPrice, isLoading: isLoadingDepositPrice } = useGetBaptemeDepositPrice();
   
   const [formData, setFormData] = useState({
     date: selectedDate || new Date(),
@@ -69,6 +72,7 @@ export function BaptemeAddForm({
     places: 6,
     moniteurIds: [] as string[],
     categories: [] as BaptemeCategory[],
+    acomptePrice: depositPrice?.price || 35,
   });
   const [showCalendar, setShowCalendar] = useState(false);
   const [isCustomDuration, setIsCustomDuration] = useState(false);
@@ -86,6 +90,13 @@ export function BaptemeAddForm({
       setFormData((prev) => ({ ...prev, time: timeString }));
     }
   }, [selectedHour]);
+
+  // Update acomptePrice when depositPrice is loaded
+  useEffect(() => {
+    if (depositPrice?.price) {
+      setFormData((prev) => ({ ...prev, acomptePrice: depositPrice.price }));
+    }
+  }, [depositPrice]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,6 +123,7 @@ export function BaptemeAddForm({
       places: formData.places,
       moniteurIds: formData.moniteurIds,
       categories: formData.categories,
+      acomptePrice: formData.acomptePrice,
     };
 
     console.log('Submitting bapteme:', newBapteme);
@@ -125,6 +137,7 @@ export function BaptemeAddForm({
       places: 6,
       moniteurIds: [],
       categories: [],
+      acomptePrice: depositPrice?.price || 35,
     });
     setIsCustomDuration(false);
     setCustomDuration("");
@@ -257,6 +270,27 @@ export function BaptemeAddForm({
           }
           required
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="acomptePrice">Montant de l&apos;acompte (€)</Label>
+        <Input
+          id="acomptePrice"
+          type="number"
+          min="0"
+          step="0.01"
+          value={formData.acomptePrice}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              acomptePrice: Number.parseFloat(e.target.value) || 0,
+            }))
+          }
+          required
+        />
+        <p className="text-xs text-muted-foreground">
+          Montant à payer lors de la réservation (par défaut: {depositPrice?.price || 35}€)
+        </p>
       </div>
 
       <div className="space-y-3">

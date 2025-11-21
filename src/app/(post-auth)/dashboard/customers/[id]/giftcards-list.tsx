@@ -50,25 +50,25 @@ export function GiftCardsList({ purchasedGiftCards, usedGiftCards }: GiftCardsLi
     return code.replace(/./g, "•");
   };
 
-  // Ne pas afficher les sections si aucun bon cadeau n'existe
+  // Ne pas afficher les sections si aucune carte cadeau n'existe
   if (purchasedGiftCards.length === 0 && usedGiftCards.length === 0) {
     return null;
   }
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
-      {/* Bons Cadeaux Achetés */}
+      {/* Cartes Cadeaux Achetées */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <LucideGift className="h-5 w-5" />
-            Bons Cadeaux Achetés
+            Cartes Cadeaux Achetées
           </CardTitle>
         </CardHeader>
         <CardContent>
           {purchasedGiftCards.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Aucun bon cadeau acheté
+              Aucune carte cadeau achetée
             </p>
           ) : (
             <div className="space-y-3">
@@ -119,18 +119,18 @@ export function GiftCardsList({ purchasedGiftCards, usedGiftCards }: GiftCardsLi
         </CardContent>
       </Card>
 
-      {/* Bons Cadeaux Utilisés */}
+      {/* Cartes Cadeaux Utilisées */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <LucideGift className="h-5 w-5" />
-            Bons Cadeaux Utilisés
+            Cartes Cadeaux Utilisées
           </CardTitle>
         </CardHeader>
         <CardContent>
           {usedGiftCards.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Pas de bons cadeaux utilisés
+              Pas de cartes cadeaux utilisées
             </p>
           ) : (
             <div className="space-y-3">

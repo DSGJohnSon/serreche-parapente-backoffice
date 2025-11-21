@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "payment_intent.succeeded":
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentSuccess(paymentIntent);
+        await handlePaymentSuccess(paymentIntent, existingEvent);
         break;
 
       case "payment_intent.payment_failed":
@@ -71,13 +71,15 @@ export async function POST(req: Request) {
         console.log(`Unhandled event type: ${event.type}`);
     }
 
-    // Marquer l'événement comme traité
-    await prisma.processedWebhookEvent.create({
-      data: {
-        stripeEventId: event.id,
-        eventType: event.type,
-      },
-    });
+    // Marquer l'événement comme traité seulement s'il ne l'était pas déjà
+    if (!existingEvent) {
+      await prisma.processedWebhookEvent.create({
+        data: {
+          stripeEventId: event.id,
+          eventType: event.type,
+        },
+      });
+    }
 
     console.log(`Event ${event.id} processed successfully`);
     return NextResponse.json({ received: true });
@@ -90,7 +92,7 @@ export async function POST(req: Request) {
   }
 }
 
-async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
+async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent, existingEvent?: any) {
   const orderId = paymentIntent.metadata.orderId;
   const customerEmail = paymentIntent.metadata.customerEmail;
   const customerDataStr = paymentIntent.metadata.customerData;
@@ -148,7 +150,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       }
     }
 
-    // 2. Récupérer la commande avec tous ses items
+    // 2. Récupérer la commande avec tous ses items (incluant depositAmount et remainingAmount)
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -173,15 +175,21 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       },
     });
 
-    // 4. Répartir le paiement entre les OrderItems selon la logique de priorité
+    // 4. Supprimer les allocations existantes pour ce paiement (au cas où elles seraient incorrectes)
+    // Toujours faire cette correction, même si l'événement a déjà été traité
+    await prisma.paymentAllocation.deleteMany({
+      where: { paymentId: payment.id },
+    });
+
+    // 5. Répartir le paiement entre les OrderItems selon la logique de priorité
     await allocatePaymentToOrderItems(payment, order.orderItems);
 
     // 5. Déterminer le statut de la commande
-    const hasStagesWithRemainingAmount = order.orderItems.some(
-      item => item.type === 'STAGE' && item.remainingAmount && item.remainingAmount > 0
+    const hasItemsWithRemainingAmount = order.orderItems.some(
+      item => (item.type === 'STAGE' || item.type === 'BAPTEME') && item.remainingAmount && item.remainingAmount > 0
     );
 
-    const newStatus = hasStagesWithRemainingAmount ? "PARTIALLY_PAID" : "PAID";
+    const newStatus = hasItemsWithRemainingAmount ? "PARTIALLY_PAID" : "PAID";
 
     // 6. Mettre à jour la commande avec le client et le statut approprié
     const updatedOrder = await prisma.order.update({
@@ -323,7 +331,7 @@ async function createBookingsFromOrder(order: any) {
     }
 
     if (item.type === "GIFT_CARD") {
-      // Générer un code unique pour le bon cadeau
+      // Générer un code unique pour la carte cadeau
       const code = await generateUniqueGiftCardCode();
 
       const giftCard = await prisma.giftCard.create({
@@ -334,7 +342,7 @@ async function createBookingsFromOrder(order: any) {
         },
       });
 
-      // Lier le bon cadeau à l'order item
+      // Lier la carte cadeau à l'order item
       await prisma.orderItem.update({
         where: { id: item.id },
         data: { generatedGiftCardId: giftCard.id },
@@ -380,7 +388,7 @@ async function findOrCreateStagiaire(participantData: any) {
   return stagiaire;
 }
 
-// Fonction pour générer un code unique de bon cadeau
+// Fonction pour générer un code unique de carte cadeau
 async function generateUniqueGiftCardCode(): Promise<string> {
   let code: string;
   let exists = true;
@@ -411,12 +419,15 @@ async function allocatePaymentToOrderItems(payment: any, orderItems: any[]) {
     if (item.type === 'STAGE') {
       // Pour les stages, allouer le montant de l'acompte
       allocatedAmount = item.depositAmount || 0;
+      console.log(`STAGE item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}`);
     } else if (item.type === 'BAPTEME') {
-      // Pour les baptêmes, allouer le prix total
-      allocatedAmount = item.totalPrice;
+      // Pour les baptêmes, allouer le montant de l'acompte (acompte + vidéo)
+      allocatedAmount = item.depositAmount || 0;
+      console.log(`BAPTEME item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}, hasVideo=${item.participantData?.hasVideo}`);
     } else if (item.type === 'GIFT_CARD') {
-      // Pour les bons cadeaux, allouer le montant du bon
+      // Pour les cartes cadeaux, allouer le montant de la carte
       allocatedAmount = item.giftCardAmount || 0;
+      console.log(`GIFT_CARD item ${item.id}: giftCardAmount=${item.giftCardAmount}`);
     }
     
     if (allocatedAmount > 0) {
@@ -428,7 +439,9 @@ async function allocatePaymentToOrderItems(payment: any, orderItems: any[]) {
         },
       });
       
-      console.log(`Allocated ${allocatedAmount}€ from payment ${payment.id} to item ${item.id} (${item.type})`);
+      console.log(`✓ Allocated ${allocatedAmount}€ from payment ${payment.id} to item ${item.id} (${item.type})`);
+    } else {
+      console.warn(`⚠ No amount to allocate for item ${item.id} (${item.type})`);
     }
   }
 }

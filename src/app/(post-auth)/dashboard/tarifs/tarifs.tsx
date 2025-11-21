@@ -146,7 +146,7 @@ export function Tarifs() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Gestion des Tarifs</h1>
         <p className="text-muted-foreground mt-2">
-          Gérez les prix de base des baptêmes, de l'option vidéo et des stages
+          Gérez les prix de base des baptêmes, de l&apos;option vidéo et des stages
         </p>
       </div>
 
@@ -210,9 +210,9 @@ export function Tarifs() {
         <h2 className="text-2xl font-semibold">Option Vidéo</h2>
         <Card>
           <CardHeader>
-            <CardTitle>Prix de l'option vidéo</CardTitle>
+            <CardTitle>Prix de l&apos;option vidéo</CardTitle>
             <CardDescription>
-              Prix supplémentaire pour l'option vidéo des baptêmes
+              Prix supplémentaire pour l&apos;option vidéo des baptêmes
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -313,7 +313,7 @@ export function Tarifs() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Les prix définis ici sont utilisés comme valeurs initiales dans le backoffice et peuvent être récupérés via l'API publique pour affichage sur le site frontend.
+            Les prix définis ici sont utilisés comme valeurs initiales dans le backoffice et peuvent être récupérés via l&apos;API publique pour affichage sur le site frontend.
           </p>
         </CardContent>
       </Card>

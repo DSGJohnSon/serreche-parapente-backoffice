@@ -17,6 +17,7 @@ interface BaptemeData {
   places: number;
   moniteurIds: string[];
   categories: BaptemeCategory[];
+  acomptePrice: number;
 }
 
 interface AddBaptemeDialogProps {

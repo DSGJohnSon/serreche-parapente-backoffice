@@ -82,7 +82,7 @@ export function GiftCardEditForm({
       // Si on marque comme utilisé et qu'il n'était pas utilisé avant
       if (formData.isUsed && !giftCard.isUsed) {
         if (!formData.usedBy) {
-          alert("Veuillez sélectionner un client qui a utilisé le bon cadeau");
+          alert("Veuillez sélectionner un client qui a utilisé la carte cadeau");
           return;
         }
         updateData.isUsed = true;
@@ -98,7 +98,7 @@ export function GiftCardEditForm({
       // Si on change juste l'utilisateur (reste utilisé)
       else if (formData.isUsed && giftCard.isUsed && formData.usedBy !== giftCard.usedBy) {
         if (!formData.usedBy) {
-          alert("Veuillez sélectionner un client qui a utilisé le bon cadeau");
+          alert("Veuillez sélectionner un client qui a utilisé la carte cadeau");
           return;
         }
         updateData.usedBy = formData.usedBy;
@@ -145,7 +145,7 @@ export function GiftCardEditForm({
         />
         {isUsedCard && (
           <p className="text-xs text-muted-foreground">
-            Le montant ne peut pas être modifié pour un bon cadeau utilisé
+            Le montant ne peut pas être modifié pour une carte cadeau utilisée
           </p>
         )}
       </div>
@@ -164,7 +164,7 @@ export function GiftCardEditForm({
             }
             disabled={isLoading}
           />
-          <Label htmlFor="isUsed">Bon cadeau utilisé</Label>
+          <Label htmlFor="isUsed">Carte cadeau utilisée</Label>
         </div>
       </div>
 

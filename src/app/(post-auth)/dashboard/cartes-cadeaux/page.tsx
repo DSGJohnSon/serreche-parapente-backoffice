@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import { GiftCards } from "./giftcards";
 
 export const metadata: Metadata = {
-  title: "Stage de Parapente - BackOffice | Bons Cadeaux",
-  description: "Gestion des bons cadeaux",
+  title: "Stage de Parapente - BackOffice | Cartes Cadeaux",
+  description: "Gestion des cartes cadeaux",
 };
 
 export default async function Page() {

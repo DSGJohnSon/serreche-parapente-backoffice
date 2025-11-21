@@ -14,6 +14,7 @@ export const useUpdateBapteme = () => {
       places: number;
       moniteurIds: string[];
       categories: BaptemeCategory[];
+      acomptePrice: number;
     }) => {
       const response = await client.api.baptemes.update.$post({
         json: {
@@ -23,6 +24,7 @@ export const useUpdateBapteme = () => {
           places: data.places,
           moniteurIds: data.moniteurIds,
           categories: data.categories,
+          acomptePrice: data.acomptePrice,
         },
       });
 

@@ -28,7 +28,7 @@ export const useUpdateGiftCard = () => {
       }
     },
     onError: () => {
-      toast.error("Erreur lors de la mise à jour du bon cadeau");
+      toast.error("Erreur lors de la mise à jour de la carte cadeau");
     },
   });
 

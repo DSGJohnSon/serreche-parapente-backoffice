@@ -35,7 +35,7 @@ const app = new Hono()
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de la récupération des bons cadeaux",
+          message: "Erreur lors de la récupération des cartes cadeaux",
           data: null,
         });
       }
@@ -75,7 +75,7 @@ const app = new Hono()
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de la récupération du bon cadeau",
+          message: "Erreur lors de la récupération de la carte cadeau",
           data: null,
         });
       }
@@ -138,7 +138,7 @@ const app = new Hono()
         if (!giftCard) {
           return c.json({
             success: false,
-            message: "Bon cadeau introuvable",
+            message: "Carte cadeau introuvable",
             data: null,
           });
         }
@@ -187,7 +187,7 @@ const app = new Hono()
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de la récupération des bons cadeaux non utilisés",
+          message: "Erreur lors de la récupération des cartes cadeaux non utilisées",
           data: null,
         });
       }
@@ -222,7 +222,7 @@ const app = new Hono()
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de la récupération des bons cadeaux utilisés",
+          message: "Erreur lors de la récupération des cartes cadeaux utilisées",
           data: null,
         });
       }
@@ -276,13 +276,13 @@ const app = new Hono()
 
         return c.json({
           success: true,
-          message: `Bon cadeau ${result.code} créé avec succès`,
+          message: `Carte cadeau ${result.code} créée avec succès`,
           data: result,
         });
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de la création du bon cadeau",
+          message: "Erreur lors de la création de la carte cadeau",
           data: null,
         });
       }
@@ -308,7 +308,7 @@ const app = new Hono()
         if (!giftCard) {
           return c.json({
             success: false,
-            message: "Bon cadeau invalide",
+            message: "Carte cadeau invalide",
           }, 404);
         }
         
@@ -319,7 +319,7 @@ const app = new Hono()
         if (giftCard.isUsed || remainingAmount <= 0) {
           return c.json({
             success: false,
-            message: "Bon cadeau déjà utilisé",
+            message: "Carte cadeau déjà utilisée",
           }, 400);
         }
         
@@ -330,7 +330,7 @@ const app = new Hono()
         if (new Date() > expirationDate) {
           return c.json({
             success: false,
-            message: "Bon cadeau expiré",
+            message: "Carte cadeau expirée",
           }, 400);
         }
 
@@ -349,7 +349,7 @@ const app = new Hono()
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de la validation du bon cadeau",
+          message: "Erreur lors de la validation de la carte cadeau",
         }, 500);
       }
     }
@@ -384,7 +384,7 @@ const app = new Hono()
         if (!giftCard) {
           return c.json({
             success: false,
-            message: "Bon cadeau introuvable",
+            message: "Carte cadeau introuvable",
             data: null,
           });
         }
@@ -427,7 +427,7 @@ const app = new Hono()
         if (existingUsage) {
           return c.json({
             success: false,
-            message: "Ce bon cadeau est déjà appliqué à cette commande",
+            message: "Cette carte cadeau est déjà appliquée à cette commande",
             data: null,
           });
         }
@@ -525,7 +525,7 @@ const app = new Hono()
         if (!existingGiftCard) {
           return c.json({
             success: false,
-            message: "Bon cadeau introuvable",
+            message: "Carte cadeau introuvable",
             data: null,
           });
         }
@@ -533,7 +533,7 @@ const app = new Hono()
         if (existingGiftCard.isUsed) {
           return c.json({
             success: false,
-            message: "Impossible de modifier un bon cadeau déjà utilisé",
+            message: "Impossible de modifier une carte cadeau déjà utilisée",
             data: null,
           });
         }
@@ -555,13 +555,13 @@ const app = new Hono()
 
         return c.json({
           success: true,
-          message: "Bon cadeau mis à jour avec succès",
+          message: "Carte cadeau mise à jour avec succès",
           data: result,
         });
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de la mise à jour du bon cadeau",
+          message: "Erreur lors de la mise à jour de la carte cadeau",
           data: null,
         });
       }
@@ -594,7 +594,7 @@ const app = new Hono()
         if (!giftCard) {
           return c.json({
             success: false,
-            message: "Bon cadeau introuvable",
+            message: "Carte cadeau introuvable",
             data: null,
           });
         }
@@ -602,7 +602,7 @@ const app = new Hono()
         if (giftCard.isUsed) {
           return c.json({
             success: false,
-            message: "Ce bon cadeau a déjà été utilisé",
+            message: "Cette carte cadeau a déjà été utilisée",
             data: null,
           });
         }
@@ -628,13 +628,13 @@ const app = new Hono()
 
         return c.json({
           success: true,
-          message: "Bon cadeau utilisé avec succès",
+          message: "Carte cadeau utilisée avec succès",
           data: result,
         });
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de l'utilisation du bon cadeau",
+          message: "Erreur lors de l'utilisation de la carte cadeau",
           data: null,
         });
       }
@@ -669,7 +669,7 @@ const app = new Hono()
         if (!existingGiftCard) {
           return c.json({
             success: false,
-            message: "Bon cadeau introuvable",
+            message: "Carte cadeau introuvable",
             data: null,
           });
         }
@@ -677,7 +677,7 @@ const app = new Hono()
         if (existingGiftCard.isUsed) {
           return c.json({
             success: false,
-            message: "Impossible de supprimer un bon cadeau déjà utilisé",
+            message: "Impossible de supprimer une carte cadeau déjà utilisée",
             data: null,
           });
         }
@@ -688,13 +688,13 @@ const app = new Hono()
 
         return c.json({
           success: true,
-          message: "Bon cadeau supprimé avec succès",
+          message: "Carte cadeau supprimée avec succès",
           data: null,
         });
       } catch (error) {
         return c.json({
           success: false,
-          message: "Erreur lors de la suppression du bon cadeau",
+          message: "Erreur lors de la suppression de la carte cadeau",
           data: null,
         });
       }

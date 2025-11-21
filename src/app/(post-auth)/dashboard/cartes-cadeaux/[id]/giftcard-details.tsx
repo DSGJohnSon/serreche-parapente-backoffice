@@ -78,8 +78,8 @@ export function GiftCardDetails({ id }: GiftCardDetailsProps) {
   if (!giftCard) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <p className="text-lg text-muted-foreground">Bon cadeau introuvable</p>
-        <Button onClick={() => router.push("/dashboard/bons-cadeaux")}>
+        <p className="text-lg text-muted-foreground">Carte cadeau introuvable</p>
+        <Button onClick={() => router.push("/dashboard/cartes-cadeaux")}>
           <LucideArrowLeft className="h-4 w-4 mr-2" />
           Retour à la liste
         </Button>
@@ -98,12 +98,12 @@ export function GiftCardDetails({ id }: GiftCardDetailsProps) {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => router.push("/dashboard/bons-cadeaux")}
+            onClick={() => router.push("/dashboard/cartes-cadeaux")}
           >
             <LucideArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Détails du Bon Cadeau</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Détails de la Carte Cadeau</h1>
             <p className="text-muted-foreground">
               Code: <code className="bg-muted px-2 py-1 rounded">{giftCard.code}</code>
             </p>
@@ -120,7 +120,7 @@ export function GiftCardDetails({ id }: GiftCardDetailsProps) {
             <DialogHeader>
               <DialogTitle>Ajouter une utilisation</DialogTitle>
               <DialogDescription>
-                Enregistrez une nouvelle utilisation de ce bon cadeau pour une commande.
+                Enregistrez une nouvelle utilisation de cette carte cadeau pour une commande.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">

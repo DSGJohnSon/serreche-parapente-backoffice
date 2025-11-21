@@ -30,7 +30,7 @@ export function AddGiftCardDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Ajouter un Bon Cadeau</DialogTitle>
+          <DialogTitle>Ajouter une Carte Cadeau</DialogTitle>
         </DialogHeader>
 
         <GiftCardAddForm

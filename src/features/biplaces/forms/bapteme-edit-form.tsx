@@ -21,12 +21,14 @@ import { useUpdateBapteme } from "@/features/biplaces/api/use-update-bapteme";
 import { BaptemeCategory } from "@/features/biplaces/schemas";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { useGetTarifs } from "@/features/tarifs/api/use-get-tarifs";
+import { useGetBaptemeDepositPrice } from "@/features/tarifs/api/use-get-bapteme-deposit-price";
 
 interface BaptemeData {
   id: string;
   date: Date;
   duration: number;
   places: number;
+  acomptePrice: number;
   moniteurs?: Array<{
     moniteur: {
       id: string;
@@ -63,6 +65,7 @@ export function BaptemeEditForm({
   const { data: moniteurs, isLoading: isLoadingMoniteurs } =
     useGetMoniteursAndAdmins();
   const { data: tarifs, isLoading: isLoadingTarifs } = useGetTarifs();
+  const { data: depositPrice } = useGetBaptemeDepositPrice();
   const updateBapteme = useUpdateBapteme();
 
   const [formData, setFormData] = useState({
@@ -72,6 +75,7 @@ export function BaptemeEditForm({
     places: 6,
     moniteurIds: [] as string[],
     categories: [] as BaptemeCategory[],
+    acomptePrice: bapteme?.acomptePrice || depositPrice?.price || 35,
   });
   const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [customDuration, setCustomDuration] = useState("");
@@ -91,6 +95,9 @@ export function BaptemeEditForm({
       const presetDurations = [60, 90, 120, 150, 180];
       const isCustom = !presetDurations.includes(bapteme.duration);
       
+      const acompteValue = bapteme.acomptePrice || depositPrice?.price || 35;
+      console.log('Initializing form with acomptePrice:', acompteValue, 'from bapteme:', bapteme.acomptePrice, 'depositPrice:', depositPrice?.price);
+      
       setFormData({
         date: baptemeDate,
         time: timeString,
@@ -98,6 +105,7 @@ export function BaptemeEditForm({
         places: bapteme.places,
         moniteurIds: bapteme.moniteurs?.map(m => m.moniteur.id) || [],
         categories: bapteme.categories || [],
+        acomptePrice: acompteValue,
       });
       
       if (isCustom) {
@@ -105,7 +113,7 @@ export function BaptemeEditForm({
         setCustomDuration(bapteme.duration.toString());
       }
     }
-  }, [bapteme]);
+  }, [bapteme, depositPrice]);
 
   // Calculer le nombre minimum de places (nombre de réservations existantes)
   const minPlaces = bapteme?.bookings?.length || 0;
@@ -129,11 +137,19 @@ export function BaptemeEditForm({
       return;
     }
 
+    // Vérifier que l'acompte est défini
+    if (!formData.acomptePrice || formData.acomptePrice <= 0) {
+      alert("Le montant de l'acompte doit être supérieur à 0€");
+      return;
+    }
+
     const [hours, minutes] = formData.time.split(":").map(Number);
     const baptemeDate = new Date(formData.date);
     baptemeDate.setHours(hours, minutes, 0, 0);
 
     const originalDate = new Date(bapteme.date);
+
+    console.log('Submitting update with acomptePrice:', formData.acomptePrice);
 
     try {
       await updateBapteme.mutateAsync({
@@ -143,6 +159,7 @@ export function BaptemeEditForm({
         places: formData.places,
         moniteurIds: formData.moniteurIds,
         categories: formData.categories,
+        acomptePrice: formData.acomptePrice,
       });
 
       onSuccess?.();
@@ -269,6 +286,28 @@ export function BaptemeEditForm({
             Minimum {minPlaces} place(s) (réservations existantes)
           </p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="acomptePrice">Montant de l&apos;acompte (€)</Label>
+        <Input
+          id="acomptePrice"
+          type="number"
+          min="0"
+          step="0.01"
+          value={formData.acomptePrice}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              acomptePrice: Number.parseFloat(e.target.value) || 0,
+            }))
+          }
+          disabled={isLoading}
+          required
+        />
+        <p className="text-xs text-muted-foreground">
+          Montant à payer lors de la réservation (par défaut: {depositPrice?.price || 35}€)
+        </p>
       </div>
 
       <div className="space-y-3">

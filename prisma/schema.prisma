@@ -92,6 +92,15 @@ model VideoOptionPrice {
   updatedAt DateTime @updatedAt
 }
 
+// Prix de l'acompte par défaut pour les baptêmes
+model BaptemeDepositPrice {
+  id    String @id @default(cuid())
+  price Float  @default(35.0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 // Prix de base des stages par type
 model StageBasePrice {
   id        String    @id @default(cuid())
@@ -141,11 +150,12 @@ model StageMoniteur {
 
 //Créneau de bapteme
 model Bapteme {
-  id         String            @id @default(cuid())
-  date       DateTime          @unique
-  duration   Int               @default(120) // Durée en minutes
-  places     Int               @default(6)
-  categories BaptemeCategory[] // Catégories disponibles sur ce créneau
+  id           String            @id @default(cuid())
+  date         DateTime          @unique
+  duration     Int               @default(120) // Durée en minutes
+  places       Int               @default(6)
+  categories   BaptemeCategory[] // Catégories disponibles sur ce créneau
+  acomptePrice Float             @default(35.0) // Montant de l'acompte
 
   // Relation many-to-many avec les moniteurs
   moniteurs BaptemeMoniteur[]
@@ -314,7 +324,7 @@ model CartItem {
   baptemeId String?
   bapteme   Bapteme? @relation(fields: [baptemeId], references: [id])
 
-  // Pour les bons cadeaux
+  // Pour les cartes cadeaux
   giftCardAmount Float?
 
   // Informations du participant (temporaires, avant paiement)
@@ -390,7 +400,7 @@ model Order {
   @@index([createdAt])
 }
 
-// Table de liaison pour les bons cadeaux appliqués aux commandes
+// Table de liaison pour les cartes cadeaux appliquées aux commandes
 model OrderGiftCard {
   id         String   @id @default(cuid())
   orderId    String
@@ -398,7 +408,7 @@ model OrderGiftCard {
   giftCardId String
   giftCard   GiftCard @relation(fields: [giftCardId], references: [id])
   
-  // Montant utilisé de ce bon cadeau pour cette commande
+  // Montant utilisé de cette carte cadeau pour cette commande
   usedAmount Float
   
   createdAt DateTime @default(now())
@@ -426,7 +436,7 @@ model OrderItem {
   baptemeId String?
   bapteme   Bapteme? @relation(fields: [baptemeId], references: [id])
 
-  // Pour les bons cadeaux
+  // Pour les cartes cadeaux
   giftCardAmount      Float?
   generatedGiftCardId String?
   generatedGiftCard   GiftCard? @relation("GeneratedGiftCard", fields: [generatedGiftCardId], references: [id])

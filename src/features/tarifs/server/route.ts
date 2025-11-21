@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { adminSessionMiddleware, sessionMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { UpdateTarifSchema, UpdateVideoOptionPriceSchema, UpdateStageBasePriceSchema } from "../schemas";
+import { UpdateTarifSchema, UpdateVideoOptionPriceSchema, UpdateStageBasePriceSchema, UpdateBaptemeDepositPriceSchema } from "../schemas";
 import { BaptemeCategory, StageType } from "@prisma/client";
 
 const app = new Hono()
@@ -258,6 +258,78 @@ const app = new Hono()
           success: true,
           message: `Prix de base pour ${stageType} mis à jour avec succès`,
           data: stagePrice,
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          const zodErrors = error.errors.map((e) => e.message);
+          return c.json({
+            success: false,
+            message:
+              zodErrors.length > 0
+                ? zodErrors[0]
+                : "Erreur dans la validation des données",
+            data: null,
+          });
+        }
+        return c.json({
+          success: false,
+          message: "Une erreur inattendue s'est produite.",
+          data: null,
+        });
+      }
+    }
+  )
+  // GET bapteme deposit price (accessible to authenticated users)
+  .get("getBaptemeDepositPrice", async (c) => {
+    try {
+      const depositPrice = await prisma.baptemeDepositPrice.findFirst({
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      if (!depositPrice) {
+        return c.json({
+          success: false,
+          message: "Prix de l'acompte des baptêmes non trouvé",
+          data: null,
+        });
+      }
+
+      return c.json({ success: true, message: "", data: depositPrice });
+    } catch (error) {
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération du prix de l'acompte des baptêmes",
+        data: null,
+      });
+    }
+  })
+  // UPDATE bapteme deposit price (admin only)
+  .post(
+    "updateBaptemeDepositPrice",
+    zValidator("json", UpdateBaptemeDepositPriceSchema),
+    adminSessionMiddleware,
+    async (c) => {
+      try {
+        const { price } = c.req.valid("json");
+
+        // Get the existing deposit price or create a new one
+        const existingPrice = await prisma.baptemeDepositPrice.findFirst();
+
+        const depositPrice = existingPrice
+          ? await prisma.baptemeDepositPrice.update({
+              where: { id: existingPrice.id },
+              data: { price },
+            })
+          : await prisma.baptemeDepositPrice.create({
+              data: { price },
+            });
+
+        return c.json({
+          success: true,
+          message: "Prix de l'acompte des baptêmes mis à jour avec succès",
+          data: depositPrice,
         });
       } catch (error) {
         if (error instanceof z.ZodError) {
