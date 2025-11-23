@@ -6,6 +6,7 @@ import {
   LucideEuro,
   LucideExternalLink,
   LucideGift,
+  LucideTicket,
   LucideGraduationCap,
   LucideHouse,
   LucidePencilLine,
@@ -192,9 +193,29 @@ export function NavMain() {
                 .slice(1, 2)
                 .join("/")}/cartes-cadeaux`}
             >
-              <SidebarMenuButton tooltip={"Clients"}>
+              <SidebarMenuButton tooltip={"Cartes Cadeaux"}>
                 <LucideGift className="size-4" />
                 <span>Cartes Cadeaux</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+          <SidebarMenuItem
+            className={cn(
+              "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+              slugToKnowIfActive[0] === "bons-cadeaux"
+                ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                : ""
+            )}
+          >
+            <Link
+              href={`/${pathname
+                .split("/")
+                .slice(1, 2)
+                .join("/")}/bons-cadeaux`}
+            >
+              <SidebarMenuButton tooltip={"Bons Cadeaux"}>
+                <LucideTicket className="size-4" />
+                <span>Bons Cadeaux</span>
               </SidebarMenuButton>
             </Link>
           </SidebarMenuItem>

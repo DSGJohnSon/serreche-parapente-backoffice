@@ -41,47 +41,60 @@ export async function POST(req: Request) {
 
   // Handle the event
   try {
-    // IDEMPOTENCE: Vérifier si l'événement a déjà été traité
-    const existingEvent = await prisma.processedWebhookEvent.findUnique({
-      where: { stripeEventId: event.id },
-    });
-
-    if (existingEvent) {
-      console.log(`Event ${event.id} already processed at ${existingEvent.processedAt}`);
-      return NextResponse.json({
-        received: true,
-        message: "Event already processed",
-        processedAt: existingEvent.processedAt
-      });
-    }
-
-    // Traiter l'événement selon son type
-    switch (event.type) {
-      case "payment_intent.succeeded":
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentSuccess(paymentIntent, existingEvent);
-        break;
-
-      case "payment_intent.payment_failed":
-        const failedPayment = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentFailure(failedPayment);
-        break;
-
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
-    }
-
-    // Marquer l'événement comme traité seulement s'il ne l'était pas déjà
-    if (!existingEvent) {
-      await prisma.processedWebhookEvent.create({
+    console.log(`[WEBHOOK] 📨 Received event: ${event.id} - Type: ${event.type} - Timestamp: ${new Date().toISOString()}`);
+    
+    // IDEMPOTENCE: Utiliser upsert pour éviter les race conditions
+    // Tenter de créer l'enregistrement de l'événement de manière atomique
+    let eventRecord;
+    try {
+      console.log(`[WEBHOOK] 🔍 Checking if event ${event.id} was already processed...`);
+      
+      eventRecord = await prisma.processedWebhookEvent.create({
         data: {
           stripeEventId: event.id,
           eventType: event.type,
         },
       });
+      
+      console.log(`[WEBHOOK] ✅ Event ${event.id} is NEW - Processing...`);
+    } catch (error: any) {
+      // Si l'événement existe déjà (erreur P2002 = unique constraint violation)
+      if (error.code === 'P2002') {
+        const existingEvent = await prisma.processedWebhookEvent.findUnique({
+          where: { stripeEventId: event.id },
+        });
+        
+        console.log(`[WEBHOOK] ⛔ Event ${event.id} ALREADY PROCESSED at ${existingEvent?.processedAt} - SKIPPING`);
+        return NextResponse.json({
+          received: true,
+          message: "Event already processed",
+          processedAt: existingEvent?.processedAt
+        });
+      }
+      // Si c'est une autre erreur, la relancer
+      console.error(`[WEBHOOK] ❌ Unexpected error checking event ${event.id}:`, error);
+      throw error;
     }
 
-    console.log(`Event ${event.id} processed successfully`);
+    // L'événement est nouveau, le traiter selon son type
+    switch (event.type) {
+      case "payment_intent.succeeded":
+        console.log(`[WEBHOOK] 💰 Processing payment_intent.succeeded for event ${event.id}`);
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        await handlePaymentSuccess(paymentIntent);
+        break;
+
+      case "payment_intent.payment_failed":
+        console.log(`[WEBHOOK] ❌ Processing payment_intent.payment_failed for event ${event.id}`);
+        const failedPayment = event.data.object as Stripe.PaymentIntent;
+        await handlePaymentFailure(failedPayment);
+        break;
+
+      default:
+        console.log(`[WEBHOOK] ℹ️ Unhandled event type: ${event.type}`);
+    }
+
+    console.log(`[WEBHOOK] ✅ Event ${event.id} processed successfully`);
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("Error processing webhook:", error);
@@ -92,7 +105,7 @@ export async function POST(req: Request) {
   }
 }
 
-async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent, existingEvent?: any) {
+async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   const orderId = paymentIntent.metadata.orderId;
   const customerEmail = paymentIntent.metadata.customerEmail;
   const customerDataStr = paymentIntent.metadata.customerData;
@@ -105,6 +118,17 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent, existin
   console.log(`Processing successful payment for order: ${orderId}`);
 
   try {
+    // IDEMPOTENCE: Vérifier si la commande a déjà été traitée
+    const existingOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, id: true },
+    });
+
+    if (existingOrder && (existingOrder.status === 'PAID' || existingOrder.status === 'PARTIALLY_PAID')) {
+      console.log(`Order ${orderId} already processed with status ${existingOrder.status}`);
+      return;
+    }
+
     // 1. CRÉER OU METTRE À JOUR LE CLIENT
     let client;
     if (customerEmail) {
@@ -167,22 +191,41 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent, existin
       throw new Error("Order not found");
     }
 
-    // 3. Mettre à jour le statut du paiement et créer les allocations
-    const payment = await prisma.payment.update({
+    // 3. Mettre à jour le statut du paiement SEULEMENT s'il n'est pas déjà SUCCEEDED
+    const existingPayment = await prisma.payment.findUnique({
       where: { stripePaymentIntentId: paymentIntent.id },
-      data: {
-        status: "SUCCEEDED",
-      },
+      select: { id: true, status: true },
     });
 
-    // 4. Supprimer les allocations existantes pour ce paiement (au cas où elles seraient incorrectes)
-    // Toujours faire cette correction, même si l'événement a déjà été traité
-    await prisma.paymentAllocation.deleteMany({
+    if (!existingPayment) {
+      throw new Error("Payment not found");
+    }
+
+    let payment;
+    if (existingPayment.status !== "SUCCEEDED") {
+      payment = await prisma.payment.update({
+        where: { stripePaymentIntentId: paymentIntent.id },
+        data: {
+          status: "SUCCEEDED",
+        },
+      });
+      console.log(`Payment ${payment.id} status updated to SUCCEEDED`);
+    } else {
+      payment = existingPayment;
+      console.log(`Payment ${payment.id} already has status SUCCEEDED`);
+    }
+
+    // 4. Vérifier si les allocations existent déjà
+    const existingAllocations = await prisma.paymentAllocation.findMany({
       where: { paymentId: payment.id },
     });
 
-    // 5. Répartir le paiement entre les OrderItems selon la logique de priorité
-    await allocatePaymentToOrderItems(payment, order.orderItems);
+    if (existingAllocations.length === 0) {
+      // 5. Répartir le paiement entre les OrderItems selon la logique de priorité
+      await allocatePaymentToOrderItems(payment, order.orderItems);
+    } else {
+      console.log(`Payment allocations already exist for payment ${payment.id} (${existingAllocations.length} allocations)`);
+    }
 
     // 5. Déterminer le statut de la commande
     const hasItemsWithRemainingAmount = order.orderItems.some(
@@ -191,42 +234,74 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent, existin
 
     const newStatus = hasItemsWithRemainingAmount ? "PARTIALLY_PAID" : "PAID";
 
-    // 6. Mettre à jour la commande avec le client et le statut approprié
-    const updatedOrder = await prisma.order.update({
-      where: { id: orderId },
-      data: {
-        status: newStatus,
-        ...(client && { clientId: client.id }), // Lier le client si créé/trouvé
-      },
-      include: {
-        orderItems: {
-          include: {
-            stage: true,
-            bapteme: true,
-          },
+    // 6. Mettre à jour la commande avec le client et le statut approprié SEULEMENT si nécessaire
+    let updatedOrder;
+    const needsUpdate = order.status !== newStatus || (client && order.clientId !== client.id);
+    
+    if (needsUpdate) {
+      updatedOrder = await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: newStatus,
+          ...(client && order.clientId !== client.id && { clientId: client.id }), // Lier le client si pas déjà lié
         },
-        client: true,
-      },
-    });
+        include: {
+          orderItems: {
+            include: {
+              stage: true,
+              bapteme: true,
+            },
+          },
+          client: true,
+        },
+      });
+      console.log(`Order ${updatedOrder.orderNumber} status updated to ${newStatus}`);
+    } else {
+      // Recharger la commande avec les relations nécessaires
+      updatedOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          orderItems: {
+            include: {
+              stage: true,
+              bapteme: true,
+            },
+          },
+          client: true,
+        },
+      });
+      console.log(`Order ${updatedOrder!.orderNumber} already has correct status ${newStatus}`);
+    }
+
+    if (!updatedOrder) {
+      throw new Error("Order not found after update");
+    }
 
     // 7. Créer les réservations pour chaque item
     await createBookingsFromOrder(updatedOrder);
 
-    // 8. VIDER LE PANIER après confirmation du paiement
+    // 8. VIDER LE PANIER après confirmation du paiement (IDEMPOTENCE: vérifier d'abord)
     const sessionId = paymentIntent.metadata.sessionId;
     
     if (sessionId) {
       const cartSession = await prisma.cartSession.findUnique({
         where: { sessionId },
+        include: {
+          cartItems: true,
+        },
       });
 
-      if (cartSession) {
+      if (cartSession && cartSession.cartItems.length > 0) {
         await prisma.cartItem.deleteMany({
           where: {
             cartSessionId: cartSession.id,
           },
         });
-        console.log(`Cart cleared for session: ${cartSession.id}`);
+        console.log(`Cart cleared for session: ${cartSession.id} (${cartSession.cartItems.length} items removed)`);
+      } else if (cartSession) {
+        console.log(`Cart already cleared for session: ${cartSession.id}`);
+      } else {
+        console.log(`Cart session not found: ${sessionId}`);
       }
     } else {
       console.log("No sessionId in payment intent metadata - cart not cleared");
@@ -273,8 +348,130 @@ async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
 
 // Fonction pour créer les réservations à partir d'une commande
 async function createBookingsFromOrder(order: any) {
+  console.log(`[WEBHOOK] 🎯 createBookingsFromOrder called for order ${order.id} with ${order.orderItems.length} items - Timestamp: ${new Date().toISOString()}`);
+  
+  // TRAITER TOUS LES GIFT_CARDS DANS UNE SEULE TRANSACTION GLOBALE
+  const giftCardItems = order.orderItems.filter((item: any) => item.type === "GIFT_CARD");
+  
+  if (giftCardItems.length > 0) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const item of giftCardItems) {
+          // Extraire les données du participantData
+          const participantData = typeof item.participantData === 'string'
+            ? JSON.parse(item.participantData)
+            : item.participantData;
+
+          console.log(`Processing GIFT_CARD item ${item.id}:`, {
+            hasVoucherProductType: !!participantData?.voucherProductType,
+            voucherProductType: participantData?.voucherProductType,
+            giftCardAmount: item.giftCardAmount,
+            hasGeneratedVoucher: !!item.generatedGiftVoucherId,
+            hasGeneratedCard: !!item.generatedGiftCardId,
+          });
+
+          // Vérifier si c'est une carte cadeau monétaire OU un bon cadeau pour une activité
+          if (participantData?.voucherProductType) {
+            // C'est un BON CADEAU pour une activité spécifique (stage ou baptême)
+            console.log(`[WEBHOOK] Item ${item.id} is a GIFT VOUCHER (not a gift card)`);
+            
+            // Vérifier dans la transaction (lock pessimiste)
+            const freshItem = await tx.orderItem.findUnique({
+              where: { id: item.id },
+              select: { generatedGiftVoucherId: true },
+            });
+
+            console.log(`[WEBHOOK] Fresh check for item ${item.id}: generatedGiftVoucherId = ${freshItem?.generatedGiftVoucherId || 'NULL'}`);
+
+            if (freshItem?.generatedGiftVoucherId) {
+              console.log(`[WEBHOOK] ⚠️ Gift voucher already created for item ${item.id} (detected in transaction) - Existing ID: ${freshItem.generatedGiftVoucherId}`);
+              continue; // Skip creation
+            }
+
+            console.log(`[WEBHOOK] 🔵 CREATING GIFT VOUCHER for item ${item.id} - Type: ${participantData.voucherProductType} - Timestamp: ${new Date().toISOString()}`);
+
+            // Générer le code DANS la transaction pour éviter les race conditions
+            const code = await generateUniqueVoucherCodeInTransaction(tx);
+
+            // Calculer la date d'expiration (1 an)
+            const expiryDate = new Date();
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+            const voucher = await tx.giftVoucher.create({
+              data: {
+                code,
+                productType: participantData.voucherProductType,
+                stageCategory: participantData.voucherStageCategory || null,
+                baptemeCategory: participantData.voucherBaptemeCategory || null,
+                purchasePrice: item.unitPrice || 0,
+                recipientName: participantData.recipientName || 'Non spécifié',
+                recipientEmail: participantData.recipientEmail || 'non-specifie@placeholder.local',
+                expiryDate,
+                clientId: order.clientId,
+              },
+            });
+
+            console.log(`[WEBHOOK] 🟢 GIFT VOUCHER CREATED: ${voucher.code} - ID: ${voucher.id} - Type: ${voucher.productType} - Timestamp: ${new Date().toISOString()}`);
+
+            // Lier le bon cadeau à l'order item dans la même transaction
+            await tx.orderItem.update({
+              where: { id: item.id },
+              data: { generatedGiftVoucherId: voucher.id },
+            });
+
+            console.log(`[WEBHOOK] ✓ Gift voucher ${voucher.code} linked to OrderItem ${item.id}`);
+          } else {
+            // C'est une CARTE CADEAU monétaire classique (pas un bon cadeau)
+            console.log(`[WEBHOOK] Item ${item.id} is a GIFT CARD (monetary)`);
+            
+            // Vérifier dans la transaction (lock pessimiste)
+            const freshItem = await tx.orderItem.findUnique({
+              where: { id: item.id },
+              select: { generatedGiftCardId: true },
+            });
+
+            console.log(`[WEBHOOK] Fresh check for item ${item.id}: generatedGiftCardId = ${freshItem?.generatedGiftCardId || 'NULL'}`);
+
+            if (freshItem?.generatedGiftCardId) {
+              console.log(`[WEBHOOK] ⚠️ Gift card already created for item ${item.id} (detected in transaction) - Existing ID: ${freshItem.generatedGiftCardId}`);
+              continue; // Skip creation
+            }
+
+            console.log(`[WEBHOOK] 🔵 CREATING GIFT CARD for item ${item.id} - Amount: ${item.giftCardAmount}€ - Timestamp: ${new Date().toISOString()}`);
+            
+            // Générer le code DANS la transaction pour éviter les race conditions
+            const code = await generateUniqueGiftCardCodeInTransaction(tx);
+
+            const giftCard = await tx.giftCard.create({
+              data: {
+                code,
+                amount: item.giftCardAmount!,
+                clientId: null, // Sera assigné lors de l'utilisation
+              },
+            });
+
+            console.log(`[WEBHOOK] 🟢 GIFT CARD CREATED: ${code} - ID: ${giftCard.id} - Amount: ${item.giftCardAmount}€ - Timestamp: ${new Date().toISOString()}`);
+
+            // Lier la carte cadeau à l'order item dans la même transaction
+            await tx.orderItem.update({
+              where: { id: item.id },
+              data: { generatedGiftCardId: giftCard.id },
+            });
+
+            console.log(`[WEBHOOK] ✓ Gift card ${code} linked to OrderItem ${item.id}`);
+          }
+        }
+      });
+    } catch (error) {
+      console.error(`[WEBHOOK] ❌ Error creating gift cards/vouchers:`, error);
+      // Ne pas throw pour ne pas bloquer le traitement des autres items
+    }
+  }
+  
+  // TRAITER LES AUTRES TYPES D'ITEMS (STAGE, BAPTEME, etc.)
   for (const item of order.orderItems) {
-    if (item.type === "STAGE" && item.stageId) {
+    // IDEMPOTENCE: Vérifier si cet item a déjà été traité
+    if (item.type === "STAGE" && item.stageId && !item.stageBookingId) {
       // Créer ou récupérer le stagiaire
       const stagiaire = await findOrCreateStagiaire(item.participantData);
 
@@ -304,7 +501,7 @@ async function createBookingsFromOrder(order: any) {
       console.log(`Stage booking created: ${booking.id} for stagiaire ${stagiaire.id}`);
     }
 
-    if (item.type === "BAPTEME" && item.baptemeId) {
+    if (item.type === "BAPTEME" && item.baptemeId && !item.baptemeBookingId) {
       // Créer ou récupérer le stagiaire
       const stagiaire = await findOrCreateStagiaire(item.participantData);
 
@@ -335,23 +532,57 @@ async function createBookingsFromOrder(order: any) {
       console.log(`Bapteme booking created: ${booking.id} for stagiaire ${stagiaire.id}`);
     }
 
+    // GIFT_CARD items sont déjà traités dans la transaction globale ci-dessus
     if (item.type === "GIFT_CARD") {
-      // Générer un code unique pour la carte cadeau
-      const code = await generateUniqueGiftCardCode();
+      continue; // Skip, already processed
+    }
 
-      const giftCard = await prisma.giftCard.create({
-        data: {
-          code,
-          amount: item.giftCardAmount!,
-          clientId: null, // Sera assigné lors de l'utilisation
-        },
+    if (item.type === "GIFT_VOUCHER") {
+      // GIFT_VOUCHER type = utilisation d'un bon cadeau existant pour réserver une activité
+      // Le bon cadeau doit être marqué comme utilisé (pas de création de nouveau voucher)
+      console.log(`GIFT_VOUCHER item ${item.id} - voucher will be marked as used below`);
+    }
+
+    // Marquer le bon cadeau comme utilisé si présent dans le panier (IDEMPOTENCE)
+    if (item.participantData.usedGiftVoucherCode && !item.usedGiftVoucherId) {
+      const voucherCode = item.participantData.usedGiftVoucherCode;
+      
+      // Vérifier si le voucher existe et n'est pas déjà marqué comme utilisé
+      const existingVoucher = await prisma.giftVoucher.findUnique({
+        where: { code: voucherCode },
       });
 
-      // Lier la carte cadeau à l'order item
-      await prisma.orderItem.update({
-        where: { id: item.id },
-        data: { generatedGiftCardId: giftCard.id },
-      });
+      if (existingVoucher && !existingVoucher.isUsed) {
+        await prisma.giftVoucher.update({
+          where: { code: voucherCode },
+          data: {
+            isUsed: true,
+            usedAt: new Date(),
+            reservedBySessionId: null,
+            reservedAt: null,
+          },
+        });
+
+        // Lier le bon utilisé à l'order item
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: { usedGiftVoucherId: existingVoucher.id },
+        });
+
+        console.log(`Gift voucher ${voucherCode} marked as used`);
+      } else if (existingVoucher?.isUsed) {
+        console.log(`Gift voucher ${voucherCode} already marked as used`);
+        
+        // Lier quand même si pas encore lié
+        if (!item.usedGiftVoucherId) {
+          await prisma.orderItem.update({
+            where: { id: item.id },
+            data: { usedGiftVoucherId: existingVoucher.id },
+          });
+        }
+      } else {
+        console.warn(`Gift voucher ${voucherCode} not found`);
+      }
     }
   }
 }
@@ -405,6 +636,66 @@ async function generateUniqueGiftCardCode(): Promise<string> {
     code = `${prefix}-${timestamp}-${random}`;
 
     const existing = await prisma.giftCard.findUnique({
+      where: { code },
+    });
+    exists = !!existing;
+  } while (exists);
+
+  return code;
+}
+// Fonction pour générer un code unique de carte cadeau DANS une transaction
+async function generateUniqueGiftCardCodeInTransaction(tx: any): Promise<string> {
+  let code: string;
+  let exists = true;
+
+  do {
+    const prefix = "SCP";
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    code = `${prefix}-${timestamp}-${random}`;
+
+    const existing = await tx.giftCard.findUnique({
+      where: { code },
+    });
+    exists = !!existing;
+  } while (exists);
+
+  return code;
+}
+
+
+// Fonction pour générer un code unique de bon cadeau (utilisée hors transaction)
+async function generateUniqueVoucherCode(): Promise<string> {
+  let code: string;
+  let exists = true;
+
+  do {
+    const prefix = "GVSCP";
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    code = `${prefix}-${timestamp}-${random}`;
+
+    const existing = await prisma.giftVoucher.findUnique({
+      where: { code },
+    });
+    exists = !!existing;
+  } while (exists);
+
+  return code;
+}
+
+// Fonction pour générer un code unique de bon cadeau DANS une transaction
+async function generateUniqueVoucherCodeInTransaction(tx: any): Promise<string> {
+  let code: string;
+  let exists = true;
+
+  do {
+    const prefix = "GVSCP";
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    code = `${prefix}-${timestamp}-${random}`;
+
+    const existing = await tx.giftVoucher.findUnique({
       where: { code },
     });
     exists = !!existing;

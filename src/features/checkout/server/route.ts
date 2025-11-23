@@ -74,76 +74,14 @@ const app = new Hono()
   );
 
 // Fonction pour créer les réservations à partir d'une commande
+// NOTE: Cette fonction est OBSOLÈTE et ne devrait JAMAIS être appelée pour les paiements Stripe
+// Les réservations et gift cards sont créées par le webhook Stripe
 async function createBookingsFromOrder(order: any) {
-  for (const item of order.orderItems) {
-    if (item.type === 'STAGE' && item.stageId) {
-      // Créer ou récupérer le stagiaire
-      const stagiaire = await findOrCreateStagiaire(item.participantData);
-      
-      // Créer la réservation de stage
-      const booking = await prisma.stageBooking.create({
-        data: {
-          stageId: item.stageId,
-          stagiaireId: stagiaire.id,
-          type: item.stage.type,
-        },
-      });
-
-      // Lier la réservation à l'order item
-      await prisma.orderItem.update({
-        where: { id: item.id },
-        data: { stageBookingId: booking.id },
-      });
-    }
-
-    if (item.type === 'BAPTEME' && item.baptemeId) {
-      // Créer ou récupérer le stagiaire
-      const stagiaire = await findOrCreateStagiaire(item.participantData);
-      
-      // Créer la réservation de baptême
-      const selectedCategory = item.participantData.selectedCategory;
-      
-      // Vérifier que la catégorie est valide
-      if (!selectedCategory || selectedCategory === '') {
-        console.error('Catégorie de baptême manquante pour item:', item.id);
-        continue; // Passer à l'item suivant
-      }
-
-      const booking = await prisma.baptemeBooking.create({
-        data: {
-          baptemeId: item.baptemeId,
-          stagiaireId: stagiaire.id,
-          category: selectedCategory as any,
-          hasVideo: item.participantData.hasVideo || false,
-        },
-      });
-
-      // Lier la réservation à l'order item
-      await prisma.orderItem.update({
-        where: { id: item.id },
-        data: { baptemeBookingId: booking.id },
-      });
-    }
-
-    if (item.type === 'GIFT_CARD') {
-      // Générer un code unique pour la carte cadeau
-      const code = await generateUniqueGiftCardCode();
-      
-      const giftCard = await prisma.giftCard.create({
-        data: {
-          code,
-          amount: item.giftCardAmount!,
-          clientId: null, // Sera assigné lors de l'utilisation
-        },
-      });
-
-      // Lier la carte cadeau à l'order item
-      await prisma.orderItem.update({
-        where: { id: item.id },
-        data: { generatedGiftCardId: giftCard.id },
-      });
-    }
-  }
+  console.log(`[CHECKOUT] ⚠️⚠️⚠️ createBookingsFromOrder called in checkout/server - THIS IS OBSOLETE FOR STRIPE PAYMENTS - Order: ${order.id} - Timestamp: ${new Date().toISOString()}`);
+  
+  // NE RIEN FAIRE - Tout est géré par le webhook Stripe
+  // Cette fonction est conservée uniquement pour compatibilité avec d'anciens paiements manuels
+  return;
 }
 
 // Fonction pour trouver ou créer un stagiaire

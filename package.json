@@ -6,7 +6,8 @@
     "dev": "pnpm prisma generate && next dev",
     "build": "pnpm prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:reset": "tsx prisma/reset-db-keep-essentials.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "0.3.0",

@@ -46,6 +46,12 @@ enum CartItemType {
   STAGE
   BAPTEME
   GIFT_CARD
+  GIFT_VOUCHER
+}
+
+enum VoucherProductType {
+  STAGE
+  BAPTEME
 }
 
 enum OrderStatus {
@@ -237,6 +243,51 @@ model GiftCard {
   generatedFromOrderItem OrderItem[]     @relation("GeneratedGiftCard")
 }
 
+// Bon cadeau (Gift Voucher) - Place gratuite pour un stage ou baptême
+model GiftVoucher {
+  id              String   @id @default(cuid())
+  code            String   @unique // Format: GVSCP-XXXXXXXX-XXXX
+  
+  // Type et catégorie
+  productType     VoucherProductType
+  stageCategory   StageBookingType?  // Si productType = STAGE
+  baptemeCategory BaptemeCategory?   // Si productType = BAPTEME
+  
+  // Prix d'achat (snapshot au moment de l'achat)
+  purchasePrice   Float
+  
+  // Statut
+  isUsed          Boolean  @default(false)
+  usedAt          DateTime?
+  
+  // Bénéficiaire
+  recipientName   String
+  recipientEmail  String
+  
+  // Acheteur
+  clientId        String?
+  client          Client?  @relation(fields: [clientId], references: [id])
+  
+  // Validité
+  expiryDate      DateTime
+  
+  // Réservation temporaire (panier)
+  reservedBySessionId String? // Session qui a le bon dans son panier
+  reservedAt          DateTime? // Date de réservation
+  
+  // Relations avec OrderItems
+  generatedFromOrderItem OrderItem? @relation("GeneratedVoucher")
+  usedInOrderItem        OrderItem? @relation("UsedVoucher")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([code])
+  @@index([isUsed])
+  @@index([reservedBySessionId])
+  @@index([expiryDate])
+}
+
 // Client (celui qui paie la commande)
 model Client {
   id         String @id @default(cuid())
@@ -250,8 +301,9 @@ model Client {
   country    String
 
   // Relations
-  orders    Order[]
-  giftCards GiftCard[] @relation(name: "GiftCardBuyer")
+  orders       Order[]
+  giftCards    GiftCard[]    @relation(name: "GiftCardBuyer")
+  giftVouchers GiftVoucher[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -326,6 +378,9 @@ model CartItem {
 
   // Pour les cartes cadeaux
   giftCardAmount Float?
+
+  // Pour les bons cadeaux (gift vouchers)
+  giftVoucherCode String? // Code du bon cadeau utilisé
 
   // Informations du participant (temporaires, avant paiement)
   participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
@@ -440,6 +495,13 @@ model OrderItem {
   giftCardAmount      Float?
   generatedGiftCardId String?
   generatedGiftCard   GiftCard? @relation("GeneratedGiftCard", fields: [generatedGiftCardId], references: [id])
+
+  // Pour les bons cadeaux (gift vouchers)
+  generatedGiftVoucherId String? @unique
+  generatedGiftVoucher   GiftVoucher? @relation("GeneratedVoucher", fields: [generatedGiftVoucherId], references: [id])
+  
+  usedGiftVoucherId String? @unique
+  usedGiftVoucher   GiftVoucher? @relation("UsedVoucher", fields: [usedGiftVoucherId], references: [id])
 
   // Données du participant (historique JSON)
   participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
