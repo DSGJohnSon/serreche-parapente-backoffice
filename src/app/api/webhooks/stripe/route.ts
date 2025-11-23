@@ -278,15 +278,20 @@ async function createBookingsFromOrder(order: any) {
       // Créer ou récupérer le stagiaire
       const stagiaire = await findOrCreateStagiaire(item.participantData);
 
-      // Récupérer le type de stage depuis participantData ou utiliser le type du stage
-      const stageType = item.participantData.stageType || item.stage?.type || 'INITIATION';
+      // Récupérer le type de stage choisi par le client (selectedStageType)
+      // Si le stage est de type DOUBLE, le client a choisi soit INITIATION soit PROGRESSION
+      // On utilise selectedStageType qui contient le choix réel du client
+      const stageType = item.participantData.selectedStageType || item.stage?.type || 'INITIATION';
+      
+      // Vérifier que le type est valide pour StageBookingType (pas DOUBLE)
+      const validStageType = stageType === 'DOUBLE' ? 'INITIATION' : stageType;
 
       // Créer la réservation de stage
       const booking = await prisma.stageBooking.create({
         data: {
           stageId: item.stageId,
           stagiaireId: stagiaire.id,
-          type: stageType as any,
+          type: validStageType as any,
         },
       });
 
