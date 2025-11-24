@@ -10,6 +10,7 @@ import reservationStages from "@/features/reservations/stages/server/route";
 import reservations from "@/features/reservations/server/route";
 import baptemes from "@/features/biplaces/server/route";
 import giftcards from "@/features/giftcards/server/route";
+import giftvouchers from "@/features/giftvouchers/server/route";
 import cart from "@/features/cart/server/route";
 import availability from "@/features/availability/server/route";
 import orders from "@/features/orders/server/route";
@@ -53,6 +54,7 @@ const routes = app
   .route("/reservations", reservations)
   .route("/baptemes", baptemes)
   .route("/giftcards", giftcards)
+  .route("/giftvouchers", giftvouchers)
   .route("/cart", cart)
   .route("/availability", availability)
   .route("/orders", orders)

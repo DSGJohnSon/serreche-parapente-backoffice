@@ -168,6 +168,10 @@ const app = new Hono()
                   isFullyPaid = true; // Cartes cadeaux: paiement complet
                 }
 
+                // Vérifier si c'est un bon cadeau (gift voucher) ou une carte cadeau monétaire
+                const participantData = item.participantData as any;
+                const isGiftVoucher = participantData?.voucherProductType;
+
                 return {
                   type: item.type,
                   quantity: item.quantity,
@@ -178,7 +182,8 @@ const app = new Hono()
                   isFullyPaid,
                   stageId: item.stageId,
                   baptemeId: item.baptemeId,
-                  giftCardAmount: item.giftCardAmount,
+                  // NE PAS inclure giftCardAmount pour les bons cadeaux (gift vouchers)
+                  giftCardAmount: isGiftVoucher ? null : item.giftCardAmount,
                   participantData: item.participantData as any,
                 };
               })),
