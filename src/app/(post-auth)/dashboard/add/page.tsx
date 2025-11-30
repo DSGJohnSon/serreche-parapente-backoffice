@@ -120,6 +120,7 @@ export default function TabsDemo() {
                   selectedDate={selectedDate}
                   onSubmit={handleCreateStage}
                   onCancel={() => router.push('/dashboard/stages')}
+                  isSubmitting={createStage.isPending}
                 />
               </CardContent>
             </Card>

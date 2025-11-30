@@ -32,6 +32,7 @@ const routes = app
           "http://localhost:3001",
           "https://serreche-parapente-front.vercel.app",
           "https://serreche-parapente-backoffice.vercel.app",
+          "https://www.stage-de-parapente.fr"
         ].includes(origin ?? "")
           ? origin
           : "";

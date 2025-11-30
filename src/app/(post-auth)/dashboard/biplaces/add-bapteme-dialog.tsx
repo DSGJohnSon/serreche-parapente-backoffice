@@ -26,6 +26,7 @@ interface AddBaptemeDialogProps {
   selectedDate: Date | null;
   selectedHour?: number;
   onCreateBapteme: (bapteme: BaptemeData) => void;
+  isSubmitting?: boolean;
 }
 
 export function AddBaptemeDialog({
@@ -34,6 +35,7 @@ export function AddBaptemeDialog({
   selectedDate,
   selectedHour,
   onCreateBapteme,
+  isSubmitting = false,
 }: AddBaptemeDialogProps) {
   const handleSubmit = (baptemeData: BaptemeData) => {
     onCreateBapteme(baptemeData);
@@ -56,6 +58,7 @@ export function AddBaptemeDialog({
           selectedHour={selectedHour}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
+          isSubmitting={isSubmitting}
         />
       </DialogContent>
     </Dialog>

@@ -177,6 +177,7 @@ export default function Page() {
         selectedDate={selectedDate}
         selectedHour={selectedHour}
         onCreateBapteme={handleCreateBapteme}
+        isSubmitting={createBapteme.isPending}
       />
 
       <BaptemeDetailsDialog

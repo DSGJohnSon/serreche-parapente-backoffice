@@ -38,12 +38,14 @@ interface StageAddFormProps {
     type: StageType;
   }) => void;
   onCancel?: () => void;
+  isSubmitting?: boolean;
 }
 
 export function StageAddForm({
   selectedDate,
   onSubmit,
   onCancel,
+  isSubmitting = false,
 }: StageAddFormProps) {
   // Récupérer la liste des moniteurs
   const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
@@ -333,8 +335,8 @@ export function StageAddForm({
             Annuler
           </Button>
         )}
-        <Button type="submit" className="flex-1">
-          Créer le Stage
+        <Button type="submit" className="flex-1" disabled={isSubmitting}>
+          {isSubmitting ? "Création en cours..." : "Créer le Stage"}
         </Button>
       </div>
     </form>

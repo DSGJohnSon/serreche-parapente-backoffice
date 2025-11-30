@@ -43,6 +43,7 @@ interface BaptemeAddFormProps {
   selectedHour?: number;
   onSubmit: (bapteme: BaptemeData) => void;
   onCancel?: () => void;
+  isSubmitting?: boolean;
 }
 
 // Labels pour les catégories
@@ -60,6 +61,7 @@ export function BaptemeAddForm({
   selectedHour,
   onSubmit,
   onCancel,
+  isSubmitting = false,
 }: BaptemeAddFormProps) {
   const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
   const { data: tarifs, isLoading: isLoadingTarifs } = useGetTarifs();
@@ -385,8 +387,8 @@ export function BaptemeAddForm({
             Annuler
           </Button>
         )}
-        <Button type="submit" className="flex-1">
-          Créer le Baptême
+        <Button type="submit" className="flex-1" disabled={isSubmitting}>
+          {isSubmitting ? "Création en cours..." : "Créer le Baptême"}
         </Button>
       </div>
     </form>
