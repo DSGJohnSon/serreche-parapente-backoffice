@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+import { sendOrderConfirmationEmail } from "@/lib/resend";
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -308,10 +309,102 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     }
 
     console.log(`Order ${updatedOrder.orderNumber} confirmed with status ${newStatus}, client ${client ? 'created/linked' : 'not found'}, and cart cleared`);
+
+    // 9. ENVOYER L'EMAIL DE CONFIRMATION
+    try {
+      console.log(`[WEBHOOK] 📧 Preparing to send confirmation email for order ${updatedOrder.orderNumber}`);
+      
+      // Calculer les totaux pour l'email
+      const emailData = prepareEmailData(updatedOrder);
+      
+      // Envoyer l'email
+      await sendOrderConfirmationEmail(emailData);
+      
+      console.log(`[WEBHOOK] ✅ Confirmation email sent successfully for order ${updatedOrder.orderNumber}`);
+    } catch (emailError) {
+      // Ne pas faire échouer le webhook si l'email échoue
+      console.error(`[WEBHOOK] ⚠️ Failed to send confirmation email for order ${updatedOrder.orderNumber}:`, emailError);
+      // L'erreur est loggée mais ne bloque pas le traitement du paiement
+    }
   } catch (error) {
     console.error("Error handling payment success:", error);
     throw error;
   }
+}
+
+// Fonction pour préparer les données de l'email
+function prepareEmailData(order: any) {
+  // Calculer les totaux
+  let depositTotal = 0;
+  let remainingTotal = 0;
+  const futurePayments: Array<{
+    amount: number;
+    date: string;
+    description: string;
+    participantName: string;
+  }> = [];
+
+  order.orderItems.forEach((item: any) => {
+    if (item.type === 'STAGE') {
+      const deposit = item.depositAmount || 0;
+      const remaining = item.remainingAmount || 0;
+      depositTotal += deposit;
+      remainingTotal += remaining;
+
+      if (remaining > 0) {
+        const participantName = `${item.participantData?.firstName || ''} ${item.participantData?.lastName || ''}`.trim();
+        futurePayments.push({
+          amount: remaining,
+          date: item.stage?.startDate,
+          description: `Solde Stage ${item.stage?.type}`,
+          participantName: participantName,
+        });
+      }
+    } else if (item.type === 'BAPTEME') {
+      const deposit = item.depositAmount || 0;
+      const remaining = item.remainingAmount || 0;
+      depositTotal += deposit;
+      remainingTotal += remaining;
+
+      if (remaining > 0) {
+        const participantName = `${item.participantData?.firstName || ''} ${item.participantData?.lastName || ''}`.trim();
+        futurePayments.push({
+          amount: remaining,
+          date: item.bapteme?.date,
+          description: `Solde Baptême ${item.participantData.selectedCategory}`,
+          participantName: participantName,
+        });
+      }
+    } else {
+      depositTotal += item.totalPrice;
+    }
+  });
+
+  // Appliquer la réduction des cartes cadeaux
+  if (order.discountAmount > 0) {
+    depositTotal = Math.max(0, depositTotal - order.discountAmount);
+  }
+
+  // Récupérer les informations du premier participant pour le nom et téléphone
+  const firstParticipant = order.orderItems[0]?.participantData;
+  const customerName = firstParticipant
+    ? `${firstParticipant.firstName || ''} ${firstParticipant.lastName || ''}`.trim()
+    : 'Client';
+  const customerPhone = firstParticipant?.phone || 'Non spécifié';
+
+  return {
+    orderNumber: order.orderNumber,
+    orderDate: order.createdAt,
+    customerEmail: order.customerEmail || order.client?.email || 'non-specifie@placeholder.local',
+    customerName,
+    customerPhone,
+    orderItems: order.orderItems,
+    depositTotal,
+    remainingTotal,
+    totalAmount: order.totalAmount,
+    discountAmount: order.discountAmount || 0,
+    futurePayments,
+  };
 }
 
 async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
