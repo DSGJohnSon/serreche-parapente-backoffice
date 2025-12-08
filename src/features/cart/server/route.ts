@@ -11,14 +11,16 @@ const AddToCartSchema = z.object({
   type: z.enum(['STAGE', 'BAPTEME', 'GIFT_CARD', 'GIFT_VOUCHER']),
   itemId: z.string().optional(),
   giftCardAmount: z.number().optional(),
-  giftVoucherCode: z.string().optional(),
+  giftVoucherCode: z.string().optional(), // Pour UTILISATION d'un bon
+  giftVoucherAmount: z.number().optional(), // Pour ACHAT d'un bon
   participantData: z.object({
-    firstName: z.string(),
-    lastName: z.string(),
-    email: z.string().email(),
-    phone: z.string(),
-    weight: z.number(),
-    height: z.number(),
+    // Champs obligatoires pour STAGE/BAPTEME (mais optionnels pour GIFT_VOUCHER)
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+    weight: z.number().optional(),
+    height: z.number().optional(),
     birthDate: z.string().optional(),
     // Pour baptêmes
     selectedCategory: z.string().optional(),
@@ -31,14 +33,46 @@ const AddToCartSchema = z.object({
     personalMessage: z.string().optional(),
     deliveryDate: z.string().optional(),
     notifyRecipient: z.boolean().optional(),
-    // Pour bons cadeaux (GIFT_CARD qui génère un GIFT_VOUCHER)
+    // Pour bons cadeaux (GIFT_VOUCHER)
     voucherProductType: z.string().optional(),
     voucherStageCategory: z.string().optional(),
     voucherBaptemeCategory: z.string().optional(),
+    // Informations de l'acheteur pour les bons cadeaux
+    buyerName: z.string().optional(),
+    buyerEmail: z.string().email().optional(),
     // Pour utilisation d'un bon cadeau
     usedGiftVoucherCode: z.string().optional(),
   }),
   quantity: z.number().default(1),
+}).refine((data) => {
+  // Validation conditionnelle selon le type
+  if (data.type === 'STAGE' || data.type === 'BAPTEME') {
+    // Pour les réservations, ces champs sont requis
+    if (!data.participantData.firstName || !data.participantData.lastName ||
+        !data.participantData.email || !data.participantData.phone ||
+        data.participantData.weight === undefined || data.participantData.height === undefined) {
+      return false;
+    }
+  }
+
+  if (data.type === 'GIFT_VOUCHER') {
+    // Pour l'achat de bons cadeaux, seuls ces champs sont requis
+    if (!data.participantData.voucherProductType ||
+        !data.participantData.buyerName || !data.participantData.buyerEmail ||
+        data.participantData.notifyRecipient === undefined) {
+      return false;
+    }
+
+    // Si on veut notifier le bénéficiaire, son email est requis
+    if (data.participantData.notifyRecipient && !data.participantData.recipientEmail) {
+      return false;
+    }
+  }
+
+  return true;
+}, {
+  message: "Champs requis manquants selon le type de produit",
+  path: ["participantData"]
 });
 
 const UpdateCartItemSchema = z.object({
@@ -112,17 +146,31 @@ const app = new Hono()
       let totalAmount = 0;
       for (const item of validItems) {
         if (item.type === 'STAGE' && item.stage) {
-          // Pour les stages: on paie l'acompte maintenant
-          totalAmount += item.stage.acomptePrice * item.quantity;
+          // Vérifier si c'est une utilisation de bon cadeau
+          const participantData = item.participantData as any;
+          if (participantData?.usedGiftVoucherCode) {
+            // Réservation avec bon cadeau = gratuit
+            totalAmount += 0;
+          } else {
+            // Réservation normale: on paie l'acompte
+            totalAmount += item.stage.acomptePrice * item.quantity;
+          }
         } else if (item.type === 'BAPTEME' && item.bapteme) {
-          // Pour les baptêmes: on paie l'acompte maintenant (pas la vidéo)
-          const acomptePrice = item.bapteme.acomptePrice;
-          totalAmount += acomptePrice * item.quantity;
+          // Vérifier si c'est une utilisation de bon cadeau
+          const participantData = item.participantData as any;
+          if (participantData?.usedGiftVoucherCode) {
+            // Réservation avec bon cadeau = gratuit
+            totalAmount += 0;
+          } else {
+            // Réservation normale: on paie l'acompte
+            const acomptePrice = item.bapteme.acomptePrice;
+            totalAmount += acomptePrice * item.quantity;
+          }
         } else if (item.type === 'GIFT_CARD') {
           totalAmount += item.giftCardAmount || 0;
         } else if (item.type === 'GIFT_VOUCHER') {
-          // Les bons cadeaux sont gratuits (prix = 0)
-          totalAmount += 0;
+          // Achat de bon cadeau
+          totalAmount += item.giftVoucherAmount || 0;
         }
       }
 
@@ -152,158 +200,56 @@ const app = new Hono()
     cartSessionMiddleware,
     async (c) => {
       try {
-        const { type, itemId, giftCardAmount, giftVoucherCode, participantData, quantity } = c.req.valid("json");
+        const { type, itemId, giftCardAmount, giftVoucherCode, giftVoucherAmount, participantData, quantity } = c.req.valid("json");
         const cartSession = c.get("cartSession");
 
         // Validation selon le type
         if (type === 'GIFT_VOUCHER') {
-          if (!giftVoucherCode) {
+          // ACHAT d'un bon cadeau
+          if (!giftVoucherAmount) {
             return c.json({
               success: false,
-              message: "Code du bon cadeau requis",
+              message: "Montant du bon cadeau requis",
               data: null,
             });
           }
 
-          // Vérifier que le bon existe et est valide
-          const voucher = await prisma.giftVoucher.findUnique({
-            where: { code: giftVoucherCode },
-          });
-
-          if (!voucher) {
+          if (!participantData.voucherProductType) {
             return c.json({
               success: false,
-              message: "Code de bon cadeau invalide",
+              message: "Type de produit requis pour l'achat d'un bon cadeau",
               data: null,
             });
           }
 
-          if (voucher.isUsed) {
+          // recipientName est requis, recipientEmail seulement si notifyRecipient est true
+          if (!participantData.recipientName) {
             return c.json({
               success: false,
-              message: "Ce bon cadeau a déjà été utilisé",
+              message: "Le nom du bénéficiaire est requis",
               data: null,
             });
           }
 
-          if (new Date() > voucher.expiryDate) {
+          if (participantData.notifyRecipient && !participantData.recipientEmail) {
             return c.json({
               success: false,
-              message: "Ce bon cadeau a expiré",
+              message: "L'email du bénéficiaire est requis pour l'envoi automatique",
               data: null,
             });
           }
 
-          if (voucher.reservedBySessionId && voucher.reservedBySessionId !== cartSession.sessionId) {
+          // Validation des informations de l'acheteur (pour les emails)
+          if (!participantData.buyerName || !participantData.buyerEmail) {
             return c.json({
               success: false,
-              message: "Ce bon cadeau est déjà en cours d'utilisation",
+              message: "Informations de l'acheteur requises pour l'envoi des emails",
               data: null,
             });
           }
 
-          // Réserver le bon
-          await prisma.giftVoucher.update({
-            where: { code: giftVoucherCode },
-            data: {
-              reservedBySessionId: cartSession.sessionId,
-              reservedAt: new Date(),
-            },
-          });
-
-          // Récupérer l'activité correspondante
-          if (!itemId) {
-            return c.json({
-              success: false,
-              message: "ID de l'activité requis",
-              data: null,
-            });
-          }
-
-          // Vérifier que le type et la catégorie correspondent
-          if (voucher.productType === 'STAGE') {
-            const stage = await prisma.stage.findUnique({
-              where: { id: itemId },
-            });
-
-            if (!stage) {
-              return c.json({
-                success: false,
-                message: "Stage introuvable",
-                data: null,
-              });
-            }
-
-            // Vérifier la disponibilité du stage
-            const availability = await AvailabilityService.checkAvailability('stage', itemId, quantity);
-            
-            if (!availability.available) {
-              return c.json({
-                success: false,
-                message: availability.reason || "Places non disponibles",
-                data: null,
-              });
-            }
-
-            // Créer une réservation temporaire pour le stage
-            await AvailabilityService.createTemporaryReservation(
-              cartSession.sessionId,
-              'stage',
-              itemId,
-              quantity
-            );
-
-            // Vérifier la catégorie du stage
-            const selectedStageType = participantData.selectedStageType;
-            if (selectedStageType !== voucher.stageCategory) {
-              return c.json({
-                success: false,
-                message: `Ce bon cadeau est valable uniquement pour un stage ${voucher.stageCategory}`,
-                data: null,
-              });
-            }
-          } else if (voucher.productType === 'BAPTEME') {
-            const bapteme = await prisma.bapteme.findUnique({
-              where: { id: itemId },
-            });
-
-            if (!bapteme) {
-              return c.json({
-                success: false,
-                message: "Baptême introuvable",
-                data: null,
-              });
-            }
-
-            // Vérifier la disponibilité du baptême
-            const availability = await AvailabilityService.checkAvailability('bapteme', itemId, quantity);
-            
-            if (!availability.available) {
-              return c.json({
-                success: false,
-                message: availability.reason || "Places non disponibles",
-                data: null,
-              });
-            }
-
-            // Créer une réservation temporaire pour le baptême
-            await AvailabilityService.createTemporaryReservation(
-              cartSession.sessionId,
-              'bapteme',
-              itemId,
-              quantity
-            );
-
-            // Vérifier la catégorie du baptême
-            const selectedCategory = participantData.selectedCategory;
-            if (selectedCategory !== voucher.baptemeCategory) {
-              return c.json({
-                success: false,
-                message: `Ce bon cadeau est valable uniquement pour un baptême ${voucher.baptemeCategory}`,
-                data: null,
-              });
-            }
-          }
+          // Pas de vérification de disponibilité pour l'achat de bons
+          // Pas de réservation temporaire
         } else if (type === 'GIFT_CARD') {
           if (!giftCardAmount || giftCardAmount < 50) {
             return c.json({
@@ -313,11 +259,94 @@ const app = new Hono()
             });
           }
         } else {
+          // STAGE ou BAPTEME (avec ou sans bon cadeau)
           if (!itemId) {
             return c.json({
               success: false,
               message: "ID de l'activité requis",
               data: null,
+            });
+          }
+
+          // Si utilisation d'un bon cadeau
+          if (participantData.usedGiftVoucherCode) {
+            const voucherCode = participantData.usedGiftVoucherCode;
+            
+            // Vérifier que le bon existe et est valide
+            const voucher = await prisma.giftVoucher.findUnique({
+              where: { code: voucherCode },
+            });
+
+            if (!voucher) {
+              return c.json({
+                success: false,
+                message: "Code de bon cadeau invalide",
+                data: null,
+              });
+            }
+
+            if (voucher.isUsed) {
+              return c.json({
+                success: false,
+                message: "Ce bon cadeau a déjà été utilisé",
+                data: null,
+              });
+            }
+
+            if (new Date() > voucher.expiryDate) {
+              return c.json({
+                success: false,
+                message: "Ce bon cadeau a expiré",
+                data: null,
+              });
+            }
+
+            if (voucher.reservedBySessionId && voucher.reservedBySessionId !== cartSession.sessionId) {
+              return c.json({
+                success: false,
+                message: "Ce bon cadeau est déjà en cours d'utilisation",
+                data: null,
+              });
+            }
+
+            // Vérifier que le type correspond
+            if ((type === 'STAGE' && voucher.productType !== 'STAGE') ||
+                (type === 'BAPTEME' && voucher.productType !== 'BAPTEME')) {
+              return c.json({
+                success: false,
+                message: `Ce bon cadeau est valable uniquement pour un ${voucher.productType === 'STAGE' ? 'stage' : 'baptême'}`,
+                data: null,
+              });
+            }
+
+            // Vérifier la catégorie
+            if (type === 'STAGE') {
+              const selectedStageType = participantData.selectedStageType;
+              if (selectedStageType !== voucher.stageCategory) {
+                return c.json({
+                  success: false,
+                  message: `Ce bon cadeau est valable uniquement pour un stage ${voucher.stageCategory}`,
+                  data: null,
+                });
+              }
+            } else if (type === 'BAPTEME') {
+              const selectedCategory = participantData.selectedCategory;
+              if (selectedCategory !== voucher.baptemeCategory) {
+                return c.json({
+                  success: false,
+                  message: `Ce bon cadeau est valable uniquement pour un baptême ${voucher.baptemeCategory}`,
+                  data: null,
+                });
+              }
+            }
+
+            // Réserver le bon
+            await prisma.giftVoucher.update({
+              where: { code: voucherCode },
+              data: {
+                reservedBySessionId: cartSession.sessionId,
+                reservedAt: new Date(),
+              },
             });
           }
 
@@ -343,9 +372,9 @@ const app = new Hono()
 
         // Calculer l'expiration pour STAGE et BAPTEME (1 heure)
         const now = new Date();
-        const expiresAt = (type === 'STAGE' || type === 'BAPTEME' || type === 'GIFT_VOUCHER')
+        const expiresAt = (type === 'STAGE' || type === 'BAPTEME')
           ? new Date(now.getTime() + 60 * 60 * 1000) // +1 heure
-          : null; // Pas d'expiration pour GIFT_CARD
+          : null; // Pas d'expiration pour GIFT_CARD et GIFT_VOUCHER
 
         // Déterminer les IDs selon le type
         let stageId = null;
@@ -355,19 +384,6 @@ const app = new Hono()
           stageId = itemId;
         } else if (type === 'BAPTEME') {
           baptemeId = itemId;
-        } else if (type === 'GIFT_VOUCHER' && giftVoucherCode) {
-          // Pour GIFT_VOUCHER, déterminer selon le productType du voucher
-          const voucher = await prisma.giftVoucher.findUnique({
-            where: { code: giftVoucherCode },
-          });
-          
-          if (voucher) {
-            if (voucher.productType === 'STAGE') {
-              stageId = itemId;
-            } else if (voucher.productType === 'BAPTEME') {
-              baptemeId = itemId;
-            }
-          }
         }
 
         // Créer l'item dans le panier
@@ -378,7 +394,7 @@ const app = new Hono()
             stageId,
             baptemeId,
             giftCardAmount: type === 'GIFT_CARD' ? giftCardAmount : null,
-            giftVoucherCode: type === 'GIFT_VOUCHER' ? giftVoucherCode : null,
+            giftVoucherAmount: type === 'GIFT_VOUCHER' ? giftVoucherAmount : null,
             participantData,
             cartSessionId: cartSession.id,
             expiresAt,
@@ -621,17 +637,25 @@ const app = new Hono()
         let totalAmount = 0;
         for (const item of allCartItems) {
           if (item.type === "STAGE" && item.stage) {
-            // Pour les stages: on paie l'acompte maintenant
-            totalAmount += item.stage.acomptePrice * item.quantity;
+            const participantData = item.participantData as any;
+            if (participantData?.usedGiftVoucherCode) {
+              totalAmount += 0; // Gratuit avec bon cadeau
+            } else {
+              totalAmount += item.stage.acomptePrice * item.quantity;
+            }
           } else if (item.type === "BAPTEME" && item.bapteme) {
-            // Pour les baptêmes: on paie l'acompte maintenant (pas la vidéo)
-            const acomptePrice = item.bapteme.acomptePrice;
-            totalAmount += acomptePrice * item.quantity;
+            const participantData = item.participantData as any;
+            if (participantData?.usedGiftVoucherCode) {
+              totalAmount += 0; // Gratuit avec bon cadeau
+            } else {
+              const acomptePrice = item.bapteme.acomptePrice;
+              totalAmount += acomptePrice * item.quantity;
+            }
           } else if (item.type === "GIFT_CARD") {
             totalAmount += item.giftCardAmount || 0;
           } else if (item.type === "GIFT_VOUCHER") {
-            // Les bons cadeaux sont gratuits
-            totalAmount += 0;
+            // Achat de bon cadeau
+            totalAmount += item.giftVoucherAmount || 0;
           }
         }
 
@@ -695,13 +719,13 @@ const app = new Hono()
         }
 
         // Libérer la réservation temporaire si applicable
-        if (existingItem.type !== 'GIFT_CARD' && existingItem.type !== 'GIFT_VOUCHER' && existingItem.stageId) {
+        if (existingItem.type === 'STAGE' && existingItem.stageId) {
           await AvailabilityService.releaseTemporaryReservation(
             cartSession.sessionId,
             'stage',
             existingItem.stageId
           );
-        } else if (existingItem.type !== 'GIFT_CARD' && existingItem.type !== 'GIFT_VOUCHER' && existingItem.baptemeId) {
+        } else if (existingItem.type === 'BAPTEME' && existingItem.baptemeId) {
           await AvailabilityService.releaseTemporaryReservation(
             cartSession.sessionId,
             'bapteme',
@@ -709,11 +733,12 @@ const app = new Hono()
           );
         }
 
-        // Libérer le bon cadeau si applicable
-        if (existingItem.type === 'GIFT_VOUCHER' && existingItem.giftVoucherCode) {
+        // Libérer le bon cadeau si utilisé dans une réservation STAGE/BAPTEME
+        const participantData = existingItem.participantData as any;
+        if ((existingItem.type === 'STAGE' || existingItem.type === 'BAPTEME') && participantData?.usedGiftVoucherCode) {
           await prisma.giftVoucher.updateMany({
             where: {
-              code: existingItem.giftVoucherCode,
+              code: participantData.usedGiftVoucherCode,
               reservedBySessionId: cartSession.sessionId,
             },
             data: {

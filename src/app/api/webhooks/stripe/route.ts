@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
-import { sendOrderConfirmationEmail } from "@/lib/resend";
+import { sendOrderConfirmationEmail, sendAdminNewOrderEmail, sendGiftVoucherPurchaseEmail } from "@/lib/resend";
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -43,20 +43,20 @@ export async function POST(req: Request) {
   // Handle the event
   try {
     console.log(`[WEBHOOK] 📨 Received event: ${event.id} - Type: ${event.type} - Timestamp: ${new Date().toISOString()}`);
-    
+
     // IDEMPOTENCE: Utiliser upsert pour éviter les race conditions
     // Tenter de créer l'enregistrement de l'événement de manière atomique
     let eventRecord;
     try {
       console.log(`[WEBHOOK] 🔍 Checking if event ${event.id} was already processed...`);
-      
+
       eventRecord = await prisma.processedWebhookEvent.create({
         data: {
           stripeEventId: event.id,
           eventType: event.type,
         },
       });
-      
+
       console.log(`[WEBHOOK] ✅ Event ${event.id} is NEW - Processing...`);
     } catch (error: any) {
       // Si l'événement existe déjà (erreur P2002 = unique constraint violation)
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
         const existingEvent = await prisma.processedWebhookEvent.findUnique({
           where: { stripeEventId: event.id },
         });
-        
+
         console.log(`[WEBHOOK] ⛔ Event ${event.id} ALREADY PROCESSED at ${existingEvent?.processedAt} - SKIPPING`);
         return NextResponse.json({
           received: true,
@@ -238,7 +238,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     // 6. Mettre à jour la commande avec le client et le statut approprié SEULEMENT si nécessaire
     let updatedOrder;
     const needsUpdate = order.status !== newStatus || (client && order.clientId !== client.id);
-    
+
     if (needsUpdate) {
       updatedOrder = await prisma.order.update({
         where: { id: orderId },
@@ -278,12 +278,12 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       throw new Error("Order not found after update");
     }
 
-    // 7. Créer les réservations pour chaque item
+    // 7. Créer les réservations pour chaque item (incluant l'envoi d'emails pour les bons cadeaux)
     await createBookingsFromOrder(updatedOrder);
 
-    // 8. VIDER LE PANIER après confirmation du paiement (IDEMPOTENCE: vérifier d'abord)
+    // 9. VIDER LE PANIER après confirmation du paiement (IDEMPOTENCE: vérifier d'abord)
     const sessionId = paymentIntent.metadata.sessionId;
-    
+
     if (sessionId) {
       const cartSession = await prisma.cartSession.findUnique({
         where: { sessionId },
@@ -313,14 +313,22 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
     // 9. ENVOYER L'EMAIL DE CONFIRMATION
     try {
       console.log(`[WEBHOOK] 📧 Preparing to send confirmation email for order ${updatedOrder.orderNumber}`);
-      
+
       // Calculer les totaux pour l'email
       const emailData = prepareEmailData(updatedOrder);
-      
+
       // Envoyer l'email
       await sendOrderConfirmationEmail(emailData);
-      
+
       console.log(`[WEBHOOK] ✅ Confirmation email sent successfully for order ${updatedOrder.orderNumber}`);
+
+      // Envoyer l'email à l'admin
+      try {
+        await sendAdminNewOrderEmail(emailData);
+        console.log(`[WEBHOOK] ✅ Admin notification email sent successfully`);
+      } catch (adminEmailError) {
+        console.error(`[WEBHOOK] ⚠️ Failed to send admin notification email:`, adminEmailError);
+      }
     } catch (emailError) {
       // Ne pas faire échouer le webhook si l'email échoue
       console.error(`[WEBHOOK] ⚠️ Failed to send confirmation email for order ${updatedOrder.orderNumber}:`, emailError);
@@ -407,6 +415,8 @@ function prepareEmailData(order: any) {
   };
 }
 
+
+
 async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
   const orderId = paymentIntent.metadata.orderId;
 
@@ -442,14 +452,14 @@ async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
 // Fonction pour créer les réservations à partir d'une commande
 async function createBookingsFromOrder(order: any) {
   console.log(`[WEBHOOK] 🎯 createBookingsFromOrder called for order ${order.id} with ${order.orderItems.length} items - Timestamp: ${new Date().toISOString()}`);
-  
-  // TRAITER TOUS LES GIFT_CARDS DANS UNE SEULE TRANSACTION GLOBALE
-  const giftCardItems = order.orderItems.filter((item: any) => item.type === "GIFT_CARD");
-  
-  if (giftCardItems.length > 0) {
+
+  // TRAITER TOUS LES GIFT_CARDS ET GIFT_VOUCHERS DANS UNE SEULE TRANSACTION GLOBALE
+  const giftItems = order.orderItems.filter((item: any) => item.type === "GIFT_CARD" || item.type === "GIFT_VOUCHER");
+
+  if (giftItems.length > 0) {
     try {
       await prisma.$transaction(async (tx) => {
-        for (const item of giftCardItems) {
+        for (const item of giftItems) {
           // Extraire les données du participantData
           const participantData = typeof item.participantData === 'string'
             ? JSON.parse(item.participantData)
@@ -463,11 +473,10 @@ async function createBookingsFromOrder(order: any) {
             hasGeneratedCard: !!item.generatedGiftCardId,
           });
 
-          // Vérifier si c'est une carte cadeau monétaire OU un bon cadeau pour une activité
-          if (participantData?.voucherProductType) {
-            // C'est un BON CADEAU pour une activité spécifique (stage ou baptême)
-            console.log(`[WEBHOOK] Item ${item.id} is a GIFT VOUCHER (not a gift card)`);
-            
+          if (item.type === "GIFT_VOUCHER") {
+            // ACHAT d'un bon cadeau pour une activité
+            console.log(`[WEBHOOK] Item ${item.id} is a GIFT VOUCHER purchase`);
+
             // Vérifier dans la transaction (lock pessimiste)
             const freshItem = await tx.orderItem.findUnique({
               where: { id: item.id },
@@ -480,6 +489,11 @@ async function createBookingsFromOrder(order: any) {
               console.log(`[WEBHOOK] ⚠️ Gift voucher already created for item ${item.id} (detected in transaction) - Existing ID: ${freshItem.generatedGiftVoucherId}`);
               continue; // Skip creation
             }
+
+            // Extraire les données du participantData
+            const participantData = typeof item.participantData === 'string'
+              ? JSON.parse(item.participantData)
+              : item.participantData;
 
             console.log(`[WEBHOOK] 🔵 CREATING GIFT VOUCHER for item ${item.id} - Type: ${participantData.voucherProductType} - Timestamp: ${new Date().toISOString()}`);
 
@@ -496,7 +510,7 @@ async function createBookingsFromOrder(order: any) {
                 productType: participantData.voucherProductType,
                 stageCategory: participantData.voucherStageCategory || null,
                 baptemeCategory: participantData.voucherBaptemeCategory || null,
-                purchasePrice: item.unitPrice || 0,
+                purchasePrice: item.giftVoucherAmount || item.unitPrice || 0,
                 recipientName: participantData.recipientName || 'Non spécifié',
                 recipientEmail: participantData.recipientEmail || 'non-specifie@placeholder.local',
                 expiryDate,
@@ -513,10 +527,36 @@ async function createBookingsFromOrder(order: any) {
             });
 
             console.log(`[WEBHOOK] ✓ Gift voucher ${voucher.code} linked to OrderItem ${item.id}`);
-          } else {
-            // C'est une CARTE CADEAU monétaire classique (pas un bon cadeau)
+
+            // ENVOYER L'EMAIL DU BON CADEAU
+            try {
+              const voucherType = voucher.productType === 'STAGE'
+                ? `Stage ${voucher.stageCategory}`
+                : `Baptême ${voucher.baptemeCategory}`;
+
+              await sendGiftVoucherPurchaseEmail({
+                buyerName: participantData.buyerName,
+                buyerEmail: participantData.buyerEmail,
+                recipientName: participantData.recipientName,
+                recipientEmail: participantData.recipientEmail,
+                notifyRecipient: participantData.notifyRecipient,
+                personalMessage: participantData.personalMessage,
+                voucherCode: voucher.code,
+                voucherType,
+                expiryDate: voucher.expiryDate.toISOString(),
+                purchaseDate: new Date().toISOString(),
+                orderNumber: order.orderNumber,
+              });
+
+              console.log(`[WEBHOOK] 📧 Gift voucher email sent for ${voucher.code}`);
+            } catch (emailError) {
+              console.error(`[WEBHOOK] ⚠️ Failed to send gift voucher email for ${voucher.code}:`, emailError);
+              // Ne pas throw pour ne pas bloquer le traitement
+            }
+          } else if (item.type === "GIFT_CARD") {
+            // CARTE CADEAU monétaire classique
             console.log(`[WEBHOOK] Item ${item.id} is a GIFT CARD (monetary)`);
-            
+
             // Vérifier dans la transaction (lock pessimiste)
             const freshItem = await tx.orderItem.findUnique({
               where: { id: item.id },
@@ -531,7 +571,7 @@ async function createBookingsFromOrder(order: any) {
             }
 
             console.log(`[WEBHOOK] 🔵 CREATING GIFT CARD for item ${item.id} - Amount: ${item.giftCardAmount}€ - Timestamp: ${new Date().toISOString()}`);
-            
+
             // Générer le code DANS la transaction pour éviter les race conditions
             const code = await generateUniqueGiftCardCodeInTransaction(tx);
 
@@ -560,7 +600,7 @@ async function createBookingsFromOrder(order: any) {
       // Ne pas throw pour ne pas bloquer le traitement des autres items
     }
   }
-  
+
   // TRAITER LES AUTRES TYPES D'ITEMS (STAGE, BAPTEME, etc.)
   for (const item of order.orderItems) {
     // IDEMPOTENCE: Vérifier si cet item a déjà été traité
@@ -572,7 +612,7 @@ async function createBookingsFromOrder(order: any) {
       // Si le stage est de type DOUBLE, le client a choisi soit INITIATION soit PROGRESSION
       // On utilise selectedStageType qui contient le choix réel du client
       const stageType = item.participantData.selectedStageType || item.stage?.type || 'INITIATION';
-      
+
       // Vérifier que le type est valide pour StageBookingType (pas DOUBLE)
       const validStageType = stageType === 'DOUBLE' ? 'INITIATION' : stageType;
 
@@ -625,21 +665,15 @@ async function createBookingsFromOrder(order: any) {
       console.log(`Bapteme booking created: ${booking.id} for stagiaire ${stagiaire.id}`);
     }
 
-    // GIFT_CARD items sont déjà traités dans la transaction globale ci-dessus
-    if (item.type === "GIFT_CARD") {
+    // GIFT_CARD et GIFT_VOUCHER items sont déjà traités dans la transaction globale ci-dessus
+    if (item.type === "GIFT_CARD" || item.type === "GIFT_VOUCHER") {
       continue; // Skip, already processed
-    }
-
-    if (item.type === "GIFT_VOUCHER") {
-      // GIFT_VOUCHER type = utilisation d'un bon cadeau existant pour réserver une activité
-      // Le bon cadeau doit être marqué comme utilisé (pas de création de nouveau voucher)
-      console.log(`GIFT_VOUCHER item ${item.id} - voucher will be marked as used below`);
     }
 
     // Marquer le bon cadeau comme utilisé si présent dans le panier (IDEMPOTENCE)
     if (item.participantData.usedGiftVoucherCode && !item.usedGiftVoucherId) {
       const voucherCode = item.participantData.usedGiftVoucherCode;
-      
+
       // Vérifier si le voucher existe et n'est pas déjà marqué comme utilisé
       const existingVoucher = await prisma.giftVoucher.findUnique({
         where: { code: voucherCode },
@@ -665,7 +699,7 @@ async function createBookingsFromOrder(order: any) {
         console.log(`Gift voucher ${voucherCode} marked as used`);
       } else if (existingVoucher?.isUsed) {
         console.log(`Gift voucher ${voucherCode} already marked as used`);
-        
+
         // Lier quand même si pas encore lié
         if (!item.usedGiftVoucherId) {
           await prisma.orderItem.update({
@@ -800,25 +834,29 @@ async function generateUniqueVoucherCodeInTransaction(tx: any): Promise<string> 
 // Fonction pour répartir un paiement entre les OrderItems
 async function allocatePaymentToOrderItems(payment: any, orderItems: any[]) {
   console.log(`Allocating payment ${payment.id} (${payment.amount}€) to ${orderItems.length} items`);
-  
+
   // Créer les allocations pour chaque OrderItem selon son prix
   for (const item of orderItems) {
     let allocatedAmount = 0;
-    
+
     if (item.type === 'STAGE') {
-      // Pour les stages, allouer le montant de l'acompte
+      // Pour les stages, allouer le montant de l'acompte (ou 0 si bon cadeau)
       allocatedAmount = item.depositAmount || 0;
       console.log(`STAGE item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}`);
     } else if (item.type === 'BAPTEME') {
-      // Pour les baptêmes, allouer le montant de l'acompte (acompte + vidéo)
+      // Pour les baptêmes, allouer le montant de l'acompte (ou 0 si bon cadeau)
       allocatedAmount = item.depositAmount || 0;
       console.log(`BAPTEME item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}, hasVideo=${item.participantData?.hasVideo}`);
     } else if (item.type === 'GIFT_CARD') {
       // Pour les cartes cadeaux, allouer le montant de la carte
       allocatedAmount = item.giftCardAmount || 0;
       console.log(`GIFT_CARD item ${item.id}: giftCardAmount=${item.giftCardAmount}`);
+    } else if (item.type === 'GIFT_VOUCHER') {
+      // Pour les achats de bons cadeaux, allouer le montant
+      allocatedAmount = item.giftVoucherAmount || 0;
+      console.log(`GIFT_VOUCHER item ${item.id}: giftVoucherAmount=${item.giftVoucherAmount}`);
     }
-    
+
     if (allocatedAmount > 0) {
       await prisma.paymentAllocation.create({
         data: {
@@ -827,7 +865,7 @@ async function allocatePaymentToOrderItems(payment: any, orderItems: any[]) {
           allocatedAmount,
         },
       });
-      
+
       console.log(`✓ Allocated ${allocatedAmount}€ from payment ${payment.id} to item ${item.id} (${item.type})`);
     } else {
       console.warn(`⚠ No amount to allocate for item ${item.id} (${item.type})`);

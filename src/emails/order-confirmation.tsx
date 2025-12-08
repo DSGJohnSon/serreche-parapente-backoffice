@@ -83,7 +83,11 @@ export const OrderConfirmationEmail = ({
       case 'BAPTEME':
         return `Baptême ${item.participantData.selectedCategory} - ${formatDate(item.bapteme?.date)}`;
       case 'GIFT_VOUCHER':
-        return `Baptême ${item.participantData.selectedCategory} - ${formatDate(item.bapteme?.date)}`;
+        // Bon cadeau acheté
+        const voucherType = item.participantData.voucherProductType === 'STAGE'
+          ? `Stage ${item.participantData.voucherStageCategory}`
+          : `Baptême ${item.participantData.voucherBaptemeCategory}`;
+        return `🎁 Bon Cadeau - ${voucherType}`;
       case 'GIFT_CARD':
         return `Carte cadeau ${item.giftCardAmount}€`;
       default:
@@ -163,20 +167,48 @@ export const OrderConfirmationEmail = ({
                 <div style={itemHeader}>
                   <div>
                     <Text style={itemTitle}>{getItemTitle(item)}</Text>
-                    <Text style={itemSubtitle}>
-                      Participant: {item.participantData.firstName} {item.participantData.lastName}
-                    </Text>
-                    {item.type === 'GIFT_VOUCHER' && item.participantData?.usedGiftVoucherCode && (
-                      <Text style={voucherCode}>
-                        Code utilisé: {item.participantData.usedGiftVoucherCode}
+                    {item.type === 'GIFT_VOUCHER' ? (
+                      // Bon cadeau acheté
+                      <>
+                        <Text style={itemSubtitle}>
+                          Pour: {item.participantData.recipientName}
+                        </Text>
+                        {item.participantData.recipientEmail && (
+                          <Text style={itemSubtitle}>
+                            Email bénéficiaire: {item.participantData.recipientEmail}
+                          </Text>
+                        )}
+                        {item.participantData.personalMessage && (
+                          <Text style={itemSubtitle}>
+                            Message: &apos;{item.participantData.personalMessage}&apos;
+                          </Text>
+                        )}
+                      </>
+                    ) : item.participantData?.usedGiftVoucherCode ? (
+                      // Réservation avec bon cadeau utilisé
+                      <>
+                        <Text style={itemSubtitle}>
+                          Participant: {item.participantData.firstName} {item.participantData.lastName}
+                        </Text>
+                        <Text style={voucherCode}>
+                          🎁 Bon cadeau appliqué - Code: {item.participantData.usedGiftVoucherCode}
+                        </Text>
+                      </>
+                    ) : (
+                      // Réservation normale
+                      <Text style={itemSubtitle}>
+                        Participant: {item.participantData.firstName} {item.participantData.lastName}
                       </Text>
                     )}
                   </div>
                   <div style={itemPrice}>
-                    {item.type === 'GIFT_VOUCHER' ? (
+                    {item.participantData?.usedGiftVoucherCode ? (
+                      // Réservation avec bon cadeau = GRATUIT
                       <>
                         <Text style={strikethrough}>
-                          {getCategoryPrice(item.participantData.selectedCategory)}€
+                          {item.type === 'STAGE'
+                            ? item.stage?.price
+                            : getCategoryPrice(item.participantData.selectedCategory)}€
                         </Text>
                         <Text style={freePrice}>GRATUIT</Text>
                       </>
@@ -197,7 +229,7 @@ export const OrderConfirmationEmail = ({
             <div style={paidBox}>
               <div style={flexBetween}>
                 <div>
-                  <Text style={paidLabel}>PAYÉ AUJOURD'HUI</Text>
+                  <Text style={paidLabel}>PAYÉ AUJOURD&apos;HUI</Text>
                   <Text style={paidAmount}>{depositTotal.toFixed(2)}€</Text>
                   <Text style={paidDate}>Transaction effectuée le {formatDateTime(orderDate)}</Text>
                 </div>
@@ -222,7 +254,7 @@ export const OrderConfirmationEmail = ({
                   Solde total à venir : <strong>{remainingTotal.toFixed(2)}€</strong>
                 </Text>
                 <Text style={futureNote}>
-                  Les soldes seront à régler sur place le jour de l'activité.
+                  Les soldes seront à régler sur place le jour de l&apos;activité.
                 </Text>
 
                 {futurePayments.map((payment, index) => (
@@ -235,7 +267,7 @@ export const OrderConfirmationEmail = ({
                       <Text style={futurePaymentAmount}>{payment.amount.toFixed(2)}€</Text>
                     </div>
                     <Text style={futurePaymentNote}>
-                      À régler <strong>sur place</strong> le jour de l'activité
+                      À régler <strong>sur place</strong> le jour de l&apos;activité
                     </Text>
                   </div>
                 ))}
@@ -291,7 +323,7 @@ export const OrderConfirmationEmail = ({
 
           {/* Contact */}
           <Section style={section}>
-            <Heading as="h2" style={h2}>Besoin d'aide ?</Heading>
+            <Heading as="h2" style={h2}>Besoin d&apos;aide ?</Heading>
             <Row>
               <Column>
                 <Text style={label}>Téléphone</Text>
@@ -307,7 +339,7 @@ export const OrderConfirmationEmail = ({
           {/* Footer */}
           <Section style={footer}>
             <Text style={footerText}>
-              Merci d'avoir choisi Serre Chevalier Parapente !
+              Merci d&apos;avoir choisi Serre Chevalier Parapente !
             </Text>
             <Text style={footerText}>
               © {new Date().getFullYear()} Serre Chevalier Parapente - Tous droits réservés

@@ -49,22 +49,43 @@ const app = new Hono()
         
         for (const item of cartItems) {
           if (item.type === 'STAGE' && item.stage) {
+            const participantData = item.participantData as any;
             const fullPrice = item.stage.price * item.quantity;
-            const depositPrice = item.stage.acomptePrice * item.quantity;
-            subtotal += fullPrice;
-            depositTotal += depositPrice;
+            
+            if (participantData?.usedGiftVoucherCode) {
+              // Réservation avec bon cadeau = gratuit
+              subtotal += fullPrice; // Garder le prix pour historique
+              depositTotal += 0; // Mais ne rien payer
+            } else {
+              // Réservation normale
+              const depositPrice = item.stage.acomptePrice * item.quantity;
+              subtotal += fullPrice;
+              depositTotal += depositPrice;
+            }
           } else if (item.type === 'BAPTEME' && item.bapteme) {
             const participantData = item.participantData as any;
             const basePrice = await getBaptemePrice(participantData.selectedCategory);
             const videoPrice = participantData.hasVideo ? 25 : 0;
             const fullPrice = (basePrice + videoPrice) * item.quantity;
-            const depositPrice = (item.bapteme.acomptePrice + videoPrice) * item.quantity; // Acompte + vidéo
-            subtotal += fullPrice;
-            depositTotal += depositPrice; // Baptêmes: acompte + vidéo
+            
+            if (participantData?.usedGiftVoucherCode) {
+              // Réservation avec bon cadeau = gratuit
+              subtotal += fullPrice; // Garder le prix pour historique
+              depositTotal += 0; // Mais ne rien payer
+            } else {
+              // Réservation normale
+              const depositPrice = (item.bapteme.acomptePrice + videoPrice) * item.quantity;
+              subtotal += fullPrice;
+              depositTotal += depositPrice;
+            }
           } else if (item.type === 'GIFT_CARD') {
             const amount = item.giftCardAmount || 0;
             subtotal += amount;
             depositTotal += amount; // Cartes cadeaux: paiement complet
+          } else if (item.type === 'GIFT_VOUCHER') {
+            const amount = item.giftVoucherAmount || 0;
+            subtotal += amount;
+            depositTotal += amount; // Bons cadeaux: paiement complet
           }
         }
 
@@ -124,53 +145,92 @@ const app = new Hono()
         const totalAmount = subtotal - discountAmount;
         const depositAmount = depositTotal - discountAmount; // Montant à payer aujourd'hui
 
-        // NE PAS créer le client ici - il sera créé lors du paiement réussi via webhook
-        // Les données client seront stockées dans les métadonnées du PaymentIntent
+        // Créer ou récupérer le client si nécessaire (pour checkout à 0€)
+        let client = null;
+        if (depositAmount <= 0 && customerEmail && customerData) {
+          // Pour les commandes gratuites, créer le client immédiatement
+          client = await prisma.client.findUnique({
+            where: { email: customerEmail },
+          });
 
-        // Créer la commande SANS client (sera lié lors du webhook)
+          if (!client) {
+            client = await prisma.client.create({
+              data: {
+                email: customerEmail,
+                firstName: customerData.firstName || '',
+                lastName: customerData.lastName || '',
+                phone: customerData.phone || '',
+                address: customerData.address || '',
+                postalCode: customerData.postalCode || '',
+                city: customerData.city || '',
+                country: customerData.country || 'France',
+              },
+            });
+            console.log(`[FREE CHECKOUT] Client created: ${client.id}`);
+          }
+        }
+
+        // Créer la commande
         const orderNumber = generateOrderNumber();
         
         const order = await prisma.order.create({
           data: {
             orderNumber,
-            status: 'PENDING',
+            status: depositAmount <= 0 ? 'PAID' : 'PENDING', // PAID si gratuit
             subtotal,
             discountAmount,
             totalAmount,
-            // clientId sera défini lors du paiement réussi via webhook
-            appliedGiftCardId: validGiftCards.length > 0 ? validGiftCards[0].giftCard.id : null, // Backward compatibility
+            clientId: client?.id, // Lier le client si créé (checkout gratuit)
+            appliedGiftCardId: validGiftCards.length > 0 ? validGiftCards[0].giftCard.id : null,
             orderItems: {
               create: await Promise.all(cartItems.map(async item => {
                 let unitPrice = 0;
                 let depositAmount: number | null = null;
                 let remainingAmount: number | null = null;
                 let isFullyPaid = false;
+                const participantData = item.participantData as any;
 
                 if (item.type === 'STAGE' && item.stage) {
                   unitPrice = item.stage.price;
-                  const depositPrice = item.stage.acomptePrice;
-                  depositAmount = depositPrice * item.quantity;
-                  remainingAmount = (unitPrice - depositPrice) * item.quantity;
-                  isFullyPaid = false; // Stages: paiement partiel
+                  
+                  if (participantData?.usedGiftVoucherCode) {
+                    // Réservation avec bon cadeau
+                    depositAmount = 0;
+                    remainingAmount = 0;
+                    isFullyPaid = true; // Payé via bon cadeau
+                  } else {
+                    // Réservation normale
+                    const depositPrice = item.stage.acomptePrice;
+                    depositAmount = depositPrice * item.quantity;
+                    remainingAmount = (unitPrice - depositPrice) * item.quantity;
+                    isFullyPaid = false;
+                  }
                 } else if (item.type === 'BAPTEME' && item.bapteme) {
-                  const participantData = item.participantData as any;
                   const basePrice = await getBaptemePrice(participantData.selectedCategory);
                   const videoPrice = participantData.hasVideo ? 25 : 0;
                   unitPrice = basePrice + videoPrice;
-                  const depositPrice = item.bapteme.acomptePrice + videoPrice; // Acompte + vidéo
-                  depositAmount = depositPrice * item.quantity;
-                  remainingAmount = (basePrice - item.bapteme.acomptePrice) * item.quantity; // Reste du baptême seulement
-                  isFullyPaid = false; // Baptêmes: paiement partiel (acompte + vidéo maintenant, reste plus tard)
+                  
+                  if (participantData?.usedGiftVoucherCode) {
+                    // Réservation avec bon cadeau
+                    depositAmount = 0;
+                    remainingAmount = 0;
+                    isFullyPaid = true; // Payé via bon cadeau
+                  } else {
+                    // Réservation normale
+                    const depositPrice = item.bapteme.acomptePrice + videoPrice;
+                    depositAmount = depositPrice * item.quantity;
+                    remainingAmount = (basePrice - item.bapteme.acomptePrice) * item.quantity;
+                    isFullyPaid = false;
+                  }
                   
                   console.log(`BAPTEME OrderItem creation: basePrice=${basePrice}, videoPrice=${videoPrice}, unitPrice=${unitPrice}, depositAmount=${depositAmount}, remainingAmount=${remainingAmount}`);
                 } else if (item.type === 'GIFT_CARD') {
                   unitPrice = item.giftCardAmount || 0;
-                  isFullyPaid = true; // Cartes cadeaux: paiement complet
+                  isFullyPaid = true;
+                } else if (item.type === 'GIFT_VOUCHER') {
+                  unitPrice = item.giftVoucherAmount || 0;
+                  isFullyPaid = true; // Bons cadeaux: paiement complet
                 }
-
-                // Vérifier si c'est un bon cadeau (gift voucher) ou une carte cadeau monétaire
-                const participantData = item.participantData as any;
-                const isGiftVoucher = participantData?.voucherProductType;
 
                 return {
                   type: item.type,
@@ -182,8 +242,8 @@ const app = new Hono()
                   isFullyPaid,
                   stageId: item.stageId,
                   baptemeId: item.baptemeId,
-                  // NE PAS inclure giftCardAmount pour les bons cadeaux (gift vouchers)
-                  giftCardAmount: isGiftVoucher ? null : item.giftCardAmount,
+                  giftCardAmount: item.giftCardAmount,
+                  giftVoucherAmount: item.giftVoucherAmount,
                   participantData: item.participantData as any,
                 };
               })),

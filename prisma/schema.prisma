@@ -381,6 +381,7 @@ model CartItem {
 
   // Pour les bons cadeaux (gift vouchers)
   giftVoucherCode String? // Code du bon cadeau utilisé
+  giftVoucherAmount Float? // Montant du bon cadeau à acheter
 
   // Informations du participant (temporaires, avant paiement)
   participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
@@ -497,6 +498,7 @@ model OrderItem {
   generatedGiftCard   GiftCard? @relation("GeneratedGiftCard", fields: [generatedGiftCardId], references: [id])
 
   // Pour les bons cadeaux (gift vouchers)
+  giftVoucherAmount      Float? // Montant du bon cadeau acheté
   generatedGiftVoucherId String? @unique
   generatedGiftVoucher   GiftVoucher? @relation("GeneratedVoucher", fields: [generatedGiftVoucherId], references: [id])
   
