@@ -20,6 +20,8 @@ export const useGetAllBaptemes = () => {
         }
         return result.data;
       } catch (error) {
+        console.error(error);
+        toast.error(error.message);
         toast.error("Erreur lors de la récupération des créneaux");
         return null;
       }
