@@ -1,6 +1,6 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { adminSessionMiddleware, publicAPIMiddleware, sessionMiddleware } from "@/lib/session-middleware";
+import { adminSessionMiddleware, publicAPIMiddleware, sessionMiddleware, sessionOrAPIMiddleware } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -12,7 +12,7 @@ import {
 
 const app = new Hono()
   // GET all baptemes, optionally filtered by moniteurId or date
-  .get("getAll", publicAPIMiddleware, async (c) => {
+  .get("getAll", sessionOrAPIMiddleware, async (c) => {
     const moniteurId = c.req.query("moniteurId");
     const date = c.req.query("date");
     const where: any = {};

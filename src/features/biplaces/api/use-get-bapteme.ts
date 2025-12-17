@@ -3,7 +3,6 @@
 import { client } from "@/lib/rpc";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getAllBaptemes } from "../actions";
 
 //*------------------*//
 //Get all baptemes
@@ -13,12 +12,18 @@ export const useGetAllBaptemes = () => {
     queryKey: ["baptemes"],
     queryFn: async () => {
       try {
-        const result = await getAllBaptemes();
-        if (!result.success) {
-          toast.error(result.message);
+        const res = await client.api.baptemes.getAll.$get();
+        if (!res.ok) {
+          toast.error("Erreur lors de la récupération des créneaux");
           return null;
         }
-        return result.data;
+
+        const { success, message, data } = await res.json();
+        if (!success) {
+          toast.error(message);
+          return null;
+        }
+        return data;
       } catch (error) {
         console.error(error);
         toast.error("Erreur lors de la récupération des créneaux");

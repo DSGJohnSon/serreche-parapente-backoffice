@@ -72,3 +72,33 @@ export const publicAPIMiddleware = createMiddleware(async (c, next) => {
 
   await next();
 });
+
+// Middleware hybride : accepte soit une session, soit une clé API
+export const sessionOrAPIMiddleware = createMiddleware(async (c, next) => {
+  // D'abord vérifier si une clé API est fournie
+  const correctAPIKey = process.env.PUBLIC_API_KEY;
+  const apiKey = c.req.header("x-api-key");
+
+  if (apiKey && correctAPIKey && apiKey === correctAPIKey) {
+    // Authentification par API key réussie
+    await next();
+    return;
+  }
+
+  // Sinon, vérifier la session
+  const session = getCookie(c, AUTH_COOKIE);
+  if (!session) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(session);
+
+  if (user === null || error) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  await next();
+});
