@@ -34,34 +34,50 @@ const app = new Hono()
         },
       });
 
-      // Enrichir chaque baptême avec les disponibilités en temps réel
-      const enrichedBaptemes = await Promise.all(
-        baptemes.map(async (bapteme) => {
-          const confirmedBookings = bapteme.bookings.length;
-          
-          // Compter les réservations temporaires (items dans les paniers non expirés)
-          const temporaryReservations = await prisma.cartItem.count({
-            where: {
-              type: 'BAPTEME',
-              baptemeId: bapteme.id,
-              expiresAt: { gt: now },
-              isExpired: false,
-            }
-          });
-          
-          const availablePlaces = bapteme.places - confirmedBookings - temporaryReservations;
-          
-          return {
-            ...bapteme,
-            availablePlaces: Math.max(0, availablePlaces),
-            confirmedBookings,
-            temporaryReservations,
-          };
-        })
+      // Optimisation: Récupérer tous les comptes en une seule requête
+      const baptemeIds = baptemes.map(b => b.id);
+      
+      const allTemporaryReservations = await prisma.cartItem.groupBy({
+        by: ['baptemeId'],
+        where: {
+          type: 'BAPTEME',
+          baptemeId: { in: baptemeIds },
+          expiresAt: { gt: now },
+          isExpired: false,
+        },
+        _count: {
+          id: true
+        }
+      });
+
+      // Créer une map pour un accès rapide
+      const tempReservationsMap = new Map(
+        allTemporaryReservations
+          .filter(item => item.baptemeId !== null)
+          .map(item => [item.baptemeId!, item._count.id])
       );
+
+      // Enrichir chaque baptême
+      const enrichedBaptemes = baptemes.map((bapteme) => {
+        const confirmedBookings = bapteme.bookings.length;
+        const temporaryReservations = tempReservationsMap.get(bapteme.id) || 0;
+        
+        const availablePlaces = bapteme.places - confirmedBookings - temporaryReservations;
+        
+        return {
+          ...bapteme,
+          availablePlaces: Math.max(0, availablePlaces),
+          confirmedBookings,
+          temporaryReservations,
+        };
+      });
 
       return c.json({ success: true, message: "", data: enrichedBaptemes });
     } catch (error) {
+      console.error("Erreur API /biplaces/getAll:", error);
+      if (error instanceof Error) {
+        console.error("Stack trace:", error.stack);
+      }
       return c.json({ success: false, message: "Erreur lors de la récupération des créneaux", data: null });
     }
   })
