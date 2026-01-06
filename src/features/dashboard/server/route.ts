@@ -4,401 +4,373 @@ import prisma from "@/lib/prisma";
 
 const app = new Hono()
   // GET dashboard statistics
-  .get(
-    "/stats",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        // Get selected month from query params (format: YYYY-MM) or use current month
-        const selectedMonth = c.req.query("month");
-        const now = new Date();
-        
-        let targetDate: Date;
-        if (selectedMonth) {
-          const [year, month] = selectedMonth.split('-').map(Number);
-          targetDate = new Date(year, month - 1, 1);
-        } else {
-          targetDate = now;
-        }
-        
-        const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-        const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59);
-        const startOfYear = new Date(targetDate.getFullYear(), 0, 1);
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  .get("/stats", adminSessionMiddleware, async (c) => {
+    try {
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentMonthEnd = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59
+      );
+      const currentYearStart = new Date(now.getFullYear(), 0, 1);
 
-        // Parallel queries for better performance
-        const [
-          // Orders statistics
-          totalOrders,
-          ordersThisMonth,
-          ordersThisYear,
-          recentOrders,
-          ordersByStatus,
-          
-          // Revenue statistics (total orders)
-          totalRevenue,
-          revenueThisMonth,
-          revenueThisYear,
-          
-          // Actual collected revenue (payments)
-          totalCollectedRevenue,
-          collectedRevenueThisMonth,
-          collectedRevenueThisYear,
-          
-          // Clients statistics
-          totalClients,
-          clientsThisMonth,
-          
-          // Stagiaires statistics
-          totalStagiaires,
-          stagiairesThisMonth,
-          
-          // Stages statistics
-          totalStages,
-          upcomingStages,
-          stagesThisMonth,
-          
-          // Baptemes statistics
-          totalBaptemes,
-          upcomingBaptemes,
-          baptemesThisMonth,
-          
-          // Gift cards statistics
-          totalGiftCards,
-          activeGiftCards,
-          giftCardsValue,
-          
-          // Reservations statistics
-          totalReservations,
-          reservationsThisMonth,
-          
-          // Payments statistics
-          totalPayments,
-          paymentsThisMonth,
-          pendingPayments,
-        ] = await Promise.all([
-          // Orders
-          prisma.order.count(),
-          prisma.order.count({
-            where: { createdAt: { gte: startOfMonth } },
+      // Calculate the start date for 13 months ago
+      const thirteenMonthsAgo = new Date(
+        now.getFullYear(),
+        now.getMonth() - 12,
+        1
+      );
+
+      // Fetch revenue data for current month (online vs total)
+      const [
+        onlineRevenueThisMonth,
+        manualRevenueThisMonth,
+        totalRevenueThisYear,
+      ] = await Promise.all([
+        // Online revenue (Stripe payments only) for current month
+        prisma.payment.aggregate({
+          where: {
+            status: "SUCCEEDED",
+            isManual: false,
+            createdAt: { gte: currentMonthStart, lte: currentMonthEnd },
+          },
+          _sum: { amount: true },
+        }),
+
+        // Manual revenue (manual payments only) for current month
+        prisma.payment.aggregate({
+          where: {
+            status: "SUCCEEDED",
+            isManual: true,
+            createdAt: { gte: currentMonthStart, lte: currentMonthEnd },
+          },
+          _sum: { amount: true },
+        }),
+
+        // Total revenue for current year
+        prisma.payment.aggregate({
+          where: {
+            status: "SUCCEEDED",
+            createdAt: { gte: currentYearStart },
+          },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      // Fetch monthly revenue data for the last 13 months using a single grouped query
+      const monthlyRevenueRaw = await prisma.$queryRaw<
+        Array<{ month: Date; total: number }>
+      >`
+          SELECT 
+            DATE_TRUNC('month', "createdAt") as month,
+            COALESCE(SUM(amount), 0) as total
+          FROM "Payment"
+          WHERE status = 'SUCCEEDED'
+            AND "createdAt" >= ${thirteenMonthsAgo}
+          GROUP BY DATE_TRUNC('month', "createdAt")
+          ORDER BY month ASC
+        `;
+
+      // Format the monthly revenue data
+      const last13MonthsRevenue = [];
+      for (let i = 12; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthKey = `${monthDate.getFullYear()}-${String(
+          monthDate.getMonth() + 1
+        ).padStart(2, "0")}`;
+
+        const monthData = monthlyRevenueRaw.find((item) => {
+          const itemDate = new Date(item.month);
+          return (
+            itemDate.getFullYear() === monthDate.getFullYear() &&
+            itemDate.getMonth() === monthDate.getMonth()
+          );
+        });
+
+        last13MonthsRevenue.push({
+          month: monthKey,
+          monthLabel: monthDate.toLocaleDateString("fr-FR", {
+            month: "short",
+            year: "numeric",
           }),
-          prisma.order.count({
-            where: { createdAt: { gte: startOfYear } },
-          }),
-          prisma.order.findMany({
-            take: 5,
-            orderBy: { createdAt: 'desc' },
+          total: monthData ? Number(monthData.total) : 0,
+        });
+      }
+
+      const onlineRevenue = onlineRevenueThisMonth._sum.amount || 0;
+      const manualRevenue = manualRevenueThisMonth._sum.amount || 0;
+      const totalRevenueMonth = onlineRevenue + manualRevenue;
+      const totalRevenueYear = totalRevenueThisYear._sum.amount || 0;
+
+      return c.json({
+        success: true,
+        data: {
+          revenue: {
+            onlineRevenueThisMonth: onlineRevenue,
+            totalRevenueThisMonth: totalRevenueMonth,
+            totalRevenueThisYear: totalRevenueYear,
+          },
+          last13MonthsRevenue,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      return c.json(
+        {
+          success: false,
+          message: "Error fetching dashboard statistics",
+          data: null,
+        },
+        500
+      );
+    }
+  })
+  // GET monitor's daily schedule
+  .get("/monitor-schedule", adminSessionMiddleware, async (c) => {
+    try {
+      const userId = c.get("userId");
+
+      // Fetch user to check role
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, role: true },
+      });
+
+      if (!user) {
+        return c.json(
+          { success: false, message: "User not found", data: null },
+          404
+        );
+      }
+
+      // Return schedule for any user who is assigned as a monitor to stages/baptemes
+
+      const now = new Date();
+      const startOfDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        0,
+        0,
+        0
+      );
+      const endOfDay = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        23,
+        59,
+        59
+      );
+
+      // Fetch stages where this monitor is assigned for today
+      const stages = await prisma.stage.findMany({
+        where: {
+          startDate: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+          moniteurs: {
+            some: {
+              moniteurId: user.id,
+            },
+          },
+        },
+        include: {
+          bookings: {
             include: {
-              client: {
+              stagiaire: {
                 select: {
                   firstName: true,
                   lastName: true,
                   email: true,
+                  phone: true,
                 },
               },
             },
-          }),
-          prisma.order.groupBy({
-            by: ['status'],
-            _count: true,
-          }),
-          
-          // Revenue (total orders amount)
-          prisma.order.aggregate({
-            where: { status: { in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED'] } },
-            _sum: { totalAmount: true },
-          }),
-          prisma.order.aggregate({
-            where: {
-              status: { in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED'] },
-              createdAt: { gte: startOfMonth, lte: endOfMonth },
-            },
-            _sum: { totalAmount: true },
-          }),
-          prisma.order.aggregate({
-            where: {
-              status: { in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED'] },
-              createdAt: { gte: startOfYear },
-            },
-            _sum: { totalAmount: true },
-          }),
-          
-          // Collected revenue (actual payments received)
-          prisma.payment.aggregate({
-            where: { status: 'SUCCEEDED' },
-            _sum: { amount: true },
-          }),
-          prisma.payment.aggregate({
-            where: {
-              status: 'SUCCEEDED',
-              createdAt: { gte: startOfMonth, lte: endOfMonth },
-            },
-            _sum: { amount: true },
-          }),
-          prisma.payment.aggregate({
-            where: {
-              status: 'SUCCEEDED',
-              createdAt: { gte: startOfYear },
-            },
-            _sum: { amount: true },
-          }),
-          
-          // Clients
-          prisma.client.count(),
-          prisma.client.count({
-            where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
-          }),
-          
-          // Stagiaires
-          prisma.stagiaire.count(),
-          prisma.stagiaire.count({
-            where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
-          }),
-          
-          // Stages
-          prisma.stage.count(),
-          prisma.stage.count({
-            where: { startDate: { gte: now } },
-          }),
-          prisma.stage.count({
-            where: {
-              startDate: {
-                gte: startOfMonth,
-                lte: endOfMonth,
-              },
-            },
-          }),
-          
-          // Baptemes
-          prisma.bapteme.count(),
-          prisma.bapteme.count({
-            where: { date: { gte: now } },
-          }),
-          prisma.bapteme.count({
-            where: {
-              date: {
-                gte: startOfMonth,
-                lte: endOfMonth,
-              },
-            },
-          }),
-          
-          // Gift cards
-          prisma.giftCard.count(),
-          prisma.giftCard.count({
-            where: { isUsed: false },
-          }),
-          prisma.giftCard.aggregate({
-            where: { isUsed: false },
-            _sum: { remainingAmount: true },
-          }),
-          
-          // Reservations (Stage + Bapteme bookings)
-          Promise.all([
-            prisma.stageBooking.count(),
-            prisma.baptemeBooking.count(),
-          ]).then(([stages, baptemes]) => stages + baptemes),
-          Promise.all([
-            prisma.stageBooking.count({
-              where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
-            }),
-            prisma.baptemeBooking.count({
-              where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
-            }),
-          ]).then(([stages, baptemes]) => stages + baptemes),
-          
-          // Payments
-          prisma.payment.count({
-            where: { status: 'SUCCEEDED' },
-          }),
-          prisma.payment.count({
-            where: {
-              status: 'SUCCEEDED',
-              createdAt: { gte: startOfMonth, lte: endOfMonth },
-            },
-          }),
-          prisma.payment.count({
-            where: { status: 'PENDING' },
-          }),
-        ]);
+          },
+        },
+      });
 
-        // Calculate growth percentages (comparing this month to last month)
-        const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastMonthEnd = startOfMonth;
-        
-        const [ordersLastMonth, revenueLastMonth, collectedRevenueLastMonth, clientsLastMonth] = await Promise.all([
-          prisma.order.count({
-            where: {
-              createdAt: {
-                gte: lastMonthStart,
-                lt: lastMonthEnd,
-              },
-            },
-          }),
-          prisma.order.aggregate({
-            where: {
-              status: { in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED'] },
-              createdAt: {
-                gte: lastMonthStart,
-                lt: lastMonthEnd,
-              },
-            },
-            _sum: { totalAmount: true },
-          }),
-          prisma.payment.aggregate({
-            where: {
-              status: 'SUCCEEDED',
-              createdAt: {
-                gte: lastMonthStart,
-                lt: lastMonthEnd,
-              },
-            },
-            _sum: { amount: true },
-          }),
-          prisma.client.count({
-            where: {
-              createdAt: {
-                gte: lastMonthStart,
-                lt: lastMonthEnd,
-              },
-            },
-          }),
-        ]);
-
-        // Calculate growth percentages
-        const calculateGrowth = (current: number, previous: number) => {
-          if (previous === 0) return current > 0 ? 100 : 0;
-          return ((current - previous) / previous) * 100;
-        };
-
-        const ordersGrowth = calculateGrowth(ordersThisMonth, ordersLastMonth);
-        const revenueGrowth = calculateGrowth(
-          revenueThisMonth._sum.totalAmount || 0,
-          revenueLastMonth._sum.totalAmount || 0
-        );
-        const collectedRevenueGrowth = calculateGrowth(
-          collectedRevenueThisMonth._sum.amount || 0,
-          collectedRevenueLastMonth._sum.amount || 0
-        );
-        const clientsGrowth = calculateGrowth(clientsThisMonth, clientsLastMonth);
-
-        // Get daily revenue data for chart
-        const dailyRevenueData = [];
-        const daysInMonth = endOfMonth.getDate();
-        
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), day, 0, 0, 0);
-          const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), day, 23, 59, 59);
-          
-          const [ordersRevenue, paymentsRevenue] = await Promise.all([
-            prisma.order.aggregate({
-              where: {
-                status: { in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED'] },
-                createdAt: { gte: dayStart, lte: dayEnd },
-              },
-              _sum: { totalAmount: true },
-            }),
-            prisma.payment.aggregate({
-              where: {
-                status: 'SUCCEEDED',
-                createdAt: { gte: dayStart, lte: dayEnd },
-              },
-              _sum: { amount: true },
-            }),
-          ]);
-          
-          dailyRevenueData.push({
-            day: day,
-            date: dayStart.toISOString().split('T')[0],
-            totalRevenue: ordersRevenue._sum.totalAmount || 0,
-            collectedRevenue: paymentsRevenue._sum.amount || 0,
-          });
-        }
-
-        return c.json({
-          success: true,
-          data: {
-            selectedMonth: {
-              year: targetDate.getFullYear(),
-              month: targetDate.getMonth() + 1,
-              isCurrentMonth: targetDate.getMonth() === now.getMonth() && targetDate.getFullYear() === now.getFullYear(),
-            },
-            chartData: dailyRevenueData,
-            overview: {
-              totalOrders,
-              ordersThisMonth,
-              ordersThisYear,
-              ordersGrowth: Math.round(ordersGrowth * 10) / 10,
-              
-              totalRevenue: totalRevenue._sum.totalAmount || 0,
-              revenueThisMonth: revenueThisMonth._sum.totalAmount || 0,
-              revenueThisYear: revenueThisYear._sum.totalAmount || 0,
-              revenueGrowth: Math.round(revenueGrowth * 10) / 10,
-              
-              totalCollectedRevenue: totalCollectedRevenue._sum.amount || 0,
-              collectedRevenueThisMonth: collectedRevenueThisMonth._sum.amount || 0,
-              collectedRevenueThisYear: collectedRevenueThisYear._sum.amount || 0,
-              collectedRevenueGrowth: Math.round(collectedRevenueGrowth * 10) / 10,
-              
-              totalClients,
-              clientsThisMonth,
-              clientsGrowth: Math.round(clientsGrowth * 10) / 10,
-              
-              totalStagiaires,
-              stagiairesThisMonth,
-            },
-            
-            orders: {
-              total: totalOrders,
-              thisMonth: ordersThisMonth,
-              thisYear: ordersThisYear,
-              byStatus: ordersByStatus.reduce((acc, item) => {
-                acc[item.status] = item._count;
-                return acc;
-              }, {} as Record<string, number>),
-              recent: recentOrders,
-            },
-            
-            stages: {
-              total: totalStages,
-              upcoming: upcomingStages,
-              thisMonth: stagesThisMonth,
-            },
-            
-            baptemes: {
-              total: totalBaptemes,
-              upcoming: upcomingBaptemes,
-              thisMonth: baptemesThisMonth,
-            },
-            
-            giftCards: {
-              total: totalGiftCards,
-              active: activeGiftCards,
-              totalValue: giftCardsValue._sum.remainingAmount || 0,
-            },
-            
-            reservations: {
-              total: totalReservations,
-              thisMonth: reservationsThisMonth,
-            },
-            
-            payments: {
-              total: totalPayments,
-              thisMonth: paymentsThisMonth,
-              pending: pendingPayments,
+      // Fetch baptemes where this monitor is assigned for today
+      const baptemes = await prisma.bapteme.findMany({
+        where: {
+          date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+          moniteurs: {
+            some: {
+              moniteurId: user.id,
             },
           },
-        });
+        },
+        include: {
+          bookings: {
+            include: {
+              stagiaire: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+      });
 
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
-        return c.json({
+      // Fetch next upcoming stage (after today)
+      const nextStage = await prisma.stage.findFirst({
+        where: {
+          startDate: {
+            gt: endOfDay,
+          },
+          moniteurs: {
+            some: {
+              moniteurId: user.id,
+            },
+          },
+        },
+        orderBy: {
+          startDate: "asc",
+        },
+        include: {
+          bookings: {
+            include: {
+              stagiaire: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Fetch next upcoming bapteme (after today)
+      const nextBapteme = await prisma.bapteme.findFirst({
+        where: {
+          date: {
+            gt: endOfDay,
+          },
+          moniteurs: {
+            some: {
+              moniteurId: user.id,
+            },
+          },
+        },
+        orderBy: {
+          date: "asc",
+        },
+        include: {
+          bookings: {
+            include: {
+              stagiaire: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Format the data
+      const formattedStages = stages.map((stage) => ({
+        id: stage.id,
+        startDate: stage.startDate,
+        duration: stage.duration,
+        type: stage.type,
+        bookingsCount: stage.bookings.length,
+        participants: stage.bookings.map((booking) => ({
+          id: booking.id,
+          name: `${booking.stagiaire.firstName} ${booking.stagiaire.lastName}`,
+          email: booking.stagiaire.email,
+          phone: booking.stagiaire.phone,
+        })),
+      }));
+
+      const formattedBaptemes = baptemes.map((bapteme) => ({
+        id: bapteme.id,
+        date: bapteme.date,
+        duration: bapteme.duration,
+        bookingsCount: bapteme.bookings.length,
+        participants: bapteme.bookings.map((booking) => ({
+          id: booking.id,
+          name: `${booking.stagiaire.firstName} ${booking.stagiaire.lastName}`,
+          email: booking.stagiaire.email,
+          phone: booking.stagiaire.phone,
+          category: booking.category,
+        })),
+      }));
+
+      // Format upcoming activities
+      const formattedNextStage = nextStage
+        ? {
+            id: nextStage.id,
+            startDate: nextStage.startDate,
+            duration: nextStage.duration,
+            type: nextStage.type,
+            bookingsCount: nextStage.bookings.length,
+            participants: nextStage.bookings.map((booking) => ({
+              id: booking.id,
+              name: `${booking.stagiaire.firstName} ${booking.stagiaire.lastName}`,
+              email: booking.stagiaire.email,
+              phone: booking.stagiaire.phone,
+            })),
+          }
+        : null;
+
+      const formattedNextBapteme = nextBapteme
+        ? {
+            id: nextBapteme.id,
+            date: nextBapteme.date,
+            duration: nextBapteme.duration,
+            bookingsCount: nextBapteme.bookings.length,
+            participants: nextBapteme.bookings.map((booking) => ({
+              id: booking.id,
+              name: `${booking.stagiaire.firstName} ${booking.stagiaire.lastName}`,
+              email: booking.stagiaire.email,
+              phone: booking.stagiaire.phone,
+              category: booking.category,
+            })),
+          }
+        : null;
+
+      return c.json({
+        success: true,
+        data: {
+          stages: formattedStages,
+          baptemes: formattedBaptemes,
+          upcoming: {
+            nextStage: formattedNextStage,
+            nextBapteme: formattedNextBapteme,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching monitor schedule:", error);
+      return c.json(
+        {
           success: false,
-          message: "Error fetching dashboard statistics",
+          message: "Error fetching monitor schedule",
           data: null,
-        }, 500);
-      }
+        },
+        500
+      );
     }
-  );
+  });
 
 export default app;

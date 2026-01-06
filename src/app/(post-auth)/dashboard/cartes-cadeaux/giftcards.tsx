@@ -1,16 +1,40 @@
 "use client";
 
 import { useState } from "react";
-import { LucideFrown, LucideRefreshCcw, LucideGift, LucideEye, LucideEyeOff, LucideEdit, LucideTrash2, LucideUser, LucidePlus, LucideExternalLink } from "lucide-react";
+import {
+  LucideFrown,
+  LucideRefreshCcw,
+  LucideGift,
+  LucideEye,
+  LucideEyeOff,
+  LucideEdit,
+  LucideTrash2,
+  LucideUser,
+  LucidePlus,
+  LucideExternalLink,
+} from "lucide-react";
 import { EditGiftCardDialog } from "./edit-giftcard-dialog";
 import { AddGiftCardDialog } from "./add-giftcard-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useRouter } from "next/navigation";
-import { useGetUnusedGiftCards, useGetUsedGiftCards } from "@/features/giftcards/api/use-get-giftcards";
+import {
+  useGetUnusedGiftCards,
+  useGetUsedGiftCards,
+} from "@/features/giftcards/api/use-get-giftcards";
 import { useDeleteGiftCard } from "@/features/giftcards/api/use-delete-giftcard";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -22,11 +46,16 @@ export function GiftCards() {
   const [editingGiftCard, setEditingGiftCard] = useState<any>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  
-  const { data: unusedGiftCards, isLoading: isLoadingUnused } = useGetUnusedGiftCards();
-  const { data: usedGiftCards, isLoading: isLoadingUsed, refetch: refetchUsed } = useGetUsedGiftCards();
+
+  const { data: unusedGiftCards, isLoading: isLoadingUnused } =
+    useGetUnusedGiftCards();
+  const {
+    data: usedGiftCards,
+    isLoading: isLoadingUsed,
+    refetch: refetchUsed,
+  } = useGetUsedGiftCards();
   const deleteGiftCard = useDeleteGiftCard();
-  
+
   const router = useRouter();
 
   const toggleCodeVisibility = (cardId: string) => {
@@ -97,44 +126,63 @@ export function GiftCards() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Cartes Cadeaux</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Cartes Cadeaux
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Gérez les cartes cadeaux de votre établissement
           </p>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
+        <Button
+          onClick={() => setShowAddDialog(true)}
+          className="w-full sm:w-auto"
+        >
           <LucidePlus className="h-4 w-4 mr-2" />
           Ajouter une carte cadeau
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cartes non utilisées</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Cartes non utilisées
+            </CardTitle>
             <LucideGift className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{unusedGiftCards.length}</div>
+            <div className="text-xl sm:text-2xl font-bold">
+              {unusedGiftCards.length}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Valeur totale: {unusedGiftCards.reduce((sum, card) => sum + card.amount, 0).toFixed(2)}€
+              Valeur totale:{" "}
+              {unusedGiftCards
+                .reduce((sum, card) => sum + card.amount, 0)
+                .toFixed(2)}
+              €
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cartes utilisées</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Cartes utilisées
+            </CardTitle>
             <LucideGift className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl sm:text-2xl font-bold">
               {usedGiftCards?.length || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              Valeur totale: {(usedGiftCards?.reduce((sum, card) => sum + card.amount, 0) || 0).toFixed(2)}€
+              Valeur totale:{" "}
+              {(
+                usedGiftCards?.reduce((sum, card) => sum + card.amount, 0) || 0
+              ).toFixed(2)}
+              €
             </p>
           </CardContent>
         </Card>
@@ -154,96 +202,112 @@ export function GiftCards() {
               Aucune carte cadeau non utilisée
             </p>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {unusedGiftCards.map((giftCard) => {
-                const remainingAmount = giftCard.remainingAmount || giftCard.amount;
+                const remainingAmount =
+                  giftCard.remainingAmount || giftCard.amount;
                 return (
-                <Card key={giftCard.id} className="border-l-4 border-l-green-500">
-                  <CardContent className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary">Non utilisé</Badge>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-green-600">
-                            {remainingAmount.toFixed(2)}€
+                  <Card
+                    key={giftCard.id}
+                    className="border-l-4 border-l-green-500"
+                  >
+                    <CardContent className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Badge variant="secondary">Non utilisé</Badge>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-green-600">
+                              {remainingAmount.toFixed(2)}€
+                            </div>
+                            {remainingAmount < giftCard.amount && (
+                              <div className="text-xs text-muted-foreground">
+                                sur {giftCard.amount.toFixed(2)}€
+                              </div>
+                            )}
                           </div>
-                          {remainingAmount < giftCard.amount && (
-                            <div className="text-xs text-muted-foreground">
-                              sur {giftCard.amount.toFixed(2)}€
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">Code:</span>
+                            <code className="bg-muted px-2 py-1 rounded text-sm flex-1">
+                              {formatCode(
+                                giftCard.code,
+                                visibleCodes.has(giftCard.id)
+                              )}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCodeVisibility(giftCard.id)}
+                            >
+                              {visibleCodes.has(giftCard.id) ? (
+                                <LucideEyeOff className="h-4 w-4" />
+                              ) : (
+                                <LucideEye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+
+                          <div className="text-xs text-muted-foreground">
+                            Créé le{" "}
+                            {format(
+                              new Date(giftCard.createdAt),
+                              "dd/MM/yyyy",
+                              { locale: fr }
+                            )}
+                          </div>
+
+                          {giftCard.client && (
+                            <div className="flex items-center gap-1 text-sm">
+                              <LucideUser className="h-3 w-3" />
+                              <span className="text-xs">Acheté par:</span>
+                              <Link
+                                href={`/dashboard/customers/${giftCard.client.id}`}
+                                className="text-blue-600 hover:underline text-xs truncate"
+                              >
+                                {giftCard.client.firstName}{" "}
+                                {giftCard.client.lastName}
+                              </Link>
                             </div>
                           )}
                         </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Code:</span>
-                          <code className="bg-muted px-2 py-1 rounded text-sm flex-1">
-                            {formatCode(giftCard.code, visibleCodes.has(giftCard.id))}
-                          </code>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleCodeVisibility(giftCard.id)}
+
+                        <div className="flex gap-2 pt-2">
+                          <Link
+                            href={`/dashboard/cartes-cadeaux/${giftCard.id}`}
+                            className="flex-1"
                           >
-                            {visibleCodes.has(giftCard.id) ? (
-                              <LucideEyeOff className="h-4 w-4" />
-                            ) : (
-                              <LucideEye className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                        
-                        <div className="text-xs text-muted-foreground">
-                          Créé le {format(new Date(giftCard.createdAt), "dd/MM/yyyy", { locale: fr })}
-                        </div>
-                        
-                        {giftCard.client && (
-                          <div className="flex items-center gap-1 text-sm">
-                            <LucideUser className="h-3 w-3" />
-                            <span className="text-xs">Acheté par:</span>
-                            <Link
-                              href={`/dashboard/customers/${giftCard.client.id}`}
-                              className="text-blue-600 hover:underline text-xs truncate"
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
                             >
-                              {giftCard.client.firstName} {giftCard.client.lastName}
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex gap-2 pt-2">
-                        <Link href={`/dashboard/cartes-cadeaux/${giftCard.id}`} className="flex-1">
+                              <LucideExternalLink className="h-4 w-4" />
+                            </Button>
+                          </Link>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="w-full"
+                            onClick={() => handleEdit(giftCard)}
+                            className="flex-1"
                           >
-                            <LucideExternalLink className="h-4 w-4" />
+                            <LucideEdit className="h-4 w-4" />
                           </Button>
-                        </Link>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(giftCard)}
-                          className="flex-1"
-                        >
-                          <LucideEdit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDelete(giftCard.id)}
-                          disabled={deleteGiftCard.isPending}
-                          className="flex-1"
-                        >
-                          <LucideTrash2 className="h-4 w-4" />
-                        </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(giftCard.id)}
+                            disabled={deleteGiftCard.isPending}
+                            className="flex-1"
+                          >
+                            <LucideTrash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
+                    </CardContent>
+                  </Card>
+                );
               })}
             </div>
           )}
@@ -281,76 +345,99 @@ export function GiftCards() {
                   Aucune carte cadeau utilisée
                 </p>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {usedGiftCards.map((giftCard) => {
                     const remainingAmount = giftCard.remainingAmount || 0;
                     return (
-                    <Card key={giftCard.id} className="border-l-4 border-l-red-500">
-                      <CardContent className="p-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Badge variant="destructive">Utilisé</Badge>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-red-600">
-                                {remainingAmount.toFixed(2)}€
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                sur {giftCard.amount.toFixed(2)}€
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">Code:</span>
-                              <code className="bg-muted px-2 py-1 rounded text-sm flex-1">
-                                {formatCode(giftCard.code, visibleCodes.has(giftCard.id))}
-                              </code>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleCodeVisibility(giftCard.id)}
-                              >
-                                {visibleCodes.has(giftCard.id) ? (
-                                  <LucideEyeOff className="h-4 w-4" />
-                                ) : (
-                                  <LucideEye className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                            
-                            <div className="text-xs text-muted-foreground">
-                              Utilisé le {giftCard.usedAt && format(new Date(giftCard.usedAt), "dd/MM/yyyy", { locale: fr })}
-                            </div>
-                            
-                            <div className="space-y-1">
-                              {giftCard.client && (
-                                <div className="flex items-center gap-1 text-xs">
-                                  <LucideUser className="h-3 w-3" />
-                                  <span>Acheté par:</span>
-                                  <Link
-                                    href={`/dashboard/customers/${giftCard.client.id}`}
-                                    className="text-blue-600 hover:underline truncate"
-                                  >
-                                    {giftCard.client.firstName} {giftCard.client.lastName}
-                                  </Link>
+                      <Card
+                        key={giftCard.id}
+                        className="border-l-4 border-l-red-500"
+                      >
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Badge variant="destructive">Utilisé</Badge>
+                              <div className="text-right">
+                                <div className="text-lg font-bold text-red-600">
+                                  {remainingAmount.toFixed(2)}€
                                 </div>
-                              )}
+                                <div className="text-xs text-muted-foreground">
+                                  sur {giftCard.amount.toFixed(2)}€
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">
+                                  Code:
+                                </span>
+                                <code className="bg-muted px-2 py-1 rounded text-sm flex-1">
+                                  {formatCode(
+                                    giftCard.code,
+                                    visibleCodes.has(giftCard.id)
+                                  )}
+                                </code>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    toggleCodeVisibility(giftCard.id)
+                                  }
+                                >
+                                  {visibleCodes.has(giftCard.id) ? (
+                                    <LucideEyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <LucideEye className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+
+                              <div className="text-xs text-muted-foreground">
+                                Utilisé le{" "}
+                                {giftCard.usedAt &&
+                                  format(
+                                    new Date(giftCard.usedAt),
+                                    "dd/MM/yyyy",
+                                    { locale: fr }
+                                  )}
+                              </div>
+
+                              <div className="space-y-1">
+                                {giftCard.client && (
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <LucideUser className="h-3 w-3" />
+                                    <span>Acheté par:</span>
+                                    <Link
+                                      href={`/dashboard/customers/${giftCard.client.id}`}
+                                      className="text-blue-600 hover:underline truncate"
+                                    >
+                                      {giftCard.client.firstName}{" "}
+                                      {giftCard.client.lastName}
+                                    </Link>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="pt-2">
+                              <Link
+                                href={`/dashboard/cartes-cadeaux/${giftCard.id}`}
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full"
+                                >
+                                  <LucideExternalLink className="h-4 w-4 mr-2" />
+                                  Voir détails
+                                </Button>
+                              </Link>
                             </div>
                           </div>
-                          
-                          <div className="pt-2">
-                            <Link href={`/dashboard/cartes-cadeaux/${giftCard.id}`}>
-                              <Button variant="outline" size="sm" className="w-full">
-                                <LucideExternalLink className="h-4 w-4 mr-2" />
-                                Voir détails
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
+                        </CardContent>
+                      </Card>
+                    );
                   })}
                 </div>
               )}
@@ -367,10 +454,7 @@ export function GiftCards() {
       />
 
       {/* Add Dialog */}
-      <AddGiftCardDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-      />
+      <AddGiftCardDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
     </div>
   );
 }

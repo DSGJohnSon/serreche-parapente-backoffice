@@ -2,12 +2,31 @@
 
 import { useState } from "react";
 import { useGetAllClients } from "@/features/clients/api/use-get-clients";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { LucideSearch, LucideUser, LucideMail, LucidePhone, LucideMapPin } from "lucide-react";
+import {
+  LucideSearch,
+  LucideUser,
+  LucideMail,
+  LucidePhone,
+  LucideMapPin,
+} from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Client, Order } from "@prisma/client";
@@ -61,10 +80,12 @@ export function ClientsList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Clients
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Gérez tous les clients de votre établissement
           </p>
         </div>
@@ -100,8 +121,8 @@ export function ClientsList() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Client</TableHead>
@@ -114,7 +135,10 @@ export function ClientsList() {
               <TableBody>
                 {!filteredClients || filteredClients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       Aucun client trouvé
                     </TableCell>
                   </TableRow>
@@ -123,7 +147,7 @@ export function ClientsList() {
                     <TableRow key={client.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
                             <LucideUser className="h-4 w-4 text-primary" />
                           </div>
                           <div className="flex flex-col">
@@ -159,22 +183,29 @@ export function ClientsList() {
                             <span className="text-muted-foreground">
                               {client.postalCode} {client.city}
                             </span>
-                            <span className="text-muted-foreground">{client.country}</span>
+                            <span className="text-muted-foreground">
+                              {client.country}
+                            </span>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">
-                          {client.orders.length} commande{client.orders.length > 1 ? "s" : ""}
+                          {client.orders.length} commande
+                          {client.orders.length > 1 ? "s" : ""}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">
-                            {format(new Date(client.createdAt), "dd/MM/yyyy", { locale: fr })}
+                            {format(new Date(client.createdAt), "dd/MM/yyyy", {
+                              locale: fr,
+                            })}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {format(new Date(client.createdAt), "HH:mm", { locale: fr })}
+                            {format(new Date(client.createdAt), "HH:mm", {
+                              locale: fr,
+                            })}
                           </span>
                         </div>
                       </TableCell>

@@ -100,9 +100,7 @@ export function CalendarScheduleStages({
   const { start, end } = getDateRange();
 
   const getStagesStartingOnDay = (date: Date) => {
-    return stages.filter((stage) =>
-      isSameDay(new Date(stage.startDate), date)
-    );
+    return stages.filter((stage) => isSameDay(new Date(stage.startDate), date));
   };
 
   // Get stages that continue from previous week
@@ -111,11 +109,13 @@ export function CalendarScheduleStages({
       const stageStart = new Date(stage.startDate);
       // duration is in days, so a 7-day stage goes from day 0 to day 6
       const stageEnd = addDays(stageStart, stage.duration - 1);
-      
+
       // Stage started before this week and continues into/through this week
-      return stageStart < weekStartDate &&
-             stageEnd >= date &&
-             isSameDay(date, weekStartDate); // Only show on first day of week
+      return (
+        stageStart < weekStartDate &&
+        stageEnd >= date &&
+        isSameDay(date, weekStartDate)
+      ); // Only show on first day of week
     });
   };
 
@@ -170,7 +170,7 @@ export function CalendarScheduleStages({
     return (
       <div className="flex flex-col h-full">
         {/* Week header */}
-        <div className="grid grid-cols-7 border-b">
+        <div className="grid grid-cols-7 border-b sticky top-0 bg-background z-20">
           {weekDays.map((day) => (
             <div
               key={day.toISOString()}
@@ -193,9 +193,10 @@ export function CalendarScheduleStages({
         <div className="flex-1 grid grid-cols-7">
           {weekDays.map((day, dayIndex) => {
             const dayStages = getStagesStartingOnDay(day);
-            const continuingStages = dayIndex === 0 ? getStagesContinuingOnDay(day, weekDays[0]) : [];
+            const continuingStages =
+              dayIndex === 0 ? getStagesContinuingOnDay(day, weekDays[0]) : [];
             const allStages = [...continuingStages, ...dayStages];
-            
+
             return (
               <div
                 key={day.toISOString()}
@@ -208,30 +209,41 @@ export function CalendarScheduleStages({
                     const stageStart = new Date(stage.startDate);
                     const stageEnd = addDays(stageStart, stage.duration - 1);
                     const isContinuing = stageStart < weekDays[0];
-                    
+
                     // Calculate how many days this stage spans in this week
                     let spanDays;
                     if (isContinuing) {
                       // Stage continues from previous week
                       // stageEnd is already calculated as startDate + duration - 1
                       // So we need to count from today to stageEnd inclusive
-                      const daysFromTodayToEnd = Math.floor((stageEnd.getTime() - day.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                      const daysFromTodayToEnd =
+                        Math.floor(
+                          (stageEnd.getTime() - day.getTime()) /
+                            (1000 * 60 * 60 * 24)
+                        ) + 1;
                       spanDays = Math.min(daysFromTodayToEnd, 7);
                     } else {
                       // Stage starts this week
                       const remainingDaysInWeek = 7 - dayIndex;
                       spanDays = Math.min(stage.duration, remainingDaysInWeek);
                     }
-                    
+
                     return (
                       <div
                         key={stage.id}
-                        className={`relative pointer-events-auto cursor-pointer border rounded-md p-2 text-xs ${getTypeColor(stage.type)} transition-all ${
-                          hoveredStageId === stage.id ? `ring-2 ${getTypeRingColor(stage.type)} shadow-lg` : 'border-2'
+                        className={`relative pointer-events-auto cursor-pointer border rounded-md p-2 text-xs ${getTypeColor(
+                          stage.type
+                        )} transition-all ${
+                          hoveredStageId === stage.id
+                            ? `ring-2 ${getTypeRingColor(stage.type)} shadow-lg`
+                            : "border-2"
                         }`}
                         style={{
-                          width: `calc(${spanDays * 100}% + ${(spanDays - 1) * 0.5}px)`,
-                          zIndex: hoveredStageId === stage.id ? 50 : 10 + stageIndex
+                          width: `calc(${spanDays * 100}% + ${
+                            (spanDays - 1) * 0.5
+                          }px)`,
+                          zIndex:
+                            hoveredStageId === stage.id ? 50 : 10 + stageIndex,
                         }}
                         onMouseEnter={() => setHoveredStageId(stage.id)}
                         onMouseLeave={() => setHoveredStageId(null)}
@@ -248,12 +260,17 @@ export function CalendarScheduleStages({
                           {stage.moniteurs?.length > 0
                             ? stage.moniteurs.length === 1
                               ? stage.moniteurs[0].moniteur.name
-                              : `${stage.moniteurs[0].moniteur.name} +${stage.moniteurs.length - 1}`
-                            : 'Aucun moniteur'
-                          }
+                              : `${stage.moniteurs[0].moniteur.name} +${
+                                  stage.moniteurs.length - 1
+                                }`
+                            : "Aucun moniteur"}
                         </div>
                         <div className="opacity-80">
-                          <span className="font-bold">{stage.placesRestantes || 0} places restantes</span> • {stage.bookings?.length || 0} réservations • {stage.duration}j
+                          <span className="font-bold">
+                            {stage.placesRestantes || 0} places restantes
+                          </span>{" "}
+                          • {stage.bookings?.length || 0} réservations •{" "}
+                          {stage.duration}j
                         </div>
                       </div>
                     );
@@ -279,7 +296,7 @@ export function CalendarScheduleStages({
     });
 
     const weekDays = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-    
+
     // Group calendar days by week
     const weeks: Date[][] = [];
     for (let i = 0; i < calendarDays.length; i += 7) {
@@ -289,7 +306,7 @@ export function CalendarScheduleStages({
     return (
       <div className="flex flex-col h-full">
         {/* Month header */}
-        <div className="grid grid-cols-7 border-b">
+        <div className="grid grid-cols-7 border-b sticky top-0 bg-background z-20">
           {weekDays.map((day) => (
             <div
               key={day}
@@ -307,9 +324,10 @@ export function CalendarScheduleStages({
               {week.map((day, dayIndex) => {
                 const isCurrentMonth = isSameMonth(day, currentDate);
                 const dayStages = getStagesStartingOnDay(day);
-                const continuingStages = dayIndex === 0 ? getStagesContinuingOnDay(day, week[0]) : [];
+                const continuingStages =
+                  dayIndex === 0 ? getStagesContinuingOnDay(day, week[0]) : [];
                 const allStages = [...continuingStages, ...dayStages];
-                
+
                 return (
                   <div
                     key={day.toISOString()}
@@ -325,37 +343,58 @@ export function CalendarScheduleStages({
                     >
                       {format(day, "d")}
                     </div>
-                    
+
                     {/* Stages starting on this day or continuing from previous week */}
                     <div className="space-y-1 mt-1">
                       {allStages.map((stage, stageIndex) => {
                         const stageStart = new Date(stage.startDate);
-                        const stageEnd = addDays(stageStart, stage.duration - 1);
+                        const stageEnd = addDays(
+                          stageStart,
+                          stage.duration - 1
+                        );
                         const isContinuing = stageStart < week[0];
-                        
+
                         // Calculate how many days this stage spans in this week
                         let spanDays;
                         if (isContinuing) {
                           // Stage continues from previous week
                           // stageEnd is already calculated as startDate + duration - 1
                           // So we need to count from today to stageEnd inclusive
-                          const daysFromTodayToEnd = Math.floor((stageEnd.getTime() - day.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          const daysFromTodayToEnd =
+                            Math.floor(
+                              (stageEnd.getTime() - day.getTime()) /
+                                (1000 * 60 * 60 * 24)
+                            ) + 1;
                           spanDays = Math.min(daysFromTodayToEnd, 7);
                         } else {
                           // Stage starts this week
                           const remainingDaysInWeek = 7 - dayIndex;
-                          spanDays = Math.min(stage.duration, remainingDaysInWeek);
+                          spanDays = Math.min(
+                            stage.duration,
+                            remainingDaysInWeek
+                          );
                         }
-                        
+
                         return (
                           <div
                             key={`${stage.id}-${weekIndex}`}
-                            className={`relative pointer-events-auto cursor-pointer border rounded-sm px-1 py-0.5 text-xs ${getTypeColor(stage.type)} transition-all ${
-                              hoveredStageId === stage.id ? `ring-2 ${getTypeRingColor(stage.type)} shadow-lg` : 'border'
+                            className={`relative pointer-events-auto cursor-pointer border rounded-sm px-1 py-0.5 text-xs ${getTypeColor(
+                              stage.type
+                            )} transition-all ${
+                              hoveredStageId === stage.id
+                                ? `ring-2 ${getTypeRingColor(
+                                    stage.type
+                                  )} shadow-lg`
+                                : "border"
                             }`}
                             style={{
-                              width: `calc(${spanDays * 100}% + ${(spanDays - 1) * 0.5}px)`,
-                              zIndex: hoveredStageId === stage.id ? 50 : 10 + stageIndex
+                              width: `calc(${spanDays * 100}% + ${
+                                (spanDays - 1) * 0.5
+                              }px)`,
+                              zIndex:
+                                hoveredStageId === stage.id
+                                  ? 50
+                                  : 10 + stageIndex,
                             }}
                             onMouseEnter={() => setHoveredStageId(stage.id)}
                             onMouseLeave={() => setHoveredStageId(null)}
@@ -372,7 +411,17 @@ export function CalendarScheduleStages({
                               {stage.type === "DOUBLE" && "Double"}
                             </div>
                             <div className="text-[10px] opacity-80 truncate leading-tight">
-                              <span className={`font-bold ${(stage.placesRestantes || 0) <= 2 ? 'text-red-600 dark:text-red-400' : ''}`}>{stage.placesRestantes || 0} places restantes</span> • {stage.bookings?.length || 0} réservations • {stage.duration}j
+                              <span
+                                className={`font-bold ${
+                                  (stage.placesRestantes || 0) <= 2
+                                    ? "text-red-600 dark:text-red-400"
+                                    : ""
+                                }`}
+                              >
+                                {stage.placesRestantes || 0} places restantes
+                              </span>{" "}
+                              • {stage.bookings?.length || 0} réservations •{" "}
+                              {stage.duration}j
                             </div>
                           </div>
                         );
@@ -391,8 +440,8 @@ export function CalendarScheduleStages({
   return (
     <div className="flex flex-col h-full">
       {/* Calendar header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center space-x-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
           <div className="flex items-center space-x-2">
             <Button variant="outline" size="sm" onClick={navigatePrevious}>
               <ChevronLeft className="h-4 w-4" />
@@ -405,17 +454,17 @@ export function CalendarScheduleStages({
               Aujourd&apos;hui
             </Button>
           </div>
-          <h1 className="text-2xl font-bold capitalize">
+          <h1 className="text-xl sm:text-2xl font-bold capitalize truncate">
             {format(currentDate, "MMMM yyyy", { locale: fr })}
           </h1>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
           <Select
             value={view}
             onValueChange={(value: CalendarView) => setView(value)}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-[100px] sm:w-32 flex-shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -424,16 +473,23 @@ export function CalendarScheduleStages({
             </SelectContent>
           </Select>
 
-          <Button onClick={onAddStage}>
+          <Button onClick={onAddStage} className="flex-shrink-0">
             <Plus className="h-4 w-4 mr-2" />
-            Nouveau Stage
+            <span className="hidden sm:inline">Nouveau Stage</span>
+            <span className="sm:hidden">Stage</span>
           </Button>
         </div>
       </div>
 
       {/* Calendar content */}
-      <div className="flex-1 overflow-hidden">
-        {view === "week" ? renderWeekView() : renderMonthView()}
+      <div className="flex-1 overflow-auto">
+        <div
+          className={`${
+            view === "week" ? "min-w-[800px]" : "min-w-[700px]"
+          } h-full`}
+        >
+          {view === "week" ? renderWeekView() : renderMonthView()}
+        </div>
       </div>
     </div>
   );

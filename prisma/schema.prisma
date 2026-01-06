@@ -235,7 +235,7 @@ model GiftCard {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   usedAt        DateTime? // Date de première utilisation
-  usedByOrderId String?   // ID de la dernière commande qui a utilisé la carte-cadeau (deprecated, use orderGiftCards)
+  usedByOrderId String? // ID de la dernière commande qui a utilisé la carte-cadeau (deprecated, use orderGiftCards)
 
   // Nouvelles relations pour le système de commandes
   appliedToOrders        OrderGiftCard[] // Many-to-many avec Order
@@ -245,43 +245,43 @@ model GiftCard {
 
 // Bon cadeau (Gift Voucher) - Place gratuite pour un stage ou baptême
 model GiftVoucher {
-  id              String   @id @default(cuid())
-  code            String   @unique // Format: GVSCP-XXXXXXXX-XXXX
-  
+  id   String @id @default(cuid())
+  code String @unique // Format: GVSCP-XXXXXXXX-XXXX
+
   // Type et catégorie
   productType     VoucherProductType
-  stageCategory   StageBookingType?  // Si productType = STAGE
-  baptemeCategory BaptemeCategory?   // Si productType = BAPTEME
-  
+  stageCategory   StageBookingType? // Si productType = STAGE
+  baptemeCategory BaptemeCategory? // Si productType = BAPTEME
+
   // Prix d'achat (snapshot au moment de l'achat)
-  purchasePrice   Float
-  
+  purchasePrice Float
+
   // Statut
-  isUsed          Boolean  @default(false)
-  usedAt          DateTime?
-  
+  isUsed Boolean   @default(false)
+  usedAt DateTime?
+
   // Bénéficiaire
-  recipientName   String
-  recipientEmail  String
-  
+  recipientName  String
+  recipientEmail String
+
   // Acheteur
-  clientId        String?
-  client          Client?  @relation(fields: [clientId], references: [id])
-  
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
   // Validité
-  expiryDate      DateTime
-  
+  expiryDate DateTime
+
   // Réservation temporaire (panier)
   reservedBySessionId String? // Session qui a le bon dans son panier
   reservedAt          DateTime? // Date de réservation
-  
+
   // Relations avec OrderItems
   generatedFromOrderItem OrderItem? @relation("GeneratedVoucher")
   usedInOrderItem        OrderItem? @relation("UsedVoucher")
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([code])
   @@index([isUsed])
   @@index([reservedBySessionId])
@@ -380,7 +380,7 @@ model CartItem {
   giftCardAmount Float?
 
   // Pour les bons cadeaux (gift vouchers)
-  giftVoucherCode String? // Code du bon cadeau utilisé
+  giftVoucherCode   String? // Code du bon cadeau utilisé
   giftVoucherAmount Float? // Montant du bon cadeau à acheter
 
   // Informations du participant (temporaires, avant paiement)
@@ -443,8 +443,8 @@ model Order {
   appliedGiftCard   GiftCard? @relation("DeprecatedGiftCard", fields: [appliedGiftCardId], references: [id])
 
   // Relations
-  orderItems    OrderItem[]
-  payments      Payment[]
+  orderItems     OrderItem[]
+  payments       Payment[]
   orderGiftCards OrderGiftCard[] // Many-to-many avec GiftCard
 
   createdAt DateTime @default(now())
@@ -463,10 +463,10 @@ model OrderGiftCard {
   order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   giftCardId String
   giftCard   GiftCard @relation(fields: [giftCardId], references: [id])
-  
+
   // Montant utilisé de cette carte cadeau pour cette commande
   usedAmount Float
-  
+
   createdAt DateTime @default(now())
 
   @@unique([orderId, giftCardId])
@@ -499,21 +499,21 @@ model OrderItem {
 
   // Pour les bons cadeaux (gift vouchers)
   giftVoucherAmount      Float? // Montant du bon cadeau acheté
-  generatedGiftVoucherId String? @unique
+  generatedGiftVoucherId String?      @unique
   generatedGiftVoucher   GiftVoucher? @relation("GeneratedVoucher", fields: [generatedGiftVoucherId], references: [id])
-  
-  usedGiftVoucherId String? @unique
+
+  usedGiftVoucherId String?      @unique
   usedGiftVoucher   GiftVoucher? @relation("UsedVoucher", fields: [usedGiftVoucherId], references: [id])
 
   // Données du participant (historique JSON)
   participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
 
   // Gestion des acomptes (stages uniquement)
-  depositAmount    Float?    // Montant de l'acompte payé (pour les stages)
-  remainingAmount  Float?    // Montant restant à payer (pour les stages)
+  depositAmount    Float? // Montant de l'acompte payé (pour les stages)
+  remainingAmount  Float? // Montant restant à payer (pour les stages)
   isFullyPaid      Boolean   @default(false) // True quand tout est payé
   finalPaymentDate DateTime? // Date du paiement final en physique
-  finalPaymentNote String?   // Note optionnelle sur le paiement final
+  finalPaymentNote String? // Note optionnelle sur le paiement final
 
   // Réservations créées (liées au stagiaire)
   stageBookingId String?       @unique
@@ -532,15 +532,15 @@ model OrderItem {
 
 // Table de liaison pour répartir les paiements entre les OrderItems
 model PaymentAllocation {
-  id            String  @id @default(cuid())
-  paymentId     String
-  payment       Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  orderItemId   String
-  orderItem     OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  
+  id          String    @id @default(cuid())
+  paymentId   String
+  payment     Payment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
   // Montant alloué de ce paiement à cet OrderItem
   allocatedAmount Float
-  
+
   createdAt DateTime @default(now())
 
   @@unique([paymentId, orderItemId])
@@ -563,12 +563,12 @@ model Payment {
   stripeMetadata Json?
 
   // Pour les paiements manuels
-  isManual              Boolean                @default(false)
-  manualPaymentMethod   ManualPaymentMethod?
-  manualPaymentNote     String?
-  recordedBy            String?                // ID de l'admin/moniteur qui a enregistré le paiement
-  recordedByUser        User?                  @relation(fields: [recordedBy], references: [id])
-  
+  isManual            Boolean              @default(false)
+  manualPaymentMethod ManualPaymentMethod?
+  manualPaymentNote   String?
+  recordedBy          String? // ID de l'admin/moniteur qui a enregistré le paiement
+  recordedByUser      User?                @relation(fields: [recordedBy], references: [id])
+
   // Relation avec les OrderItems (many-to-many via PaymentAllocation)
   allocations PaymentAllocation[]
 
@@ -577,15 +577,17 @@ model Payment {
 
   @@index([orderId])
   @@index([stripePaymentIntentId])
+  @@index([status, createdAt])
+  @@index([status, isManual, createdAt])
 }
 
 // Table pour éviter le traitement multiple des webhooks Stripe (idempotence)
 model ProcessedWebhookEvent {
-  id             String   @id @default(cuid())
-  stripeEventId  String   @unique // ID de l'événement Stripe (evt_xxx)
-  eventType      String   // Type d'événement (payment_intent.succeeded, etc.)
-  processedAt    DateTime @default(now())
-  
+  id            String   @id @default(cuid())
+  stripeEventId String   @unique // ID de l'événement Stripe (evt_xxx)
+  eventType     String // Type d'événement (payment_intent.succeeded, etc.)
+  processedAt   DateTime @default(now())
+
   @@index([stripeEventId])
   @@index([eventType])
 }

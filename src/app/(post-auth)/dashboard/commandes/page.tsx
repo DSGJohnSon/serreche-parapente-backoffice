@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default async function Page() {
   return (
-    <main className="flex flex-1 flex-col gap-4 p-16">
+    <main className="flex flex-1 flex-col gap-4 p-4 sm:p-8 lg:p-16">
       <OrdersList />
     </main>
   );

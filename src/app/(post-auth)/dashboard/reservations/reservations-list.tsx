@@ -2,14 +2,41 @@
 
 import { useState } from "react";
 import { useGetReservations } from "@/features/reservations/api/use-get-reservations";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, ChevronLeft, ChevronRight, Video, Filter, X, ExternalLink } from "lucide-react";
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Video,
+  Filter,
+  X,
+  ExternalLink,
+} from "lucide-react";
 import { format, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Label } from "@/components/ui/label";
@@ -62,7 +89,7 @@ export function ReservationsList() {
   };
 
   const handleDateRangeChange = (field: "start" | "end", value: string) => {
-    setDateRange(prev => ({ ...prev, [field]: value }));
+    setDateRange((prev) => ({ ...prev, [field]: value }));
     setPage(1);
   };
 
@@ -82,32 +109,32 @@ export function ReservationsList() {
 
   const getBadgeVariant = (status: string) => {
     switch (status) {
-      case 'PAID':
-      case 'FULLY_PAID':
-        return 'default';
-      case 'PARTIALLY_PAID':
-        return 'secondary';
-      case 'CONFIRMED':
-        return 'secondary';
-      case 'PENDING':
-        return 'outline';
+      case "PAID":
+      case "FULLY_PAID":
+        return "default";
+      case "PARTIALLY_PAID":
+        return "secondary";
+      case "CONFIRMED":
+        return "secondary";
+      case "PENDING":
+        return "outline";
       default:
-        return 'outline';
+        return "outline";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'PAID':
-        return 'Payé';
-      case 'PARTIALLY_PAID':
-        return 'Acompte payé';
-      case 'FULLY_PAID':
-        return 'Entièrement payé';
-      case 'CONFIRMED':
-        return 'Confirmé';
-      case 'PENDING':
-        return 'En attente';
+      case "PAID":
+        return "Payé";
+      case "PARTIALLY_PAID":
+        return "Acompte payé";
+      case "FULLY_PAID":
+        return "Entièrement payé";
+      case "CONFIRMED":
+        return "Confirmé";
+      case "PENDING":
+        return "En attente";
       default:
         return status;
     }
@@ -115,32 +142,34 @@ export function ReservationsList() {
 
   const getCategoryLabel = (category: string) => {
     const labels: Record<string, string> = {
-      'AVENTURE': 'Aventure',
-      'DUREE': 'Durée',
-      'LONGUE_DUREE': 'Longue Durée',
-      'ENFANT': 'Enfant',
-      'HIVER': 'Hiver',
-      'INITIATION': 'Initiation',
-      'PROGRESSION': 'Progression',
-      'AUTONOMIE': 'Autonomie',
+      AVENTURE: "Aventure",
+      DUREE: "Durée",
+      LONGUE_DUREE: "Longue Durée",
+      ENFANT: "Enfant",
+      HIVER: "Hiver",
+      INITIATION: "Initiation",
+      PROGRESSION: "Progression",
+      AUTONOMIE: "Autonomie",
     };
     return labels[category] || category;
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
     }).format(amount);
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Réservations</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Réservations
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Recherchez et filtrez toutes les réservations
           </p>
         </div>
@@ -192,7 +221,12 @@ export function ReservationsList() {
 
             <div className="space-y-2">
               <Label>Statut</Label>
-              <Select value={status || "ALL_STATUS"} onValueChange={(v) => handleStatusChange(v === "ALL_STATUS" ? "" : v)}>
+              <Select
+                value={status || "ALL_STATUS"}
+                onValueChange={(v) =>
+                  handleStatusChange(v === "ALL_STATUS" ? "" : v)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Tous les statuts" />
                 </SelectTrigger>
@@ -208,7 +242,12 @@ export function ReservationsList() {
 
             <div className="space-y-2">
               <Label>Catégorie</Label>
-              <Select value={category || "ALL_CATEGORIES"} onValueChange={(v) => handleCategoryChange(v === "ALL_CATEGORIES" ? "" : v)}>
+              <Select
+                value={category || "ALL_CATEGORIES"}
+                onValueChange={(v) =>
+                  handleCategoryChange(v === "ALL_CATEGORIES" ? "" : v)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Toutes" />
                 </SelectTrigger>
@@ -236,7 +275,7 @@ export function ReservationsList() {
           </div>
 
           {/* Date Range */}
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Date de début</Label>
               <Input
@@ -264,7 +303,8 @@ export function ReservationsList() {
             Résultats {pagination && `(${pagination.total})`}
           </CardTitle>
           <CardDescription>
-            {pagination && `Page ${pagination.page} sur ${pagination.totalPages}`}
+            {pagination &&
+              `Page ${pagination.page} sur ${pagination.totalPages}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -283,8 +323,8 @@ export function ReservationsList() {
               Aucune réservation trouvée
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
+            <div className="rounded-md border overflow-x-auto">
+              <Table className="min-w-[1000px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Réservé le</TableHead>
@@ -294,25 +334,32 @@ export function ReservationsList() {
                     <TableHead>Catégorie</TableHead>
                     <TableHead>Commande</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Paiements effectués</TableHead>
+                    <TableHead className="text-right">
+                      Paiements effectués
+                    </TableHead>
                     <TableHead className="text-right">Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {reservations.map((reservation: any) => {
-                    const isStage = reservation.bookingType === 'STAGE';
+                    const isStage = reservation.bookingType === "STAGE";
                     const stagiaire = reservation.stagiaire;
                     const order = reservation.orderItem?.order;
                     const orderItem = reservation.orderItem;
-                    const date = isStage ? reservation.stage.startDate : reservation.bapteme.date;
-                    const categoryValue = isStage ? reservation.type : reservation.category;
-                    
+                    const date = isStage
+                      ? reservation.stage.startDate
+                      : reservation.bapteme.date;
+                    const categoryValue = isStage
+                      ? reservation.type
+                      : reservation.category;
+
                     // Check if reservation is recent (less than 24 hours old)
                     const createdAt = new Date(reservation.createdAt);
                     const now = new Date();
-                    const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+                    const hoursSinceCreation =
+                      (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
                     const isRecent = hoursSinceCreation < 12;
-                    
+
                     // Calcul des montants
                     const totalPrice = orderItem?.totalPrice || 0;
                     const depositAmount = orderItem?.depositAmount || 0;
@@ -320,12 +367,16 @@ export function ReservationsList() {
                     const isFullyPaid = orderItem?.isFullyPaid || false;
                     // Both stages and baptemes can have deposits (bapteme: acompte + video paid upfront)
                     const hasDeposit = depositAmount > 0;
-                    
+
                     return (
                       <TableRow
                         key={reservation.id}
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => router.push(`/dashboard/reservations/${reservation.id}`)}
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/reservations/${reservation.id}`
+                          )
+                        }
                       >
                         <TableCell>
                           <div className="flex flex-col">
@@ -343,19 +394,22 @@ export function ReservationsList() {
                               {isStage ? "Stage" : "Baptême"}
                             </Badge>
                             {isRecent && (
-                              <span className="block w-3 h-3 absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 bg-green-500  rounded-full">
-                              </span>
+                              <span className="block w-3 h-3 absolute top-0 right-0 translate-x-1/2 -translate-y-1/2 bg-green-500  rounded-full"></span>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium">
-                              {format(new Date(date), "dd/MM/yyyy", { locale: fr })}
+                              {format(new Date(date), "dd/MM/yyyy", {
+                                locale: fr,
+                              })}
                             </span>
                             {!isStage && (
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(date), "HH:mm", { locale: fr })}
+                                {format(new Date(date), "HH:mm", {
+                                  locale: fr,
+                                })}
                               </span>
                             )}
                           </div>
@@ -387,14 +441,18 @@ export function ReservationsList() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={getBadgeVariant(order?.status || '')}>
-                            {getStatusLabel(order?.status || '')}
+                          <Badge variant={getBadgeVariant(order?.status || "")}>
+                            {getStatusLabel(order?.status || "")}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-col items-end">
                             <span className="font-medium text-green-600">
-                              {formatCurrency(isFullyPaid ? totalPrice : (totalPrice - remainingAmount))}
+                              {formatCurrency(
+                                isFullyPaid
+                                  ? totalPrice
+                                  : totalPrice - remainingAmount
+                              )}
                             </span>
                             {!isFullyPaid && remainingAmount > 0 && (
                               <span className="text-xs text-orange-600">
@@ -410,7 +468,9 @@ export function ReservationsList() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <span className="font-medium">{formatCurrency(totalPrice)}</span>
+                            <span className="font-medium">
+                              {formatCurrency(totalPrice)}
+                            </span>
                             <ExternalLink className="h-4 w-4 text-muted-foreground" />
                           </div>
                         </TableCell>
@@ -424,55 +484,62 @@ export function ReservationsList() {
 
           {/* Pagination */}
           {pagination && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between mt-4 gap-4">
               <div className="text-sm text-muted-foreground">
-                Affichage de {((pagination.page - 1) * pagination.limit) + 1} à{" "}
-                {Math.min(pagination.page * pagination.limit, pagination.total)} sur{" "}
-                {pagination.total} résultats
+                Affichage de {(pagination.page - 1) * pagination.limit + 1} à{" "}
+                {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
+                sur {pagination.total} résultats
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 w-full sm:w-auto justify-center">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={pagination.page === 1}
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Précédent
+                  <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Précédent</span>
                 </Button>
                 <div className="flex items-center gap-1">
-                  {[...Array(Math.min(5, pagination.totalPages))].map((_, i) => {
-                    let pageNum;
-                    if (pagination.totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (pagination.page <= 3) {
-                      pageNum = i + 1;
-                    } else if (pagination.page >= pagination.totalPages - 2) {
-                      pageNum = pagination.totalPages - 4 + i;
-                    } else {
-                      pageNum = pagination.page - 2 + i;
+                  {[...Array(Math.min(5, pagination.totalPages))].map(
+                    (_, i) => {
+                      let pageNum;
+                      if (pagination.totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (pagination.page <= 3) {
+                        pageNum = i + 1;
+                      } else if (pagination.page >= pagination.totalPages - 2) {
+                        pageNum = pagination.totalPages - 4 + i;
+                      } else {
+                        pageNum = pagination.page - 2 + i;
+                      }
+
+                      return (
+                        <Button
+                          key={i}
+                          variant={
+                            pagination.page === pageNum ? "default" : "outline"
+                          }
+                          size="sm"
+                          onClick={() => setPage(pageNum)}
+                          className="h-8 w-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
                     }
-                    
-                    return (
-                      <Button
-                        key={i}
-                        variant={pagination.page === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setPage(pageNum)}
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
+                  )}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  onClick={() =>
+                    setPage((p) => Math.min(pagination.totalPages, p + 1))
+                  }
                   disabled={pagination.page === pagination.totalPages}
                 >
-                  Suivant
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                  <span className="hidden sm:inline">Suivant</span>
+                  <ChevronRight className="h-4 w-4 sm:ml-1" />
                 </Button>
               </div>
             </div>

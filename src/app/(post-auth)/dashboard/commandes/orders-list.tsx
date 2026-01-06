@@ -2,11 +2,24 @@
 
 import { useState } from "react";
 import { useGetOrders } from "@/features/orders/api/use-get-orders";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { LucideSearch, LucideExternalLink } from "lucide-react";
 import { format } from "date-fns";
@@ -59,10 +72,12 @@ export function OrdersList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Commandes</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Commandes
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Gérez toutes les commandes de votre établissement
           </p>
         </div>
@@ -98,8 +113,8 @@ export function OrdersList() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[800px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Numéro</TableHead>
@@ -114,7 +129,10 @@ export function OrdersList() {
               <TableBody>
                 {!filteredOrders || filteredOrders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={7}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       Aucune commande trouvée
                     </TableCell>
                   </TableRow>
@@ -139,12 +157,18 @@ export function OrdersList() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {format(new Date(order.createdAt), "dd/MM/yyyy", { locale: fr })}
+                        {format(new Date(order.createdAt), "dd/MM/yyyy", {
+                          locale: fr,
+                        })}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {order.orderItems.map((item: any) => (
-                            <Badge key={item.id} variant="outline" className="text-xs">
+                            <Badge
+                              key={item.id}
+                              variant="outline"
+                              className="text-xs"
+                            >
                               {item.quantity}x {item.type}
                             </Badge>
                           ))}
@@ -156,13 +180,23 @@ export function OrdersList() {
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={`${statusColors[order.status as keyof typeof statusColors]} text-white`}
+                          className={`${
+                            statusColors[
+                              order.status as keyof typeof statusColors
+                            ]
+                          } text-white`}
                         >
-                          {statusLabels[order.status as keyof typeof statusLabels]}
+                          {
+                            statusLabels[
+                              order.status as keyof typeof statusLabels
+                            ]
+                          }
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Link href={`/dashboard/reservations?order=${order.id}`}>
+                        <Link
+                          href={`/dashboard/reservations?order=${order.id}`}
+                        >
                           <Button variant="ghost" size="sm">
                             <LucideExternalLink className="h-4 w-4" />
                           </Button>

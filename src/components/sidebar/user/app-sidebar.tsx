@@ -33,22 +33,24 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <Link
-          href="/"
-          title="Serre Chevalier Parapente"
-          className="flex items-center gap-2 font-medium"
-        >
-          <div className="flex h-8 w-8 items-center justify-center bg-slate-900 dark:bg-white p-1 rounded-full">
-            <Image
-              src={"/logo-light-nobg.webp"}
-              alt="Logo Serre Chevalier Parapente"
-              className="dark:invert"
-              width={48}
-              height={48}
-            />
-          </div>
-          Serre Chevalier Parapente
-        </Link>
+        <SidebarMenuItem>
+          <Link href={`/dashboard`}>
+            <SidebarMenuButton tooltip={"Planning"}>
+              <div className="flex h-8 w-8 items-center justify-center bg-slate-900 dark:bg-white p-1 rounded-full group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:scale-[200%] group-data-[collapsible=icon]:p-0">
+                <Image
+                  src={"/logo-light-nobg.webp"}
+                  alt="Logo Serre Chevalier Parapente"
+                  className="dark:invert "
+                  width={48}
+                  height={48}
+                />
+              </div>
+              <span className="flex items-center gap-2 font-medium group-data-[collapsible=icon]:hidden">
+                Serre Chevalier Parapente
+              </span>
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
       </SidebarHeader>
       <SidebarSeparator className="border-b" />
       <SidebarContent className="flex flex-col h-full justify-content">

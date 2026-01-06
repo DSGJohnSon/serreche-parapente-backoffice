@@ -2,12 +2,31 @@
 
 import { useState } from "react";
 import { useGetAllStagiaires } from "@/features/stagiaires/api/use-get-stagiaires";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { LucideSearch, LucideUser, LucideMail, LucidePhone, LucideCalendar } from "lucide-react";
+import {
+  LucideSearch,
+  LucideUser,
+  LucideMail,
+  LucidePhone,
+  LucideCalendar,
+} from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Stagiaire, StageBooking, BaptemeBooking } from "@prisma/client";
@@ -63,10 +82,12 @@ export function StagiairesList() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Stagiaires</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Stagiaires
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Gérez tous les stagiaires de votre établissement
           </p>
         </div>
@@ -102,8 +123,8 @@ export function StagiairesList() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          <div className="rounded-md border overflow-x-auto">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Stagiaire</TableHead>
@@ -116,18 +137,23 @@ export function StagiairesList() {
               <TableBody>
                 {!filteredStagiaires || filteredStagiaires.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       Aucun stagiaire trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredStagiaires.map((stagiaire) => {
-                    const totalBookings = stagiaire.stageBookings.length + stagiaire.baptemeBookings.length;
+                    const totalBookings =
+                      stagiaire.stageBookings.length +
+                      stagiaire.baptemeBookings.length;
                     return (
                       <TableRow key={stagiaire.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
                               <LucideUser className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex flex-col">
@@ -138,7 +164,10 @@ export function StagiairesList() {
                                 <span className="text-xs text-muted-foreground">
                                   ID: {stagiaire.id.slice(0, 8)}...
                                 </span>
-                                <CopyTextComponent text={stagiaire.id} size="sm" />
+                                <CopyTextComponent
+                                  text={stagiaire.id}
+                                  size="sm"
+                                />
                               </div>
                             </div>
                           </div>
@@ -161,7 +190,10 @@ export function StagiairesList() {
                               <div className="flex items-center gap-2">
                                 <LucideCalendar className="h-3 w-3 text-muted-foreground" />
                                 <span className="text-muted-foreground">
-                                  Né(e) le {format(stagiaire.birthDate, "dd/MM/yyyy", { locale: fr })}
+                                  Né(e) le{" "}
+                                  {format(stagiaire.birthDate, "dd/MM/yyyy", {
+                                    locale: fr,
+                                  })}
                                 </span>
                               </div>
                             )}
@@ -178,16 +210,21 @@ export function StagiairesList() {
                         <TableCell>
                           <div className="flex flex-col gap-1">
                             <Badge variant="secondary">
-                              {totalBookings} réservation{totalBookings > 1 ? "s" : ""}
+                              {totalBookings} réservation
+                              {totalBookings > 1 ? "s" : ""}
                             </Badge>
                             {stagiaire.stageBookings.length > 0 && (
                               <span className="text-xs text-muted-foreground">
-                                {stagiaire.stageBookings.length} stage{stagiaire.stageBookings.length > 1 ? "s" : ""}
+                                {stagiaire.stageBookings.length} stage
+                                {stagiaire.stageBookings.length > 1 ? "s" : ""}
                               </span>
                             )}
                             {stagiaire.baptemeBookings.length > 0 && (
                               <span className="text-xs text-muted-foreground">
-                                {stagiaire.baptemeBookings.length} baptême{stagiaire.baptemeBookings.length > 1 ? "s" : ""}
+                                {stagiaire.baptemeBookings.length} baptême
+                                {stagiaire.baptemeBookings.length > 1
+                                  ? "s"
+                                  : ""}
                               </span>
                             )}
                           </div>
@@ -195,10 +232,16 @@ export function StagiairesList() {
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium">
-                              {format(new Date(stagiaire.createdAt), "dd/MM/yyyy", { locale: fr })}
+                              {format(
+                                new Date(stagiaire.createdAt),
+                                "dd/MM/yyyy",
+                                { locale: fr }
+                              )}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {format(new Date(stagiaire.createdAt), "HH:mm", { locale: fr })}
+                              {format(new Date(stagiaire.createdAt), "HH:mm", {
+                                locale: fr,
+                              })}
                             </span>
                           </div>
                         </TableCell>

@@ -349,8 +349,8 @@ export function CalendarScheduleBaptemes({
     return (
       <div className="flex flex-col h-full">
         {/* Week header */}
-        <div className="grid grid-cols-8 border-b">
-          <div className="p-2 text-sm font-medium text-muted-foreground">
+        <div className="grid grid-cols-8 border-b sticky top-0 bg-background z-30">
+          <div className="p-2 text-sm font-medium text-muted-foreground bg-background sticky left-0 z-40">
             Heure
           </div>
           {weekDays.map((day) => (
@@ -381,7 +381,7 @@ export function CalendarScheduleBaptemes({
               {hours.map((hour) => (
                 <React.Fragment key={hour}>
                   <div
-                    className="p-2 text-xs text-muted-foreground border-b border-r"
+                    className="p-2 text-xs text-muted-foreground border-b border-r bg-background sticky left-0 z-20"
                     style={{ height: `${HOUR_HEIGHT}px` }}
                   >
                     {hour.toString().padStart(2, "0")}:00
@@ -660,7 +660,7 @@ export function CalendarScheduleBaptemes({
     });
 
     return (
-      <div className="flex h-full gap-4">
+      <div className="flex flex-col md:flex-row h-full gap-4">
         {/* Left side: Day schedule */}
         <div className="flex-1 flex flex-col border-r">
           <div className="border-b bg-muted/30 p-3">
@@ -816,7 +816,7 @@ export function CalendarScheduleBaptemes({
         </div>
 
         {/* Right side: Monitors list */}
-        <div className="w-80 flex flex-col">
+        <div className="w-full md:w-80 flex flex-col mb-4 sm:mb-0">
           <div className="border-b bg-muted/30 p-3">
             <h2 className="text-lg font-bold">Moniteurs de service</h2>
             <div className="text-xs text-muted-foreground mt-1">
@@ -908,7 +908,7 @@ export function CalendarScheduleBaptemes({
     return (
       <div className="flex flex-col h-full">
         {/* Month header */}
-        <div className="grid grid-cols-7 border-b">
+        <div className="grid grid-cols-7 border-b sticky top-0 bg-background z-20">
           {weekDays.map((day) => (
             <div
               key={day}
@@ -1042,9 +1042,9 @@ export function CalendarScheduleBaptemes({
   return (
     <div className="flex flex-col h-full">
       {/* Calendar header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2 sm:p-4 border-b gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <div className="flex items-center space-x-1 sm:space-x-2">
             <Button variant="outline" size="sm" onClick={navigatePrevious}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -1052,23 +1052,24 @@ export function CalendarScheduleBaptemes({
               <ChevronRight className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="sm" onClick={goToToday}>
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              Aujourd&apos;hui
+              <CalendarIcon className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Aujourd&apos;hui</span>
+              <span className="xs:hidden">Today</span>
             </Button>
           </div>
-          <h1 className="text-2xl font-bold capitalize">
+          <h1 className="text-lg sm:text-2xl font-bold capitalize truncate">
             {view === "day"
               ? format(selectedDayDate, "EEEE d MMMM yyyy", { locale: fr })
               : format(currentDate, "MMMM yyyy", { locale: fr })}
           </h1>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
           <Select
             value={view}
             onValueChange={(value: CalendarView) => setView(value)}
           >
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-24 sm:w-32 flex-shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1078,20 +1079,31 @@ export function CalendarScheduleBaptemes({
             </SelectContent>
           </Select>
 
-          <Button onClick={onAddBapteme}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nouveau Baptême
+          <Button onClick={onAddBapteme} className="flex-shrink-0">
+            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Nouveau Baptême</span>
+            <span className="sm:hidden">Baptême</span>
           </Button>
         </div>
       </div>
 
       {/* Calendar content */}
-      <div className="flex-1 overflow-hidden">
-        {view === "day"
-          ? renderDayView()
-          : view === "week"
-          ? renderWeekView()
-          : renderMonthView()}
+      <div className="flex-1 overflow-auto">
+        <div
+          className={`${
+            view === "week"
+              ? "min-w-[1000px]"
+              : view === "month"
+              ? "min-w-[700px]"
+              : "min-w-0"
+          } h-full`}
+        >
+          {view === "day"
+            ? renderDayView()
+            : view === "week"
+            ? renderWeekView()
+            : renderMonthView()}
+        </div>
       </div>
     </div>
   );
