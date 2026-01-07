@@ -44,6 +44,8 @@ interface BaptemeAddFormProps {
   onSubmit: (bapteme: BaptemeData) => void;
   onCancel?: () => void;
   isSubmitting?: boolean;
+  role?: string;
+  userId?: string;
 }
 
 // Labels pour les catégories
@@ -52,9 +54,8 @@ const CATEGORY_LABELS: Record<BaptemeCategory, string> = {
   [BaptemeCategory.DUREE]: "Durée",
   [BaptemeCategory.LONGUE_DUREE]: "Longue Durée",
   [BaptemeCategory.ENFANT]: "Enfant",
-  [BaptemeCategory.HIVER]: "Hiver"
+  [BaptemeCategory.HIVER]: "Hiver",
 };
-
 
 export function BaptemeAddForm({
   selectedDate,
@@ -62,11 +63,15 @@ export function BaptemeAddForm({
   onSubmit,
   onCancel,
   isSubmitting = false,
+  role,
+  userId,
 }: BaptemeAddFormProps) {
-  const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
+  const { data: moniteurs, isLoading: isLoadingMoniteurs } =
+    useGetMoniteursAndAdmins();
   const { data: tarifs, isLoading: isLoadingTarifs } = useGetTarifs();
-  const { data: depositPrice, isLoading: isLoadingDepositPrice } = useGetBaptemeDepositPrice();
-  
+  const { data: depositPrice, isLoading: isLoadingDepositPrice } =
+    useGetBaptemeDepositPrice();
+
   const [formData, setFormData] = useState({
     date: selectedDate || new Date(),
     time: "10:00",
@@ -79,6 +84,12 @@ export function BaptemeAddForm({
   const [showCalendar, setShowCalendar] = useState(false);
   const [isCustomDuration, setIsCustomDuration] = useState(false);
   const [customDuration, setCustomDuration] = useState("");
+
+  useEffect(() => {
+    if (role === "MONITEUR" && userId) {
+      setFormData((prev) => ({ ...prev, moniteurIds: [userId] }));
+    }
+  }, [role, userId]);
 
   useEffect(() => {
     if (selectedDate) {
@@ -103,9 +114,12 @@ export function BaptemeAddForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    console.log('Form data at submit:', formData);
+    const submissionMoniteurIds =
+      role === "MONITEUR" && userId ? [userId] : formData.moniteurIds;
 
-    if (!formData.moniteurIds || formData.moniteurIds.length === 0) {
+    console.log("Submitting bapteme with moniteurs:", submissionMoniteurIds);
+
+    if (!submissionMoniteurIds || submissionMoniteurIds.length === 0) {
       alert("Veuillez sélectionner au moins un moniteur");
       return;
     }
@@ -123,29 +137,19 @@ export function BaptemeAddForm({
       date: baptemeDate,
       duration: formData.duration,
       places: formData.places,
-      moniteurIds: formData.moniteurIds,
+      moniteurIds: submissionMoniteurIds,
       categories: formData.categories,
       acomptePrice: formData.acomptePrice,
     };
 
-    console.log('Submitting bapteme:', newBapteme);
+    console.log("Submitting bapteme:", newBapteme);
     onSubmit(newBapteme);
-
-    // Reset form
-    setFormData({
-      date: new Date(),
-      time: "10:00",
-      duration: 120,
-      places: 6,
-      moniteurIds: [],
-      categories: [],
-      acomptePrice: depositPrice?.price || 35,
-    });
-    setIsCustomDuration(false);
-    setCustomDuration("");
   };
 
-  const handleCategoryChange = (category: BaptemeCategory, checked: boolean) => {
+  const handleCategoryChange = (
+    category: BaptemeCategory,
+    checked: boolean
+  ) => {
     setFormData((prev) => ({
       ...prev,
       categories: checked
@@ -170,6 +174,7 @@ export function BaptemeAddForm({
             <Button
               variant="outline"
               className="w-full justify-start text-left font-normal bg-transparent"
+              disabled={isSubmitting}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {format(formData.date, "EEEE d MMMM yyyy", { locale: fr })}
@@ -195,6 +200,7 @@ export function BaptemeAddForm({
           onChange={(e) =>
             setFormData((prev) => ({ ...prev, time: e.target.value }))
           }
+          disabled={isSubmitting}
           required
         />
       </div>
@@ -215,6 +221,7 @@ export function BaptemeAddForm({
               }));
             }
           }}
+          disabled={isSubmitting}
         >
           <SelectTrigger>
             <SelectValue />
@@ -228,7 +235,7 @@ export function BaptemeAddForm({
             <SelectItem value="custom">Durée personnalisée</SelectItem>
           </SelectContent>
         </Select>
-        
+
         {isCustomDuration && (
           <div className="mt-2">
             <Input
@@ -247,6 +254,7 @@ export function BaptemeAddForm({
                   }));
                 }
               }}
+              disabled={isSubmitting}
               className="w-full"
             />
             <p className="text-xs text-muted-foreground mt-1">
@@ -270,6 +278,7 @@ export function BaptemeAddForm({
               places: Number.parseInt(e.target.value) || 1,
             }))
           }
+          disabled={isSubmitting}
           required
         />
       </div>
@@ -288,10 +297,12 @@ export function BaptemeAddForm({
               acomptePrice: Number.parseFloat(e.target.value) || 0,
             }))
           }
+          disabled={role === "MONITEUR" || isSubmitting}
           required
         />
         <p className="text-xs text-muted-foreground">
-          Montant à payer lors de la réservation (par défaut: {depositPrice?.price || 35}€)
+          Montant à payer lors de la réservation (par défaut:{" "}
+          {depositPrice?.price || 35}€)
         </p>
       </div>
 
@@ -306,19 +317,26 @@ export function BaptemeAddForm({
             {Object.values(BaptemeCategory).map((category) => {
               const tarif = tarifs?.find((t) => t.category === category);
               const price = tarif?.price || 0;
-              
+
               return (
                 <div
                   key={category}
                   className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  onClick={() => handleCategoryChange(category, !formData.categories.includes(category))}
+                  onClick={() => {
+                    if (isSubmitting) return;
+                    handleCategoryChange(
+                      category,
+                      !formData.categories.includes(category)
+                    );
+                  }}
                 >
                   <input
                     type="checkbox"
                     id={category}
                     checked={formData.categories.includes(category)}
+                    disabled={isSubmitting}
                     onChange={() => {}} // Handled by div onClick
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded pointer-events-none"
+                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded pointer-events-none disabled:opacity-50"
                   />
                   <div className="flex-1">
                     <Label
@@ -353,16 +371,19 @@ export function BaptemeAddForm({
           <MultiSelect
             options={moniteurs.map((moniteur) => ({
               value: moniteur.id,
-              label: `${moniteur.name} (${moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})`,
+              label: `${moniteur.name} (${
+                moniteur.role === "ADMIN" ? "Admin" : "Moniteur"
+              })`,
             }))}
             onValueChange={(values) => {
-              console.log('MultiSelect values changed:', values);
+              console.log("MultiSelect values changed:", values);
               setFormData((prev) => ({ ...prev, moniteurIds: values }));
             }}
             defaultValue={formData.moniteurIds}
             placeholder="Sélectionner des moniteurs"
             variant="inverted"
             maxCount={3}
+            disabled={role === "MONITEUR" || isSubmitting}
           />
         ) : (
           <div className="text-sm text-muted-foreground">

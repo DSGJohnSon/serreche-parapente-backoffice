@@ -14,13 +14,21 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Bapteme, User } from "@prisma/client";
-import { CalendarIcon, ClockIcon, UsersIcon, TagIcon, MailIcon, Edit, Trash2 } from "lucide-react";
+import {
+  CalendarIcon,
+  ClockIcon,
+  UsersIcon,
+  TagIcon,
+  MailIcon,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { EditBaptemeDialog } from "./edit-bapteme-dialog";
 import { useDeleteBapteme } from "@/features/biplaces/api/use-delete-bapteme";
 import { BaptemeCategory } from "@/features/biplaces/schemas";
 
-interface BaptemeWithMoniteurs extends Omit<Bapteme, 'categories'> {
+interface BaptemeWithMoniteurs extends Omit<Bapteme, "categories"> {
   moniteurs: Array<{
     moniteur: User;
   }>;
@@ -34,7 +42,7 @@ const CATEGORY_LABELS: Record<BaptemeCategory, string> = {
   [BaptemeCategory.DUREE]: "Durée",
   [BaptemeCategory.LONGUE_DUREE]: "Longue Durée",
   [BaptemeCategory.ENFANT]: "Enfant",
-  [BaptemeCategory.HIVER]: "Hiver"
+  [BaptemeCategory.HIVER]: "Hiver",
 };
 
 // Prix pour chaque catégorie
@@ -43,19 +51,23 @@ const CATEGORY_PRICES: Record<BaptemeCategory, number> = {
   [BaptemeCategory.DUREE]: 150,
   [BaptemeCategory.LONGUE_DUREE]: 185,
   [BaptemeCategory.ENFANT]: 90,
-  [BaptemeCategory.HIVER]: 130
+  [BaptemeCategory.HIVER]: 130,
 };
 
 interface BaptemeDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bapteme: BaptemeWithMoniteurs | null;
+  role?: string;
+  userId?: string;
 }
 
 export function BaptemeDetailsDialog({
   open,
   onOpenChange,
   bapteme,
+  role,
+  userId,
 }: BaptemeDetailsDialogProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const deleteBapteme = useDeleteBapteme();
@@ -63,6 +75,8 @@ export function BaptemeDetailsDialog({
   if (!bapteme) return null;
 
   const hasBookings = bapteme.bookings && bapteme.bookings.length > 0;
+  const isAssigned = bapteme.moniteurs.some((m) => m.moniteur.id === userId);
+  const canEdit = role === "ADMIN" || (role === "MONITEUR" && isAssigned);
 
   const handleEdit = () => {
     setShowEditDialog(true);
@@ -70,7 +84,9 @@ export function BaptemeDetailsDialog({
 
   const handleDelete = async () => {
     if (hasBookings) {
-      alert("Ce baptême ne peut pas être supprimé car il contient des réservations.");
+      alert(
+        "Ce baptême ne peut pas être supprimé car il contient des réservations."
+      );
       return;
     }
 
@@ -91,7 +107,7 @@ export function BaptemeDetailsDialog({
     const remainingMinutes = minutes % 60;
     if (hours === 0) return `${remainingMinutes} min`;
     if (remainingMinutes === 0) return `${hours}h`;
-    return `${hours}h${remainingMinutes.toString().padStart(2, '0')}`;
+    return `${hours}h${remainingMinutes.toString().padStart(2, "0")}`;
   };
 
   const endTime = new Date(bapteme.date);
@@ -114,7 +130,8 @@ export function BaptemeDetailsDialog({
                   {format(bapteme.date, "EEEE d MMMM yyyy", { locale: fr })}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {format(bapteme.date, "HH:mm", { locale: fr })} - {format(endTime, "HH:mm", { locale: fr })}
+                  {format(bapteme.date, "HH:mm", { locale: fr })} -{" "}
+                  {format(endTime, "HH:mm", { locale: fr })}
                 </p>
               </div>
             </div>
@@ -146,19 +163,28 @@ export function BaptemeDetailsDialog({
                 <div className="flex flex-wrap gap-1 mt-1">
                   {bapteme.categories && bapteme.categories.length > 0 ? (
                     bapteme.categories.map((category) => (
-                      <Badge key={category} variant="secondary" className="text-xs bg-primary/20 dark:bg-primary/30 text-primary-foreground dark:text-foreground border-primary/30">
-                        {CATEGORY_LABELS[category]} ({CATEGORY_PRICES[category]}€)
+                      <Badge
+                        key={category}
+                        variant="secondary"
+                        className="text-xs bg-primary/20 dark:bg-primary/30 text-primary-foreground dark:text-foreground border-primary/30"
+                      >
+                        {CATEGORY_LABELS[category]} ({CATEGORY_PRICES[category]}
+                        €)
                       </Badge>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground">Aucune catégorie définie</p>
+                    <p className="text-sm text-muted-foreground">
+                      Aucune catégorie définie
+                    </p>
                   )}
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="h-5 w-5 flex items-center justify-center text-primary font-bold">€</div>
+              <div className="h-5 w-5 flex items-center justify-center text-primary font-bold">
+                €
+              </div>
               <div>
                 <p className="font-medium">Montant de l&apos;acompte</p>
                 <p className="text-sm text-muted-foreground">
@@ -171,22 +197,44 @@ export function BaptemeDetailsDialog({
           {/* Informations des moniteurs */}
           <div className="border-t border-border pt-4">
             <h3 className="font-medium mb-3">
-              Moniteur{bapteme.moniteurs.length > 1 ? 's' : ''} assigné{bapteme.moniteurs.length > 1 ? 's' : ''}
+              Moniteur{bapteme.moniteurs.length > 1 ? "s" : ""} assigné
+              {bapteme.moniteurs.length > 1 ? "s" : ""}
             </h3>
             <div className="space-y-3">
               {bapteme.moniteurs.map((moniteurData, index) => (
-                <div key={moniteurData.moniteur.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                <div
+                  key={moniteurData.moniteur.id}
+                  className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                >
                   <Avatar className="h-12 w-12 border-2 border-primary/20">
-                    <AvatarImage src={moniteurData.moniteur.avatarUrl} alt={moniteurData.moniteur.name} />
+                    <AvatarImage
+                      src={moniteurData.moniteur.avatarUrl}
+                      alt={moniteurData.moniteur.name}
+                    />
                     <AvatarFallback>
-                      {moniteurData.moniteur.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      {moniteurData.moniteur.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium">{moniteurData.moniteur.name}</p>
-                      <Badge variant={moniteurData.moniteur.role === 'ADMIN' ? 'default' : 'secondary'} className="bg-primary/20 dark:bg-primary/30">
-                        {moniteurData.moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'}
+                      <p className="font-medium">
+                        {moniteurData.moniteur.name}
+                      </p>
+                      <Badge
+                        variant={
+                          moniteurData.moniteur.role === "ADMIN"
+                            ? "default"
+                            : "secondary"
+                        }
+                        className="bg-primary/20 dark:bg-primary/30"
+                      >
+                        {moniteurData.moniteur.role === "ADMIN"
+                          ? "Admin"
+                          : "Moniteur"}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -194,7 +242,10 @@ export function BaptemeDetailsDialog({
                       <span>{moniteurData.moniteur.email}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Membre depuis {format(moniteurData.moniteur.createdAt, "MMMM yyyy", { locale: fr })}
+                      Membre depuis{" "}
+                      {format(moniteurData.moniteur.createdAt, "MMMM yyyy", {
+                        locale: fr,
+                      })}
                     </p>
                   </div>
                 </div>
@@ -204,23 +255,27 @@ export function BaptemeDetailsDialog({
         </div>
 
         <DialogFooter className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleEdit}
-            className="flex items-center gap-2"
-          >
-            <Edit className="h-4 w-4" />
-            Modifier
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={hasBookings || deleteBapteme.isPending}
-            className="flex items-center gap-2"
-          >
-            <Trash2 className="h-4 w-4" />
-            {deleteBapteme.isPending ? "Suppression..." : "Supprimer"}
-          </Button>
+          {canEdit && (
+            <>
+              <Button
+                variant="outline"
+                onClick={handleEdit}
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                Modifier
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={hasBookings || deleteBapteme.isPending}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                {deleteBapteme.isPending ? "Suppression..." : "Supprimer"}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
 
@@ -228,6 +283,8 @@ export function BaptemeDetailsDialog({
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         bapteme={bapteme}
+        role={role}
+        userId={userId}
       />
     </Dialog>
   );

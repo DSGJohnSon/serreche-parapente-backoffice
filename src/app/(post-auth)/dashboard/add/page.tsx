@@ -19,6 +19,7 @@ import { GiftCardAddForm } from "@/features/giftcards/forms/giftcard-add-form";
 import { StageAddForm } from "@/features/stages/forms/stage-add-form";
 import { useCreateStage } from "@/features/stages/api/use-create-stage";
 import { StageType } from "@prisma/client";
+import { useCurrent } from "@/features/auth/api/use-current";
 
 export default function TabsDemo() {
   const searchParams = useSearchParams();
@@ -26,8 +27,19 @@ export default function TabsDemo() {
   const pathname = usePathname();
   const createStage = useCreateStage();
 
-  const currentTab = searchParams.get("type") || "customer";
-  const selectedDate = searchParams.get("date") ? new Date(searchParams.get("date")!) : null;
+  const { data: user } = useCurrent();
+  const role = user?.role;
+  const userId = user?.id;
+
+  const getInitialTab = () => {
+    if (role === "MONITEUR") return "bapteme-biplace";
+    return searchParams.get("type") || "customer";
+  };
+
+  const currentTab = getInitialTab();
+  const selectedDate = searchParams.get("date")
+    ? new Date(searchParams.get("date")!)
+    : null;
 
   const handleTabChange = useCallback(
     (value: string) => {
@@ -59,10 +71,20 @@ export default function TabsDemo() {
 
     createStage.mutate(stageData, {
       onSuccess: () => {
-        router.push('/dashboard/stages');
+        router.push("/dashboard/stages");
       },
     });
   };
+
+  if (!user) {
+    return (
+      <div className="flex flex-1 items-center justify-center h-[50vh]">
+        <div className="text-lg text-muted-foreground animate-pulse">
+          Chargement de votre session...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-16">
@@ -77,22 +99,28 @@ export default function TabsDemo() {
         >
           <TabsList>
             <TabsTrigger value="bapteme-biplace">Bapteme BiPlace</TabsTrigger>
-            <TabsTrigger value="stage">Stage</TabsTrigger>
-            <TabsTrigger value="monitor">Moniteur</TabsTrigger>
+            {role === "ADMIN" && (
+              <>
+                <TabsTrigger value="stage">Stage</TabsTrigger>
+                <TabsTrigger value="monitor">Moniteur</TabsTrigger>
+              </>
+            )}
           </TabsList>
-          <TabsContent value="monitor" className="w-full max-w-xl">
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle>Moniteur</CardTitle>
-                <CardDescription>
-                  Ajouter un nouveau moniteur à la base de données.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="w-full">
-                <MonitorAddForm />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {role === "ADMIN" && (
+            <TabsContent value="monitor" className="w-full max-w-xl">
+              <Card className="w-full">
+                <CardHeader>
+                  <CardTitle>Moniteur</CardTitle>
+                  <CardDescription>
+                    Ajouter un nouveau moniteur à la base de données.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="w-full">
+                  <MonitorAddForm />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
           <TabsContent value="bapteme-biplace" className="w-full max-w-xl">
             <Card className="w-full">
               <CardHeader>
@@ -103,28 +131,30 @@ export default function TabsDemo() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="w-full">
-                <BaptemeBiPlaceAddForm />
+                <BaptemeBiPlaceAddForm role={role} userId={userId} />
               </CardContent>
             </Card>
           </TabsContent>
-          <TabsContent value="stage" className="w-full max-w-xl">
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle>Stage</CardTitle>
-                <CardDescription>
-                  Ajouter un nouveau créneau de stage à la base de données.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="w-full">
-                <StageAddForm
-                  selectedDate={selectedDate}
-                  onSubmit={handleCreateStage}
-                  onCancel={() => router.push('/dashboard/stages')}
-                  isSubmitting={createStage.isPending}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {role === "ADMIN" && (
+            <TabsContent value="stage" className="w-full max-w-xl">
+              <Card className="w-full">
+                <CardHeader>
+                  <CardTitle>Stage</CardTitle>
+                  <CardDescription>
+                    Ajouter un nouveau créneau de stage à la base de données.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="w-full">
+                  <StageAddForm
+                    selectedDate={selectedDate}
+                    onSubmit={handleCreateStage}
+                    onCancel={() => router.push("/dashboard/stages")}
+                    isSubmitting={createStage.isPending}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </main>

@@ -2,6 +2,7 @@
 
 import { useGetDashboardStats } from "@/features/dashboard/api/use-get-dashboard-stats";
 import { useGetMonitorSchedule } from "@/features/dashboard/api/use-get-monitor-schedule";
+import { useCurrent } from "@/features/auth/api/use-current";
 import {
   Card,
   CardContent,
@@ -40,6 +41,7 @@ export default function DashboardPage() {
   const { data, isLoading } = useGetDashboardStats();
   const { data: scheduleData, isLoading: isLoadingSchedule } =
     useGetMonitorSchedule();
+  const { data: user } = useCurrent();
   const router = useRouter();
 
   const formatCurrency = (amount: number) => {
@@ -82,7 +84,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!data) {
+  if (!data && user?.role === "ADMIN") {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-center h-[400px]">
@@ -93,8 +95,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const { revenue, last13MonthsRevenue } = data;
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -248,6 +248,22 @@ export default function DashboardPage() {
           </Card>
         )}
 
+      {/* Placeholder for empty schedule - Only shown for monitors if no activities today */}
+      {user?.role === "MONITEUR" &&
+        scheduleData &&
+        scheduleData.stages.length === 0 &&
+        scheduleData.baptemes.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <Calendar className="h-10 w-10 text-muted-foreground mb-4" />
+              <CardTitle className="text-lg">
+                Pas de stage/baptême aujourd&apos;hui !
+              </CardTitle>
+              <CardDescription>Profitez de votre journée libre</CardDescription>
+            </CardContent>
+          </Card>
+        )}
+
       {/* Upcoming Activities - Only shown if there are upcoming activities */}
       {scheduleData?.upcoming &&
         (scheduleData.upcoming.nextStage ||
@@ -393,96 +409,102 @@ export default function DashboardPage() {
         )}
 
       {/* Revenue KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Chiffre d&apos;affaires du mois en cours
-            </CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(revenue.onlineRevenueThisMonth)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Vente en ligne</p>
-          </CardContent>
-        </Card>
+      {data?.revenue && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Chiffre d&apos;affaires du mois en cours
+              </CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(data.revenue.onlineRevenueThisMonth)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Vente en ligne
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Chiffre d&apos;affaires du mois en cours
-            </CardTitle>
-            <Euro className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(revenue.totalRevenueThisMonth)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Total (en ligne + paiements manuels)
-            </p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Chiffre d&apos;affaires du mois en cours
+              </CardTitle>
+              <Euro className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(data.revenue.totalRevenueThisMonth)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Total (en ligne + paiements manuels)
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Chiffre d&apos;affaires de l&apos;année en cours
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(revenue.totalRevenueThisYear)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Total</p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Chiffre d&apos;affaires de l&apos;année en cours
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {formatCurrency(data.revenue.totalRevenueThisYear)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Total</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Revenue Chart - Last 13 Months */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Évolution du chiffre d&apos;affaires</CardTitle>
-          <CardDescription>
-            Chiffre d&apos;affaires total des 13 derniers mois
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={last13MonthsRevenue}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="monthLabel"
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis
-                tickFormatter={(value) => `${value.toLocaleString("fr-FR")}€`}
-                tick={{ fontSize: 12 }}
-              />
-              <Tooltip
-                formatter={(value: number) => [
-                  `${value.toLocaleString("fr-FR")}€`,
-                  "Chiffre d'affaires",
-                ]}
-                labelStyle={{ color: "#000" }}
-              />
-              <Legend />
-              <Bar
-                dataKey="total"
-                fill="#8884d8"
-                name="Chiffre d'affaires total"
-                radius={[8, 8, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {data?.last13MonthsRevenue && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Évolution du chiffre d&apos;affaires</CardTitle>
+            <CardDescription>
+              Chiffre d&apos;affaires total des 13 derniers mois
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={data.last13MonthsRevenue}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="monthLabel"
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis
+                  tickFormatter={(value) => `${value.toLocaleString("fr-FR")}€`}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip
+                  formatter={(value: number) => [
+                    `${value.toLocaleString("fr-FR")}€`,
+                    "Chiffre d'affaires",
+                  ]}
+                  labelStyle={{ color: "#000" }}
+                />
+                <Legend />
+                <Bar
+                  dataKey="total"
+                  fill="#8884d8"
+                  name="Chiffre d'affaires total"
+                  radius={[8, 8, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

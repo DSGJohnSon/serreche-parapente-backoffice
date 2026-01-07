@@ -56,6 +56,43 @@ export const adminSessionMiddleware = createMiddleware<{
   await next();
 });
 
+export const monitorSessionMiddleware = createMiddleware<{
+  Variables: {
+    userId: string;
+    role: string;
+  };
+}>(async (c, next) => {
+  const session = getCookie(c, AUTH_COOKIE);
+  if (!session) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(session);
+
+  if (user === null || error) return c.json({ error: "Unauthorized" }, 401);
+
+  const userToVerify = await prisma.user.findUnique({
+    where: {
+      email: user.email,
+    },
+  });
+
+  if (
+    userToVerify === null ||
+    (userToVerify.role !== "ADMIN" && userToVerify.role !== "MONITEUR")
+  )
+    return c.json({ error: "Unauthorized, forbidden role" }, 401);
+
+  // Stocker l'ID utilisateur et le rôle dans le contexte
+  c.set("userId", userToVerify.id);
+  c.set("role", userToVerify.role);
+
+  await next();
+});
+
 export const publicAPIMiddleware = createMiddleware(async (c, next) => {
   const correctAPIKey = process.env.PUBLIC_API_KEY;
   const apiKey = c.req.header("x-api-key");

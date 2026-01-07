@@ -49,8 +49,10 @@ interface BaptemeWithDetails extends Bapteme {
 interface BaptemeCalendarProps {
   baptemes: any[];
   onBaptemeClick: (bapteme: any) => void;
-  onDayClick: (date: Date, hour?: number) => void;
+  onHourClick: (date: Date, hour?: number) => void;
   onAddBapteme: () => void;
+  role?: string;
+  userId?: string;
 }
 
 type CalendarView = "week" | "month" | "day";
@@ -58,8 +60,10 @@ type CalendarView = "week" | "month" | "day";
 export function CalendarScheduleBaptemes({
   baptemes,
   onBaptemeClick,
-  onDayClick,
+  onHourClick,
   onAddBapteme,
+  role,
+  userId,
 }: BaptemeCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("week");
@@ -350,18 +354,20 @@ export function CalendarScheduleBaptemes({
       <div className="flex flex-col h-full">
         {/* Week header */}
         <div className="grid grid-cols-8 border-b sticky top-0 bg-background z-30">
-          <div className="p-2 text-sm font-medium text-muted-foreground bg-background sticky left-0 z-40">
+          <div className="p-2 text-sm font-medium text-muted-foreground bg-background sticky left-0 z-40 border-r">
             Heure
           </div>
           {weekDays.map((day) => (
             <div
               key={day.toISOString()}
-              className={`p-2 text-center border-l cursor-pointer hover:bg-muted/50 transition-colors ${
-                isToday(day)
-                  ? "bg-primary/20 dark:bg-primary/30 font-semibold"
-                  : ""
+              className={`p-4 text-center border-r last:border-r-0 cursor-pointer hover:bg-muted/50 ${
+                isToday(day) ? "bg-primary/10 font-semibold" : ""
               }`}
-              onClick={() => handleDayClickInternal(day)}
+              onClick={() => {
+                if (role === "ADMIN" || role === "MONITEUR") {
+                  onHourClick(day);
+                }
+              }}
             >
               <div className="text-sm font-medium">
                 {format(day, "EEE", { locale: fr })}
@@ -396,6 +402,7 @@ export function CalendarScheduleBaptemes({
                     const isNightEarly = hour >= 0 && hour < 6; // 00h-6h
                     const isNightLate = hour >= 20 && hour < 24; // 20h-00h
                     const isGrayedOut = isNightEarly || isNightLate;
+                    const isWorkHour = !isGrayedOut;
 
                     // Add thicker border at 6h and 20h boundaries
                     const isTopBoundary = hour === 6;
@@ -405,21 +412,17 @@ export function CalendarScheduleBaptemes({
                       <Tooltip key={`${day.toISOString()}-${hour}`}>
                         <TooltipTrigger asChild>
                           <div
-                            className={`border-b border-l cursor-pointer hover:bg-accent/50 relative transition-colors ${
-                              isGrayedOut
-                                ? "bg-muted/30 dark:bg-muted/20"
-                                : "bg-card dark:bg-card"
-                            } ${
-                              isTopBoundary
-                                ? "border-t-[2px] border-t-primary/40"
-                                : ""
-                            } ${
-                              isBottomBoundary
-                                ? "border-b-[2px] border-b-primary/40"
-                                : ""
+                            className={`relative border-b border-r cursor-pointer transition-colors group/hour ${
+                              isWorkHour
+                                ? "bg-background hover:bg-muted/30"
+                                : "bg-muted/10"
                             }`}
                             style={{ height: `${HOUR_HEIGHT}px` }}
-                            onClick={() => handleDayClickInternal(day, hour)}
+                            onClick={() => {
+                              if (role === "ADMIN" || role === "MONITEUR") {
+                                onHourClick(day, hour);
+                              }
+                            }}
                           >
                             {/* Only render baptemes on the first hour they appear */}
                             {hour === 0 &&
@@ -701,7 +704,7 @@ export function CalendarScheduleBaptemes({
                               : ""
                           }`}
                           style={{ height: `${HOUR_HEIGHT}px` }}
-                          onClick={() => onDayClick(selectedDayDate, hour)}
+                          onClick={() => onHourClick(selectedDayDate, hour)}
                         >
                           {/* Render baptemes at hour 0 */}
                           {hour === 0 &&
@@ -928,10 +931,14 @@ export function CalendarScheduleBaptemes({
             return (
               <div
                 key={day.toISOString()}
-                className={`border-r border-b last:border-r-0 p-2 cursor-pointer hover:bg-muted/50 transition-colors ${
+                className={`border-r last:border-r-0 border-b p-2 cursor-pointer hover:bg-muted/50 min-h-[120px] relative overflow-visible ${
                   !isCurrentMonth ? "text-muted-foreground bg-muted/20" : ""
-                } ${isToday(day) ? "bg-primary/20 dark:bg-primary/30" : ""}`}
-                onClick={() => handleDayClickInternal(day)}
+                } ${isToday(day) ? "bg-primary/10" : ""}`}
+                onClick={() => {
+                  if (role === "ADMIN" || role === "MONITEUR") {
+                    onHourClick(day);
+                  }
+                }}
               >
                 <div
                   className={`text-sm mb-1 ${
@@ -1079,11 +1086,13 @@ export function CalendarScheduleBaptemes({
             </SelectContent>
           </Select>
 
-          <Button onClick={onAddBapteme} className="flex-shrink-0">
-            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Nouveau Baptême</span>
-            <span className="sm:hidden">Baptême</span>
-          </Button>
+          {role === "ADMIN" && (
+            <Button onClick={onAddBapteme} className="flex-shrink-0">
+              <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Nouveau Baptême</span>
+              <span className="sm:hidden">Baptême</span>
+            </Button>
+          )}
         </div>
       </div>
 

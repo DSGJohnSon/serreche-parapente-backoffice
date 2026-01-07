@@ -2,6 +2,7 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import {
   adminSessionMiddleware,
+  monitorSessionMiddleware,
   sessionMiddleware,
 } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
@@ -54,7 +55,7 @@ const app = new Hono()
   })
   //
   //Get all users by type
-  .get("/getByRole/:role", adminSessionMiddleware, async (c) => {
+  .get("/getByRole/:role", monitorSessionMiddleware, async (c) => {
     const { role } = c.req.param();
     const typedRole = role as Role;
     if (!role || !Object.values(Role).includes(typedRole)) {

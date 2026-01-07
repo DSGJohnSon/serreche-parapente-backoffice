@@ -5,6 +5,7 @@ import { StageDetailsSheet } from "@/features/stages/components/stage-details-sh
 import { useState, useEffect } from "react";
 import { Stage, User, StageBooking, StageType } from "@prisma/client";
 import { useGetAllStages } from "@/features/stages/api/use-get-stage";
+import { useCurrent } from "@/features/auth/api/use-current";
 
 // Type for the API response from the server
 interface StageApiResponse extends Stage {
@@ -34,8 +35,13 @@ interface StageWithDetails {
 
 export default function Page() {
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
-  const [selectedStage, setSelectedStage] = useState<StageWithDetails | null>(null);
+  const [selectedStage, setSelectedStage] = useState<StageWithDetails | null>(
+    null
+  );
   const [mounted, setMounted] = useState(false);
+
+  // Fetch current user for role
+  const { data: user } = useCurrent();
 
   // Fetch stages from API
   const { data: stagesData, isLoading } = useGetAllStages();
@@ -56,57 +62,59 @@ export default function Page() {
   }
 
   // Transform API data to match the expected Stage type with additional info
-  const stages = stagesData?.map((stage: StageApiResponse) => ({
-    id: stage.id,
-    startDate: new Date(stage.startDate),
-    duration: stage.duration,
-    places: stage.places,
-    price: stage.price,
-    acomptePrice: stage.acomptePrice,
-    allTimeHighPrice: stage.allTimeHighPrice,
-    type: stage.type,
-    createdAt: new Date(stage.createdAt),
-    updatedAt: new Date(stage.updatedAt),
-    moniteurs: stage.moniteurs.map(m => ({
-      moniteur: {
-        ...m.moniteur,
-        createdAt: new Date(m.moniteur.createdAt),
-        updatedAt: new Date(m.moniteur.updatedAt),
-      }
-    })),
-    bookings: stage.bookings || [],
-    placesRestantes: stage.places - (stage.bookings?.length || 0),
-  })) || [];
+  const stages =
+    stagesData?.map((stage: StageApiResponse) => ({
+      id: stage.id,
+      startDate: new Date(stage.startDate),
+      duration: stage.duration,
+      places: stage.places,
+      price: stage.price,
+      acomptePrice: stage.acomptePrice,
+      allTimeHighPrice: stage.allTimeHighPrice,
+      type: stage.type,
+      createdAt: new Date(stage.createdAt),
+      updatedAt: new Date(stage.updatedAt),
+      moniteurs: stage.moniteurs.map((m) => ({
+        moniteur: {
+          ...m.moniteur,
+          createdAt: new Date(m.moniteur.createdAt),
+          updatedAt: new Date(m.moniteur.updatedAt),
+        },
+      })),
+      bookings: stage.bookings || [],
+      placesRestantes: stage.places - (stage.bookings?.length || 0),
+    })) || [];
 
   // Keep the full data with moniteurs for details sheet
-  const stagesWithDetails: StageWithDetails[] = stagesData?.map((stage: StageApiResponse) => ({
-    id: stage.id,
-    startDate: new Date(stage.startDate),
-    duration: stage.duration,
-    places: stage.places,
-    price: stage.price,
-    acomptePrice: stage.acomptePrice,
-    allTimeHighPrice: stage.allTimeHighPrice,
-    type: stage.type,
-    createdAt: new Date(stage.createdAt),
-    updatedAt: new Date(stage.updatedAt),
-    moniteurs: stage.moniteurs.map(m => ({
-      moniteur: {
-        id: m.moniteur.id,
-        email: m.moniteur.email,
-        name: m.moniteur.name,
-        avatarUrl: m.moniteur.avatarUrl,
-        role: m.moniteur.role,
-        createdAt: new Date(m.moniteur.createdAt),
-        updatedAt: new Date(m.moniteur.updatedAt),
-      }
-    })),
-    bookings: stage.bookings || [],
-  })) || [];
+  const stagesWithDetails: StageWithDetails[] =
+    stagesData?.map((stage: StageApiResponse) => ({
+      id: stage.id,
+      startDate: new Date(stage.startDate),
+      duration: stage.duration,
+      places: stage.places,
+      price: stage.price,
+      acomptePrice: stage.acomptePrice,
+      allTimeHighPrice: stage.allTimeHighPrice,
+      type: stage.type,
+      createdAt: new Date(stage.createdAt),
+      updatedAt: new Date(stage.updatedAt),
+      moniteurs: stage.moniteurs.map((m) => ({
+        moniteur: {
+          id: m.moniteur.id,
+          email: m.moniteur.email,
+          name: m.moniteur.name,
+          avatarUrl: m.moniteur.avatarUrl,
+          role: m.moniteur.role,
+          createdAt: new Date(m.moniteur.createdAt),
+          updatedAt: new Date(m.moniteur.updatedAt),
+        },
+      })),
+      bookings: stage.bookings || [],
+    })) || [];
 
   const handleStageClick = (stage: StageWithDetails) => {
     // Find the full stage data with moniteur info
-    const fullStage = stagesWithDetails.find(s => s.id === stage.id);
+    const fullStage = stagesWithDetails.find((s) => s.id === stage.id);
     if (fullStage) {
       setSelectedStage(fullStage);
       setShowDetailsSheet(true);
@@ -117,7 +125,7 @@ export default function Page() {
     console.log("Day clicked:", date);
     // Redirect to add page with date parameter
     const params = new URLSearchParams({
-      type: 'stage',
+      type: "stage",
       date: date.toISOString(),
     });
     window.location.href = `/dashboard/add?${params.toString()}`;
@@ -126,16 +134,17 @@ export default function Page() {
   const handleAddStage = () => {
     console.log("Add new stage");
     // Redirect to add page
-    window.location.href = '/dashboard/add?type=stage';
+    window.location.href = "/dashboard/add?type=stage";
   };
-
 
   // Show loading state while fetching data
   if (isLoading) {
     return (
       <main className="flex flex-1 flex-col gap-4 p-4">
         <div className="flex items-center justify-center h-64">
-          <div className="text-lg text-muted-foreground">Chargement des stages...</div>
+          <div className="text-lg text-muted-foreground">
+            Chargement des stages...
+          </div>
         </div>
       </main>
     );
@@ -149,14 +158,15 @@ export default function Page() {
           onStageClick={handleStageClick}
           onDayClick={handleDayClick}
           onAddStage={handleAddStage}
+          role={user?.role}
         />
       </div>
-
 
       <StageDetailsSheet
         open={showDetailsSheet}
         onOpenChange={setShowDetailsSheet}
         stage={selectedStage}
+        role={user?.role}
       />
     </main>
   );

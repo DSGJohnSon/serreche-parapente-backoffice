@@ -49,6 +49,7 @@ interface StageCalendarProps {
   onStageClick: (stage: any) => void;
   onDayClick: (date: Date) => void;
   onAddStage: () => void;
+  role?: string;
 }
 
 type CalendarView = "week" | "month";
@@ -58,6 +59,7 @@ export function CalendarScheduleStages({
   onStageClick,
   onDayClick,
   onAddStage,
+  role,
 }: StageCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>("month");
@@ -177,7 +179,11 @@ export function CalendarScheduleStages({
               className={`p-4 text-center border-r last:border-r-0 cursor-pointer hover:bg-muted/50 ${
                 isToday(day) ? "bg-primary/10 font-semibold" : ""
               }`}
-              onClick={() => onDayClick(day)}
+              onClick={() => {
+                if (role === "ADMIN") {
+                  onDayClick(day);
+                }
+              }}
             >
               <div className="text-sm font-medium">
                 {format(day, "EEE", { locale: fr })}
@@ -201,7 +207,11 @@ export function CalendarScheduleStages({
               <div
                 key={day.toISOString()}
                 className="border-r last:border-r-0 border-b p-2 cursor-pointer hover:bg-muted/30 min-h-[400px] relative overflow-visible"
-                onClick={() => onDayClick(day)}
+                onClick={() => {
+                  if (role === "ADMIN") {
+                    onDayClick(day);
+                  }
+                }}
               >
                 {/* Stages starting on this day or continuing from previous week */}
                 <div className="space-y-1">
@@ -334,7 +344,11 @@ export function CalendarScheduleStages({
                     className={`border-r last:border-r-0 border-b p-2 cursor-pointer hover:bg-muted/50 min-h-[100px] relative overflow-visible ${
                       !isCurrentMonth ? "text-muted-foreground bg-muted/20" : ""
                     } ${isToday(day) ? "bg-primary/10" : ""}`}
-                    onClick={() => onDayClick(day)}
+                    onClick={() => {
+                      if (role === "ADMIN") {
+                        onDayClick(day);
+                      }
+                    }}
                   >
                     <div
                       className={`text-sm mb-1 font-medium ${
@@ -473,11 +487,13 @@ export function CalendarScheduleStages({
             </SelectContent>
           </Select>
 
-          <Button onClick={onAddStage} className="flex-shrink-0">
-            <Plus className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Nouveau Stage</span>
-            <span className="sm:hidden">Stage</span>
-          </Button>
+          {role === "ADMIN" && (
+            <Button onClick={onAddStage} className="flex-shrink-0">
+              <Plus className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Nouveau Stage</span>
+              <span className="sm:hidden">Stage</span>
+            </Button>
+          )}
         </div>
       </div>
 

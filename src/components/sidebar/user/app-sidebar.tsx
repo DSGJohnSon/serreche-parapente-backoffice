@@ -54,7 +54,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarSeparator className="border-b" />
       <SidebarContent className="flex flex-col h-full justify-content">
-        <NavMain />
+        <NavMain role={user.role} />
       </SidebarContent>
       <SidebarSeparator className="border-b" />
       <SidebarFooter>

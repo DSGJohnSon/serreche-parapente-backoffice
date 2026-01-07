@@ -20,30 +20,36 @@ interface BaptemeData {
 
 interface BaptemeBiPlaceAddFormProps {
   onSuccess?: () => void;
+  role?: string;
+  userId?: string;
 }
 
 export function BaptemeBiPlaceAddForm({
   onSuccess,
+  role,
+  userId,
 }: BaptemeBiPlaceAddFormProps) {
   const createBapteme = useCreateBapteme();
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedHour, setSelectedHour] = useState<number | undefined>(undefined);
+  const [selectedHour, setSelectedHour] = useState<number | undefined>(
+    undefined
+  );
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    
+
     // Get date and hour from URL parameters only on client side
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      const dateParam = urlParams.get('date');
-      const hourParam = urlParams.get('hour');
-      
+      const dateParam = urlParams.get("date");
+      const hourParam = urlParams.get("hour");
+
       if (dateParam) {
         setSelectedDate(new Date(dateParam));
       }
-      
+
       if (hourParam) {
         setSelectedHour(parseInt(hourParam));
       }
@@ -57,8 +63,8 @@ export function BaptemeBiPlaceAddForm({
 
   const handleSubmit = async (baptemeData: BaptemeData) => {
     try {
-      console.log('BaptemeBiPlaceAddForm received data:', baptemeData);
-      
+      console.log("BaptemeBiPlaceAddForm received data:", baptemeData);
+
       // Convert to the format expected by the API
       const apiData = {
         date: baptemeData.date.toISOString(),
@@ -69,12 +75,12 @@ export function BaptemeBiPlaceAddForm({
         acomptePrice: baptemeData.acomptePrice,
       };
 
-      console.log('Sending to API:', apiData);
+      console.log("Sending to API:", apiData);
       await createBapteme.mutateAsync(apiData);
-      
+
       // Redirect to biplaces page after successful creation
       router.push("/dashboard/biplaces");
-      
+
       onSuccess?.();
     } catch (error) {
       console.error("Erreur lors de la création du baptême:", error);
@@ -86,6 +92,9 @@ export function BaptemeBiPlaceAddForm({
       selectedDate={selectedDate}
       selectedHour={selectedHour}
       onSubmit={handleSubmit}
+      role={role}
+      userId={userId}
+      isSubmitting={createBapteme.isPending}
     />
   );
 }

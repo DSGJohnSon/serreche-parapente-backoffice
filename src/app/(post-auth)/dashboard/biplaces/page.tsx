@@ -6,6 +6,7 @@ import { BaptemeDetailsDialog } from "./bapteme-details-dialog";
 import { useState, useEffect } from "react";
 import { Bapteme, User, BaptemeBooking } from "@prisma/client";
 import { useGetAllBaptemes } from "@/features/biplaces/api/use-get-bapteme";
+import { useCurrent } from "@/features/auth/api/use-current";
 import { useCreateBapteme } from "@/features/biplaces/api/use-create-bapteme";
 import { BaptemeCategory } from "@/features/biplaces/schemas";
 
@@ -62,6 +63,7 @@ interface BaptemeData {
 }
 
 export default function Page() {
+  const { data: user } = useCurrent();
   const [showAddForm, setShowAddForm] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -145,7 +147,7 @@ export default function Page() {
     }
   };
 
-  const handleDayClick = (date: Date, hour?: number) => {
+  const handleHourClick = (date: Date, hour?: number) => {
     console.log("Day clicked:", date, "Hour:", hour);
     // Redirect to add page with date and hour parameters
     const params = new URLSearchParams({
@@ -197,10 +199,12 @@ export default function Page() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4">
       <CalendarScheduleBaptemes
-        baptemes={baptemes}
+        baptemes={baptemes as any}
         onBaptemeClick={handleBaptemeClick}
-        onDayClick={handleDayClick}
+        onHourClick={handleHourClick}
         onAddBapteme={handleAddBapteme}
+        role={user?.role}
+        userId={user?.id}
       />
 
       <AddBaptemeDialog
@@ -210,12 +214,16 @@ export default function Page() {
         selectedHour={selectedHour}
         onCreateBapteme={handleCreateBapteme}
         isSubmitting={createBapteme.isPending}
+        role={user?.role}
+        userId={user?.id}
       />
 
       <BaptemeDetailsDialog
         open={showDetailsDialog}
         onOpenChange={setShowDetailsDialog}
         bapteme={selectedBapteme}
+        role={user?.role}
+        userId={user?.id}
       />
     </main>
   );

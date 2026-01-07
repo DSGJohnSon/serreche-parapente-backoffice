@@ -32,12 +32,16 @@ interface EditBaptemeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bapteme: BaptemeData | null;
+  role?: string;
+  userId?: string;
 }
 
 export function EditBaptemeDialog({
   open,
   onOpenChange,
   bapteme,
+  role,
+  userId,
 }: EditBaptemeDialogProps) {
   const handleSuccess = () => {
     onOpenChange(false);
@@ -60,6 +64,8 @@ export function EditBaptemeDialog({
           bapteme={bapteme}
           onSuccess={handleSuccess}
           onCancel={handleCancel}
+          role={role}
+          userId={userId}
         />
       </DialogContent>
     </Dialog>

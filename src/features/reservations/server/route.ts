@@ -1,5 +1,8 @@
 import { Hono } from "hono";
-import { adminSessionMiddleware } from "@/lib/session-middleware";
+import {
+  adminSessionMiddleware,
+  monitorSessionMiddleware,
+} from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
@@ -26,12 +29,21 @@ const app = new Hono()
   // GET all reservations with advanced filters and pagination
   .get(
     "/",
-    adminSessionMiddleware,
+    monitorSessionMiddleware,
     zValidator("query", GetReservationsSchema),
     async (c) => {
       try {
-        const { page, limit, search, type, status, startDate, endDate, category } = c.req.valid("query");
-        
+        const {
+          page,
+          limit,
+          search,
+          type,
+          status,
+          startDate,
+          endDate,
+          category,
+        } = c.req.valid("query");
+
         const pageNum = parseInt(page);
         const limitNum = parseInt(limit);
         const skip = (pageNum - 1) * limitNum;
@@ -43,7 +55,9 @@ const app = new Hono()
         };
 
         // Build status filter
-        const statusFilter = status ? { in: status.split(",") } : { in: ['PAID', 'CONFIRMED', 'PARTIALLY_PAID', 'FULLY_PAID'] };
+        const statusFilter = status
+          ? { in: status.split(",") }
+          : { in: ["PAID", "CONFIRMED", "PARTIALLY_PAID", "FULLY_PAID"] };
 
         let stageBookings: any[] = [];
         let stageCount = 0;
@@ -68,10 +82,28 @@ const app = new Hono()
 
           if (search) {
             stageWhere.OR = [
-              { stagiaire: { firstName: { contains: search, mode: 'insensitive' } } },
-              { stagiaire: { lastName: { contains: search, mode: 'insensitive' } } },
-              { stagiaire: { email: { contains: search, mode: 'insensitive' } } },
-              { orderItem: { is: { order: { orderNumber: { contains: search, mode: 'insensitive' } } } } },
+              {
+                stagiaire: {
+                  firstName: { contains: search, mode: "insensitive" },
+                },
+              },
+              {
+                stagiaire: {
+                  lastName: { contains: search, mode: "insensitive" },
+                },
+              },
+              {
+                stagiaire: { email: { contains: search, mode: "insensitive" } },
+              },
+              {
+                orderItem: {
+                  is: {
+                    order: {
+                      orderNumber: { contains: search, mode: "insensitive" },
+                    },
+                  },
+                },
+              },
             ];
           }
 
@@ -100,7 +132,7 @@ const app = new Hono()
                 },
               },
               orderBy: {
-                createdAt: 'desc',
+                createdAt: "desc",
               },
               skip: type === "STAGE" ? skip : 0,
               take: type === "STAGE" ? limitNum : undefined,
@@ -127,10 +159,28 @@ const app = new Hono()
 
           if (search) {
             baptemeWhere.OR = [
-              { stagiaire: { firstName: { contains: search, mode: 'insensitive' } } },
-              { stagiaire: { lastName: { contains: search, mode: 'insensitive' } } },
-              { stagiaire: { email: { contains: search, mode: 'insensitive' } } },
-              { orderItem: { is: { order: { orderNumber: { contains: search, mode: 'insensitive' } } } } },
+              {
+                stagiaire: {
+                  firstName: { contains: search, mode: "insensitive" },
+                },
+              },
+              {
+                stagiaire: {
+                  lastName: { contains: search, mode: "insensitive" },
+                },
+              },
+              {
+                stagiaire: { email: { contains: search, mode: "insensitive" } },
+              },
+              {
+                orderItem: {
+                  is: {
+                    order: {
+                      orderNumber: { contains: search, mode: "insensitive" },
+                    },
+                  },
+                },
+              },
             ];
           }
 
@@ -159,7 +209,7 @@ const app = new Hono()
                 },
               },
               orderBy: {
-                createdAt: 'desc',
+                createdAt: "desc",
               },
               skip: type === "BAPTEME" ? skip : 0,
               take: type === "BAPTEME" ? limitNum : undefined,
@@ -175,21 +225,38 @@ const app = new Hono()
         if (type === "ALL") {
           // Combine both arrays
           const allBookings = [
-            ...stageBookings.map(b => ({ ...b, bookingType: 'STAGE' as const, date: b.stage.startDate })),
-            ...baptemeBookings.map(b => ({ ...b, bookingType: 'BAPTEME' as const, date: b.bapteme.date })),
+            ...stageBookings.map((b) => ({
+              ...b,
+              bookingType: "STAGE" as const,
+              date: b.stage.startDate,
+            })),
+            ...baptemeBookings.map((b) => ({
+              ...b,
+              bookingType: "BAPTEME" as const,
+              date: b.bapteme.date,
+            })),
           ];
 
           // Sort by creation date descending (most recent first)
-          allBookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          allBookings.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
 
           // Apply pagination
           combinedResults = allBookings.slice(skip, skip + limitNum);
           totalCount = stageCount + baptemeCount;
         } else if (type === "STAGE") {
-          combinedResults = stageBookings.map(b => ({ ...b, bookingType: 'STAGE' as const }));
+          combinedResults = stageBookings.map((b) => ({
+            ...b,
+            bookingType: "STAGE" as const,
+          }));
           totalCount = stageCount;
         } else {
-          combinedResults = baptemeBookings.map(b => ({ ...b, bookingType: 'BAPTEME' as const }));
+          combinedResults = baptemeBookings.map((b) => ({
+            ...b,
+            bookingType: "BAPTEME" as const,
+          }));
           totalCount = baptemeCount;
         }
 
@@ -213,202 +280,217 @@ const app = new Hono()
             },
           },
         });
-
       } catch (error) {
-        console.error('Erreur récupération réservations:', error);
-        return c.json({
-          success: false,
-          message: "Erreur lors de la récupération des réservations",
-          data: null,
-        }, 500);
+        console.error("Erreur récupération réservations:", error);
+        return c.json(
+          {
+            success: false,
+            message: "Erreur lors de la récupération des réservations",
+            data: null,
+          },
+          500
+        );
       }
     }
   )
   // GET single reservation by ID with complete details
-  .get(
-    "/:id",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        const id = c.req.param("id");
+  .get("/:id", monitorSessionMiddleware, async (c) => {
+    try {
+      const id = c.req.param("id");
 
-        // Try to find as stage booking first
-        let stageBooking = await prisma.stageBooking.findUnique({
-          where: { id },
-          include: {
-            stagiaire: true,
-            stage: {
-              include: {
-                moniteurs: {
-                  include: {
-                    moniteur: true,
-                  },
-                },
-                bookings: {
-                  where: {
-                    orderItem: {
-                      is: {
-                        order: {
-                          status: {
-                            in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED']
-                          }
-                        }
-                      }
-                    }
-                  }
+      // Try to find as stage booking first
+      let stageBooking = await prisma.stageBooking.findUnique({
+        where: { id },
+        include: {
+          stagiaire: true,
+          stage: {
+            include: {
+              moniteurs: {
+                include: {
+                  moniteur: true,
                 },
               },
-            },
-            orderItem: {
-              include: {
-                order: {
-                  include: {
-                    client: true,
-                    payments: {
-                      include: {
-                        recordedByUser: true,
-                      },
-                      orderBy: {
-                        createdAt: 'asc',
-                      },
-                    },
-                    orderGiftCards: {
-                      include: {
-                        giftCard: true,
+              bookings: {
+                where: {
+                  orderItem: {
+                    is: {
+                      order: {
+                        status: {
+                          in: [
+                            "PAID",
+                            "PARTIALLY_PAID",
+                            "FULLY_PAID",
+                            "CONFIRMED",
+                          ],
+                        },
                       },
                     },
                   },
                 },
-                paymentAllocations: {
-                  include: {
-                    payment: {
-                      include: {
-                        recordedByUser: true,
-                      },
-                    },
-                  },
-                  orderBy: {
-                    createdAt: 'asc',
-                  },
-                } as any,
               },
             },
           },
-        });
-
-        if (stageBooking) {
-          // Calculate remaining places
-          const totalPlaces = (stageBooking as any).stage.places;
-          const confirmedBookings = (stageBooking as any).stage.bookings.length;
-          const remainingPlaces = totalPlaces - confirmedBookings;
-
-          return c.json({
-            success: true,
-            data: {
-              type: 'STAGE',
-              booking: stageBooking,
-              availablePlaces: {
-                total: totalPlaces,
-                confirmed: confirmedBookings,
-                remaining: remainingPlaces,
-              },
-            },
-          });
-        }
-
-        // Try to find as bapteme booking
-        let baptemeBooking = await prisma.baptemeBooking.findUnique({
-          where: { id },
-          include: {
-            stagiaire: true,
-            bapteme: {
-              include: {
-                moniteurs: {
-                  include: {
-                    moniteur: true,
-                  },
-                },
-                bookings: {
-                  where: {
-                    orderItem: {
-                      is: {
-                        order: {
-                          status: {
-                            in: ['PAID', 'PARTIALLY_PAID', 'FULLY_PAID', 'CONFIRMED']
-                          }
-                        }
-                      }
-                    }
-                  }
-                },
-              },
-            },
-            orderItem: {
-              include: {
-                order: {
-                  include: {
-                    client: true,
-                    payments: {
-                      orderBy: {
-                        createdAt: 'asc',
-                      },
+          orderItem: {
+            include: {
+              order: {
+                include: {
+                  client: true,
+                  payments: {
+                    include: {
+                      recordedByUser: true,
                     },
-                    orderGiftCards: {
-                      include: {
-                        giftCard: true,
-                      },
+                    orderBy: {
+                      createdAt: "asc",
+                    },
+                  },
+                  orderGiftCards: {
+                    include: {
+                      giftCard: true,
                     },
                   },
                 },
-                paymentAllocations: {
-                  include: {
-                    payment: true,
-                  },
-                  orderBy: {
-                    createdAt: 'asc',
-                  },
-                } as any,
               },
+              paymentAllocations: {
+                include: {
+                  payment: {
+                    include: {
+                      recordedByUser: true,
+                    },
+                  },
+                },
+                orderBy: {
+                  createdAt: "asc",
+                },
+              } as any,
             },
           },
-        });
+        },
+      });
 
-        if (baptemeBooking) {
-          // Calculate remaining places
-          const totalPlaces = (baptemeBooking as any).bapteme.places;
-          const confirmedBookings = (baptemeBooking as any).bapteme.bookings.length;
-          const remainingPlaces = totalPlaces - confirmedBookings;
-
-          return c.json({
-            success: true,
-            data: {
-              type: 'BAPTEME',
-              booking: baptemeBooking,
-              availablePlaces: {
-                total: totalPlaces,
-                confirmed: confirmedBookings,
-                remaining: remainingPlaces,
-              },
-            },
-          });
-        }
+      if (stageBooking) {
+        // Calculate remaining places
+        const totalPlaces = (stageBooking as any).stage.places;
+        const confirmedBookings = (stageBooking as any).stage.bookings.length;
+        const remainingPlaces = totalPlaces - confirmedBookings;
 
         return c.json({
+          success: true,
+          data: {
+            type: "STAGE",
+            booking: stageBooking,
+            availablePlaces: {
+              total: totalPlaces,
+              confirmed: confirmedBookings,
+              remaining: remainingPlaces,
+            },
+          },
+        });
+      }
+
+      // Try to find as bapteme booking
+      let baptemeBooking = await prisma.baptemeBooking.findUnique({
+        where: { id },
+        include: {
+          stagiaire: true,
+          bapteme: {
+            include: {
+              moniteurs: {
+                include: {
+                  moniteur: true,
+                },
+              },
+              bookings: {
+                where: {
+                  orderItem: {
+                    is: {
+                      order: {
+                        status: {
+                          in: [
+                            "PAID",
+                            "PARTIALLY_PAID",
+                            "FULLY_PAID",
+                            "CONFIRMED",
+                          ],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderItem: {
+            include: {
+              order: {
+                include: {
+                  client: true,
+                  payments: {
+                    orderBy: {
+                      createdAt: "asc",
+                    },
+                  },
+                  orderGiftCards: {
+                    include: {
+                      giftCard: true,
+                    },
+                  },
+                },
+              },
+              paymentAllocations: {
+                include: {
+                  payment: true,
+                },
+                orderBy: {
+                  createdAt: "asc",
+                },
+              } as any,
+            },
+          },
+        },
+      });
+
+      if (baptemeBooking) {
+        // Calculate remaining places
+        const totalPlaces = (baptemeBooking as any).bapteme.places;
+        const confirmedBookings = (baptemeBooking as any).bapteme.bookings
+          .length;
+        const remainingPlaces = totalPlaces - confirmedBookings;
+
+        return c.json({
+          success: true,
+          data: {
+            type: "BAPTEME",
+            booking: baptemeBooking,
+            availablePlaces: {
+              total: totalPlaces,
+              confirmed: confirmedBookings,
+              remaining: remainingPlaces,
+            },
+          },
+        });
+      }
+
+      return c.json(
+        {
           success: false,
           message: "Réservation non trouvée",
           data: null,
-        }, 404);
-
-      } catch (error) {
-        console.error('Erreur récupération détails réservation:', error);
-        return c.json({
+        },
+        404
+      );
+    } catch (error) {
+      console.error("Erreur récupération détails réservation:", error);
+      return c.json(
+        {
           success: false,
-          message: "Erreur lors de la récupération des détails de la réservation",
+          message:
+            "Erreur lors de la récupération des détails de la réservation",
           data: null,
-        }, 500);
-      }
+        },
+        500
+      );
     }
-  )
+  })
   // POST - Record a manual payment for a reservation
   .post(
     "/manual-payment",
@@ -416,7 +498,8 @@ const app = new Hono()
     zValidator("json", RecordManualPaymentSchema),
     async (c) => {
       try {
-        const { orderItemId, amount, paymentMethod, note } = c.req.valid("json");
+        const { orderItemId, amount, paymentMethod, note } =
+          c.req.valid("json");
 
         // Get the order item with order details
         const orderItem = await prisma.orderItem.findUnique({
@@ -427,10 +510,13 @@ const app = new Hono()
         });
 
         if (!orderItem) {
-          return c.json({
-            success: false,
-            message: "Réservation non trouvée",
-          }, 404);
+          return c.json(
+            {
+              success: false,
+              message: "Réservation non trouvée",
+            },
+            404
+          );
         }
 
         const order = orderItem.order;
@@ -499,19 +585,21 @@ const app = new Hono()
           where: { orderId: order.id },
         });
 
-        const allItemsFullyPaid = allOrderItems.every(item => {
+        const allItemsFullyPaid = allOrderItems.every((item) => {
           // Gift cards are always considered "paid" since they're generated
-          if (item.type === 'GIFT_CARD') return true;
+          if (item.type === "GIFT_CARD") return true;
           // Baptemes are paid in full upfront
-          if (item.type === 'BAPTEME') return true;
+          if (item.type === "BAPTEME") return true;
           // Stages need to check isFullyPaid
-          if (item.type === 'STAGE') return item.id === orderItemId ? isFullyPaid : item.isFullyPaid;
+          if (item.type === "STAGE")
+            return item.id === orderItemId ? isFullyPaid : item.isFullyPaid;
           return false;
         });
 
-        const hasAnyPartialPayment = allOrderItems.some(item => {
-          if (item.type === 'STAGE') {
-            const itemIsFullyPaid = item.id === orderItemId ? isFullyPaid : item.isFullyPaid;
+        const hasAnyPartialPayment = allOrderItems.some((item) => {
+          if (item.type === "STAGE") {
+            const itemIsFullyPaid =
+              item.id === orderItemId ? isFullyPaid : item.isFullyPaid;
             return !itemIsFullyPaid && (item.depositAmount || 0) > 0;
           }
           return false;
@@ -546,13 +634,15 @@ const app = new Hono()
             },
           },
         });
-
       } catch (error) {
-        console.error('Erreur enregistrement paiement manuel:', error);
-        return c.json({
-          success: false,
-          message: "Erreur lors de l'enregistrement du paiement",
-        }, 500);
+        console.error("Erreur enregistrement paiement manuel:", error);
+        return c.json(
+          {
+            success: false,
+            message: "Erreur lors de l'enregistrement du paiement",
+          },
+          500
+        );
       }
     }
   );

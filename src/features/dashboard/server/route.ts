@@ -1,10 +1,13 @@
 import { Hono } from "hono";
-import { adminSessionMiddleware } from "@/lib/session-middleware";
+import {
+  adminSessionMiddleware,
+  monitorSessionMiddleware,
+} from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 
 const app = new Hono()
   // GET dashboard statistics
-  .get("/stats", adminSessionMiddleware, async (c) => {
+  .get("/stats", monitorSessionMiddleware, async (c) => {
     try {
       const now = new Date();
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -106,15 +109,24 @@ const app = new Hono()
       const totalRevenueMonth = onlineRevenue + manualRevenue;
       const totalRevenueYear = totalRevenueThisYear._sum.amount || 0;
 
+      const user = await prisma.user.findUnique({
+        where: { id: c.get("userId") },
+        select: { role: true },
+      });
+
       return c.json({
         success: true,
         data: {
-          revenue: {
-            onlineRevenueThisMonth: onlineRevenue,
-            totalRevenueThisMonth: totalRevenueMonth,
-            totalRevenueThisYear: totalRevenueYear,
-          },
-          last13MonthsRevenue,
+          revenue:
+            user?.role === "ADMIN"
+              ? {
+                  onlineRevenueThisMonth: onlineRevenue,
+                  totalRevenueThisMonth: totalRevenueMonth,
+                  totalRevenueThisYear: totalRevenueYear,
+                }
+              : null,
+          last13MonthsRevenue:
+            user?.role === "ADMIN" ? last13MonthsRevenue : null,
         },
       });
     } catch (error) {
@@ -130,7 +142,7 @@ const app = new Hono()
     }
   })
   // GET monitor's daily schedule
-  .get("/monitor-schedule", adminSessionMiddleware, async (c) => {
+  .get("/monitor-schedule", monitorSessionMiddleware, async (c) => {
     try {
       const userId = c.get("userId");
 

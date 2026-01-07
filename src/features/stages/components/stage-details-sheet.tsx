@@ -43,12 +43,14 @@ interface StageDetailsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   stage: StageWithDetails | null;
+  role?: string;
 }
 
 export function StageDetailsSheet({
   open,
   onOpenChange,
   stage,
+  role,
 }: StageDetailsSheetProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -193,18 +195,22 @@ export function StageDetailsSheet({
             <div className="flex items-center gap-2">
               {!isEditing ? (
                 <>
-                  <Button variant="outline" size="sm" onClick={handleEdit}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentBookingsCount > 0}
-                    className="text-red-600 hover:text-red-700"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {role === "ADMIN" && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={handleEdit}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentBookingsCount > 0}
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                 </>
               ) : (
                 <>

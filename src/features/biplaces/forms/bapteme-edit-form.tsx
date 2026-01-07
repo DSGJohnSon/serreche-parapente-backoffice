@@ -29,6 +29,7 @@ interface BaptemeData {
   duration: number;
   places: number;
   acomptePrice: number;
+  moniteurIds?: string[];
   moniteurs?: Array<{
     moniteur: {
       id: string;
@@ -47,20 +48,23 @@ const CATEGORY_LABELS: Record<BaptemeCategory, string> = {
   [BaptemeCategory.DUREE]: "Durée",
   [BaptemeCategory.LONGUE_DUREE]: "Longue Durée",
   [BaptemeCategory.ENFANT]: "Enfant",
-  [BaptemeCategory.HIVER]: "Hiver"
+  [BaptemeCategory.HIVER]: "Hiver",
 };
-
 
 interface BaptemeEditFormProps {
   bapteme: BaptemeData;
   onSuccess?: () => void;
   onCancel?: () => void;
+  role?: string;
+  userId?: string;
 }
 
 export function BaptemeEditForm({
   bapteme,
   onSuccess,
   onCancel,
+  role,
+  userId,
 }: BaptemeEditFormProps) {
   const { data: moniteurs, isLoading: isLoadingMoniteurs } =
     useGetMoniteursAndAdmins();
@@ -94,20 +98,27 @@ export function BaptemeEditForm({
       // Check if duration is a custom value (not in preset options)
       const presetDurations = [60, 90, 120, 150, 180];
       const isCustom = !presetDurations.includes(bapteme.duration);
-      
+
       const acompteValue = bapteme.acomptePrice || depositPrice?.price || 35;
-      console.log('Initializing form with acomptePrice:', acompteValue, 'from bapteme:', bapteme.acomptePrice, 'depositPrice:', depositPrice?.price);
-      
+      console.log(
+        "Initializing form with acomptePrice:",
+        acompteValue,
+        "from bapteme:",
+        bapteme.acomptePrice,
+        "depositPrice:",
+        depositPrice?.price
+      );
+
       setFormData({
         date: baptemeDate,
         time: timeString,
         duration: bapteme.duration,
         places: bapteme.places,
-        moniteurIds: bapteme.moniteurs?.map(m => m.moniteur.id) || [],
+        moniteurIds: bapteme.moniteurs?.map((m) => m.moniteur.id) || [],
         categories: bapteme.categories || [],
         acomptePrice: acompteValue,
       });
-      
+
       if (isCustom) {
         setIsCustomDuration(true);
         setCustomDuration(bapteme.duration.toString());
@@ -133,7 +144,9 @@ export function BaptemeEditForm({
 
     // Vérifier que le nombre de places n'est pas inférieur au nombre de réservations
     if (formData.places < minPlaces) {
-      alert(`Impossible de réduire le nombre de places à ${formData.places}. Il y a déjà ${minPlaces} réservation(s) pour ce baptême.`);
+      alert(
+        `Impossible de réduire le nombre de places à ${formData.places}. Il y a déjà ${minPlaces} réservation(s) pour ce baptême.`
+      );
       return;
     }
 
@@ -149,7 +162,7 @@ export function BaptemeEditForm({
 
     const originalDate = new Date(bapteme.date);
 
-    console.log('Submitting update with acomptePrice:', formData.acomptePrice);
+    console.log("Submitting update with acomptePrice:", formData.acomptePrice);
 
     try {
       await updateBapteme.mutateAsync({
@@ -168,7 +181,10 @@ export function BaptemeEditForm({
     }
   };
 
-  const handleCategoryChange = (category: BaptemeCategory, checked: boolean) => {
+  const handleCategoryChange = (
+    category: BaptemeCategory,
+    checked: boolean
+  ) => {
     setFormData((prev) => ({
       ...prev,
       categories: checked
@@ -235,7 +251,7 @@ export function BaptemeEditForm({
             <SelectItem value="custom">Durée personnalisée</SelectItem>
           </SelectContent>
         </Select>
-        
+
         {isCustomDuration && (
           <div className="mt-2">
             <Input
@@ -302,11 +318,12 @@ export function BaptemeEditForm({
               acomptePrice: Number.parseFloat(e.target.value) || 0,
             }))
           }
-          disabled={isLoading}
+          disabled={isLoading || role === "MONITEUR"}
           required
         />
         <p className="text-xs text-muted-foreground">
-          Montant à payer lors de la réservation (par défaut: {depositPrice?.price || 35}€)
+          Montant à payer lors de la réservation (par défaut:{" "}
+          {depositPrice?.price || 35}€)
         </p>
       </div>
 
@@ -321,16 +338,22 @@ export function BaptemeEditForm({
             {Object.values(BaptemeCategory).map((category) => {
               const tarif = tarifs?.find((t) => t.category === category);
               const price = tarif?.price || 0;
-              
+
               return (
                 <div
                   key={category}
                   className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
                     isLoading
-                      ? 'cursor-not-allowed opacity-50'
-                      : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800'
+                      ? "cursor-not-allowed opacity-50"
+                      : "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
-                  onClick={() => !isLoading && handleCategoryChange(category, !formData.categories.includes(category))}
+                  onClick={() =>
+                    !isLoading &&
+                    handleCategoryChange(
+                      category,
+                      !formData.categories.includes(category)
+                    )
+                  }
                 >
                   <input
                     type="checkbox"
@@ -373,7 +396,9 @@ export function BaptemeEditForm({
           <MultiSelect
             options={moniteurs.map((moniteur) => ({
               value: moniteur.id,
-              label: `${moniteur.name} (${moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})`,
+              label: `${moniteur.name} (${
+                moniteur.role === "ADMIN" ? "Admin" : "Moniteur"
+              })`,
             }))}
             onValueChange={(values) =>
               setFormData((prev) => ({ ...prev, moniteurIds: values }))
@@ -382,6 +407,7 @@ export function BaptemeEditForm({
             placeholder="Sélectionner des moniteurs"
             variant="inverted"
             maxCount={3}
+            disabled={role === "MONITEUR"}
           />
         ) : (
           <div className="text-sm text-muted-foreground">
@@ -407,7 +433,11 @@ export function BaptemeEditForm({
             Annuler
           </Button>
         )}
-        <Button type="submit" disabled={updateBapteme.isPending} className="flex-1">
+        <Button
+          type="submit"
+          disabled={updateBapteme.isPending}
+          className="flex-1"
+        >
           {updateBapteme.isPending ? "Modification..." : "Modifier"}
         </Button>
       </div>

@@ -1,6 +1,12 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { adminSessionMiddleware, publicAPIMiddleware, sessionMiddleware, sessionOrAPIMiddleware } from "@/lib/session-middleware";
+import {
+  adminSessionMiddleware,
+  monitorSessionMiddleware,
+  publicAPIMiddleware,
+  sessionMiddleware,
+  sessionOrAPIMiddleware,
+} from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
@@ -21,7 +27,7 @@ const app = new Hono()
 
     try {
       const now = new Date();
-      
+
       const baptemes = await prisma.bapteme.findMany({
         where,
         include: {
@@ -35,35 +41,36 @@ const app = new Hono()
       });
 
       // Optimisation: Récupérer tous les comptes en une seule requête
-      const baptemeIds = baptemes.map(b => b.id);
-      
+      const baptemeIds = baptemes.map((b) => b.id);
+
       const allTemporaryReservations = await prisma.cartItem.groupBy({
-        by: ['baptemeId'],
+        by: ["baptemeId"],
         where: {
-          type: 'BAPTEME',
+          type: "BAPTEME",
           baptemeId: { in: baptemeIds },
           expiresAt: { gt: now },
           isExpired: false,
         },
         _count: {
-          id: true
-        }
+          id: true,
+        },
       });
 
       // Créer une map pour un accès rapide
       const tempReservationsMap = new Map(
         allTemporaryReservations
-          .filter(item => item.baptemeId !== null)
-          .map(item => [item.baptemeId!, item._count.id])
+          .filter((item) => item.baptemeId !== null)
+          .map((item) => [item.baptemeId!, item._count.id])
       );
 
       // Enrichir chaque baptême
       const enrichedBaptemes = baptemes.map((bapteme) => {
         const confirmedBookings = bapteme.bookings.length;
         const temporaryReservations = tempReservationsMap.get(bapteme.id) || 0;
-        
-        const availablePlaces = bapteme.places - confirmedBookings - temporaryReservations;
-        
+
+        const availablePlaces =
+          bapteme.places - confirmedBookings - temporaryReservations;
+
         return {
           ...bapteme,
           availablePlaces: Math.max(0, availablePlaces),
@@ -78,7 +85,11 @@ const app = new Hono()
       if (error instanceof Error) {
         console.error("Stack trace:", error.stack);
       }
-      return c.json({ success: false, message: "Erreur lors de la récupération des créneaux", data: null });
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération des créneaux",
+        data: null,
+      });
     }
   })
   // GET bapteme by id
@@ -86,7 +97,11 @@ const app = new Hono()
     try {
       const id = c.req.param("id");
       if (!id) {
-        return c.json({ success: false, message: "ID is required", data: null });
+        return c.json({
+          success: false,
+          message: "ID is required",
+          data: null,
+        });
       }
       const result = await prisma.bapteme.findUnique({
         where: { id },
@@ -101,17 +116,61 @@ const app = new Hono()
       });
       return c.json({ success: true, message: "", data: result });
     } catch (error) {
-      return c.json({ success: false, message: "Erreur lors de la récupération du créneau", data: null });
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération du créneau",
+        data: null,
+      });
     }
   })
   // CREATE bapteme
   .post(
     "create",
     zValidator("json", CreateBaptemeSchema),
-    adminSessionMiddleware,
+    monitorSessionMiddleware,
     async (c) => {
       try {
-        const { date, duration, places, moniteurIds, categories, acomptePrice } = c.req.valid("json");
+        const {
+          date,
+          duration,
+          places,
+          moniteurIds,
+          categories,
+          acomptePrice,
+        } = c.req.valid("json");
+        const role = c.get("role");
+        const userId = c.get("userId");
+
+        // Role-based checks
+        if (role === "MONITEUR") {
+          // Monitor can only create for themselves
+          if (moniteurIds.length !== 1 || moniteurIds[0] !== userId) {
+            return c.json(
+              {
+                success: false,
+                message:
+                  "Un moniteur ne peut créer de créneau que pour lui-même.",
+                data: null,
+              },
+              403
+            );
+          }
+          // Monitor cannot change default deposit price (need to get it first or rely on client-side + extra check if possible)
+          // For now, let's assume if it doesn't match a default value it's rejected, or better, we fetch it here.
+          const defaultDeposit = await prisma.baptemeDepositPrice.findFirst();
+          if (defaultDeposit && acomptePrice !== defaultDeposit.price) {
+            return c.json(
+              {
+                success: false,
+                message:
+                  "Un moniteur ne peut pas modifier le montant de l'acompte.",
+                data: null,
+              },
+              403
+            );
+          }
+        }
+
         const dateObj = new Date(date);
 
         const result = await prisma.bapteme.create({
@@ -138,7 +197,10 @@ const app = new Hono()
           const zodErrors = error.errors.map((e) => e.message);
           return c.json({
             success: false,
-            message: zodErrors.length > 0 ? zodErrors[0] : "Erreur dans la validation des données",
+            message:
+              zodErrors.length > 0
+                ? zodErrors[0]
+                : "Erreur dans la validation des données",
             data: null,
           });
         }
@@ -176,16 +238,27 @@ const app = new Hono()
   .post(
     "update",
     zValidator("json", UpdateBaptemeSchema),
-    adminSessionMiddleware,
+    monitorSessionMiddleware,
     async (c) => {
       try {
-        const { originalDate, date, duration, places, moniteurIds, categories, acomptePrice } = c.req.valid("json");
+        const {
+          originalDate,
+          date,
+          duration,
+          places,
+          moniteurIds,
+          categories,
+          acomptePrice,
+        } = c.req.valid("json");
+        const role = c.get("role");
+        const userId = c.get("userId");
+
         const originalDateObj = new Date(originalDate);
         const newDateObj = new Date(date);
 
         const previousData = await prisma.bapteme.findUnique({
           where: { date: originalDateObj },
-          include: { bookings: true },
+          include: { bookings: true, moniteurs: true },
         });
 
         if (!previousData) {
@@ -195,10 +268,57 @@ const app = new Hono()
             data: null,
           });
         }
+
+        // Role-based checks
+        if (role === "MONITEUR") {
+          // Monitor must be one of the assigned monitors to edit
+          const isAssigned = previousData.moniteurs.some(
+            (m) => m.moniteurId === userId
+          );
+          if (!isAssigned) {
+            return c.json(
+              {
+                success: false,
+                message:
+                  "Vous ne pouvez modifier que les créneaux où vous êtes assigné.",
+                data: null,
+              },
+              403
+            );
+          }
+
+          // Monitor cannot change default deposit price
+          const defaultDeposit = await prisma.baptemeDepositPrice.findFirst();
+          if (defaultDeposit && acomptePrice !== defaultDeposit.price) {
+            return c.json(
+              {
+                success: false,
+                message:
+                  "Un moniteur ne peut pas modifier le montant de l'acompte.",
+                data: null,
+              },
+              403
+            );
+          }
+
+          // Monitor can change duration/places but must remain assigned
+          if (!moniteurIds.includes(userId)) {
+            return c.json(
+              {
+                success: false,
+                message: "Vous devez rester assigné à ce créneau.",
+                data: null,
+              },
+              403
+            );
+          }
+        }
+
         if (previousData.bookings.length > places) {
           return c.json({
             success: false,
-            message: "Impossible de réduire le nombre de places, elles sont toutes occupées.",
+            message:
+              "Impossible de réduire le nombre de places, elles sont toutes occupées.",
             data: null,
           });
         }
@@ -229,12 +349,16 @@ const app = new Hono()
           const zodErrors = error.errors.map((e) => e.message);
           return c.json({
             success: false,
-            message: zodErrors.length > 0 ? zodErrors[0] : "Erreur dans la validation des données",
+            message:
+              zodErrors.length > 0
+                ? zodErrors[0]
+                : "Erreur dans la validation des données",
             data: null,
           });
         }
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
-          switch (error.code) {}
+          switch (error.code) {
+          }
         }
         return c.json({
           success: false,
@@ -248,15 +372,17 @@ const app = new Hono()
   .post(
     "delete",
     zValidator("json", DeleteBaptemeSchema),
-    adminSessionMiddleware,
+    monitorSessionMiddleware,
     async (c) => {
       try {
         const { date } = c.req.valid("json");
+        const role = c.get("role");
+        const userId = c.get("userId");
         const dateObj = new Date(date);
 
         const baptemeToDelete = await prisma.bapteme.findUnique({
           where: { date: dateObj },
-          include: { bookings: true },
+          include: { bookings: true, moniteurs: true },
         });
         if (!baptemeToDelete) {
           return c.json({
@@ -265,10 +391,31 @@ const app = new Hono()
             data: null,
           });
         }
+
+        // Role-based checks
+        if (role === "MONITEUR") {
+          // Monitor must be assigned to delete
+          const isAssigned = baptemeToDelete.moniteurs.some(
+            (m) => m.moniteurId === userId
+          );
+          if (!isAssigned) {
+            return c.json(
+              {
+                success: false,
+                message:
+                  "Vous ne pouvez supprimer que les créneaux où vous êtes assigné.",
+                data: null,
+              },
+              403
+            );
+          }
+        }
+
         if (baptemeToDelete.bookings.length > 0) {
           return c.json({
             success: false,
-            message: "Ce créneau ne peut pas être supprimé car il contient des réservations.",
+            message:
+              "Ce créneau ne peut pas être supprimé car il contient des réservations.",
             data: null,
           });
         }
@@ -286,12 +433,16 @@ const app = new Hono()
           const zodErrors = error.errors.map((e) => e.message);
           return c.json({
             success: false,
-            message: zodErrors.length > 0 ? zodErrors[0] : "Erreur dans la validation des données",
+            message:
+              zodErrors.length > 0
+                ? zodErrors[0]
+                : "Erreur dans la validation des données",
             data: null,
           });
         }
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
-          switch (error.code) {}
+          switch (error.code) {
+          }
         }
         return c.json({
           success: false,
