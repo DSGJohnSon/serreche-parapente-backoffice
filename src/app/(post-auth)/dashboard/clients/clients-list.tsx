@@ -26,47 +26,69 @@ import {
   LucideMail,
   LucidePhone,
   LucideMapPin,
+  LucideArrowUpDown,
+  LucideArrowUp,
+  LucideArrowDown,
+  LucideChevronLeft,
+  LucideChevronRight,
+  LucideDownload,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Client, Order } from "@prisma/client";
 import CopyTextComponent from "@/components/copy-text-component";
+import { ExportClientsDialog } from "./export-clients-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ClientWithOrders = Client & {
   orders: Order[];
 };
 
 export function ClientsList() {
-  const { data: clientsData, isLoading } = useGetAllClients();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [sortBy, setSortBy] = useState("orders");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const transformedClientsData: ClientWithOrders[] | undefined =
-    clientsData?.map((client) => {
-      const orders: Order[] = client.orders.map((order) => ({
-        ...order,
-        createdAt: new Date(order.createdAt),
-        updatedAt: new Date(order.updatedAt),
-      }));
-
-      return {
-        ...client,
-        createdAt: new Date(client.createdAt),
-        updatedAt: new Date(client.updatedAt),
-        orders,
-      };
-    });
-
-  const filteredClients = transformedClientsData?.filter((client) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      client.firstName.toLowerCase().includes(query) ||
-      client.lastName.toLowerCase().includes(query) ||
-      client.email.toLowerCase().includes(query) ||
-      client.phone.toLowerCase().includes(query) ||
-      client.city.toLowerCase().includes(query) ||
-      client.id.toLowerCase().includes(query)
-    );
+  const { data: response, isLoading } = useGetAllClients({
+    page,
+    pageSize,
+    sortBy,
+    sortOrder,
+    search: searchQuery,
   });
+
+  const clients = response?.clients as ClientWithOrders[] | undefined;
+  const totalCount = response?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const handleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(key);
+      setSortOrder("desc");
+    }
+    setPage(1); // Reset to first page on sort
+  };
+
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortBy !== column)
+      return <LucideArrowUpDown className="ml-2 h-4 w-4" />;
+    return sortOrder === "asc" ? (
+      <LucideArrowUp className="ml-2 h-4 w-4" />
+    ) : (
+      <LucideArrowDown className="ml-2 h-4 w-4" />
+    );
+  };
 
   if (isLoading) {
     return (
@@ -76,6 +98,8 @@ export function ClientsList() {
       </div>
     );
   }
+
+  const oldSoftwareDate = new Date("2025-12-01");
 
   return (
     <div className="space-y-6">
@@ -88,6 +112,12 @@ export function ClientsList() {
           <p className="text-sm sm:text-base text-muted-foreground">
             Gérez tous les clients de votre établissement
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ExportClientsDialog
+            clients={clients || []}
+            totalCount={totalCount}
+          />
         </div>
       </div>
 
@@ -105,7 +135,10 @@ export function ClientsList() {
             <Input
               placeholder="Rechercher..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1); // Reset to first page on search
+              }}
               className="pl-10"
             />
           </div>
@@ -114,26 +147,47 @@ export function ClientsList() {
 
       {/* Clients Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Liste des clients</CardTitle>
-          <CardDescription>
-            {filteredClients?.length || 0} client(s) trouvé(s)
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div>
+            <CardTitle>Liste des clients</CardTitle>
+            <CardDescription>{totalCount} client(s) au total</CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-x-auto">
             <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Client</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center">
+                      Client <SortIcon column="name" />
+                    </div>
+                  </TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Adresse</TableHead>
-                  <TableHead>Commandes</TableHead>
-                  <TableHead>Inscrit le</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => handleSort("orders")}
+                  >
+                    <div className="flex items-center">
+                      Commandes <SortIcon column="orders" />
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => handleSort("createdAt")}
+                  >
+                    <div className="flex items-center">
+                      Inscrit le <SortIcon column="createdAt" />
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {!filteredClients || filteredClients.length === 0 ? (
+                {!clients || clients.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -143,77 +197,147 @@ export function ClientsList() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredClients.map((client) => (
-                    <TableRow key={client.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
-                            <LucideUser className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-medium">
-                              {client.firstName} {client.lastName}
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs text-muted-foreground">
-                                ID: {client.id.slice(0, 8)}...
-                              </span>
-                              <CopyTextComponent text={client.id} size="sm" />
+                  clients.map((client) => {
+                    const isOldSoftware = isSameDay(
+                      new Date(client.createdAt),
+                      oldSoftwareDate
+                    );
+
+                    return (
+                      <TableRow key={client.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                              <LucideUser className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">
+                                  {client.firstName} {client.lastName}
+                                </span>
+                                {isOldSoftware && (
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-orange-100 text-orange-800 border-orange-200"
+                                  >
+                                    Ancien logiciel
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-muted-foreground">
+                                  ID: {client.id.slice(0, 8)}...
+                                </span>
+                                <CopyTextComponent text={client.id} size="sm" />
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2 text-sm">
-                            <LucideMail className="h-3 w-3 text-muted-foreground" />
-                            <span>{client.email}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2 text-sm">
+                              <LucideMail className="h-3 w-3 text-muted-foreground" />
+                              <span>{client.email}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <LucidePhone className="h-3 w-3 text-muted-foreground" />
+                              <span>{client.phone}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <LucidePhone className="h-3 w-3 text-muted-foreground" />
-                            <span>{client.phone}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-start gap-2">
+                            <LucideMapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
+                            <div className="flex flex-col text-sm">
+                              <span>{client.address}</span>
+                              <span className="text-muted-foreground">
+                                {client.postalCode} {client.city}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {client.country}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-start gap-2">
-                          <LucideMapPin className="h-3 w-3 text-muted-foreground mt-0.5" />
-                          <div className="flex flex-col text-sm">
-                            <span>{client.address}</span>
-                            <span className="text-muted-foreground">
-                              {client.postalCode} {client.city}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {client.orders.length} commande
+                            {client.orders.length > 1 ? "s" : ""}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {format(
+                                new Date(client.createdAt),
+                                "dd/MM/yyyy",
+                                {
+                                  locale: fr,
+                                }
+                              )}
                             </span>
-                            <span className="text-muted-foreground">
-                              {client.country}
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(client.createdAt), "HH:mm", {
+                                locale: fr,
+                              })}
                             </span>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {client.orders.length} commande
-                          {client.orders.length > 1 ? "s" : ""}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {format(new Date(client.createdAt), "dd/MM/yyyy", {
-                              locale: fr,
-                            })}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(client.createdAt), "HH:mm", {
-                              locale: fr,
-                            })}
-                          </span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Afficher</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[80px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">par page</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground mr-4">
+                Page {page} sur {totalPages || 1}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <LucideChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  <LucideChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
