@@ -20,6 +20,8 @@ import { StageAddForm } from "@/features/stages/forms/stage-add-form";
 import { useCreateStage } from "@/features/stages/api/use-create-stage";
 import { StageType } from "@prisma/client";
 import { useCurrent } from "@/features/auth/api/use-current";
+import { ClientAddForm } from "@/features/clients/forms/client-add-form";
+import { StagiaireAddForm } from "@/features/stagiaires/forms/stagiaire-add-form";
 
 export default function TabsDemo() {
   const searchParams = useSearchParams();
@@ -47,7 +49,7 @@ export default function TabsDemo() {
       params.set("type", value);
       router.push(`${pathname}?${params.toString()}`);
     },
-    [searchParams, router, pathname]
+    [searchParams, router, pathname],
   );
 
   const handleCreateStage = (newStage: {
@@ -103,23 +105,57 @@ export default function TabsDemo() {
               <>
                 <TabsTrigger value="stage">Stage</TabsTrigger>
                 <TabsTrigger value="monitor">Moniteur</TabsTrigger>
+                <TabsTrigger value="client">Client</TabsTrigger>
+                <TabsTrigger value="stagiaire">Stagiaire</TabsTrigger>
               </>
             )}
           </TabsList>
           {role === "ADMIN" && (
-            <TabsContent value="monitor" className="w-full max-w-xl">
-              <Card className="w-full">
-                <CardHeader>
-                  <CardTitle>Moniteur</CardTitle>
-                  <CardDescription>
-                    Ajouter un nouveau moniteur à la base de données.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="w-full">
-                  <MonitorAddForm />
-                </CardContent>
-              </Card>
-            </TabsContent>
+            <>
+              <TabsContent value="monitor" className="w-full max-w-xl">
+                <Card className="w-full">
+                  <CardHeader>
+                    <CardTitle>Moniteur</CardTitle>
+                    <CardDescription>
+                      Ajouter un nouveau moniteur à la base de données.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    <MonitorAddForm />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="client" className="w-full max-w-xl">
+                <Card className="w-full">
+                  <CardHeader>
+                    <CardTitle>Client</CardTitle>
+                    <CardDescription>
+                      Ajouter un nouveau client à la base de données.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    <ClientAddForm
+                      onSuccess={() => router.push("/dashboard/clients")}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="stagiaire" className="w-full max-w-xl">
+                <Card className="w-full">
+                  <CardHeader>
+                    <CardTitle>Stagiaire</CardTitle>
+                    <CardDescription>
+                      Ajouter un nouveau stagiaire à la base de données.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    <StagiaireAddForm
+                      onSuccess={() => router.push("/dashboard/stagiaires")}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </>
           )}
           <TabsContent value="bapteme-biplace" className="w-full max-w-xl">
             <Card className="w-full">

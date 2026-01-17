@@ -39,6 +39,7 @@ import { Client, Order } from "@prisma/client";
 import CopyTextComponent from "@/components/copy-text-component";
 import { ExportClientsDialog } from "./export-clients-dialog";
 import { Button } from "@/components/ui/button";
+import { ClientAddDialog } from "@/features/clients/components/client-add-dialog";
 import {
   Select,
   SelectContent,
@@ -118,6 +119,7 @@ export function ClientsList() {
             clients={clients || []}
             totalCount={totalCount}
           />
+          <ClientAddDialog />
         </div>
       </div>
 
@@ -200,7 +202,7 @@ export function ClientsList() {
                   clients.map((client) => {
                     const isOldSoftware = isSameDay(
                       new Date(client.createdAt),
-                      oldSoftwareDate
+                      oldSoftwareDate,
                     );
 
                     return (
@@ -273,7 +275,7 @@ export function ClientsList() {
                                 "dd/MM/yyyy",
                                 {
                                   locale: fr,
-                                }
+                                },
                               )}
                             </span>
                             <span className="text-xs text-muted-foreground">

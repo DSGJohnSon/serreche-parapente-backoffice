@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { StagiairesList } from "./stagiaires-list";
+import { StagiaireAddDialog } from "@/features/stagiaires/components/stagiaire-add-dialog";
 
 export const metadata: Metadata = {
   title: "Stage de Parapente - BackOffice | Stagiaires",
@@ -9,6 +10,9 @@ export const metadata: Metadata = {
 export default async function Page() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 sm:p-8 lg:p-16">
+      <div className="flex justify-end">
+        <StagiaireAddDialog />
+      </div>
       <StagiairesList />
     </main>
   );
