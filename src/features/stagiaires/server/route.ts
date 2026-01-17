@@ -15,21 +15,68 @@ const app = new Hono()
   //Get all stagiaires of the database
   .get("getAll", monitorSessionMiddleware, async (c) => {
     try {
-      const result = await prisma.stagiaire.findMany({
-        include: {
-          stageBookings: {
-            include: {
-              stage: true,
+      const { page, pageSize, sortBy, sortOrder, search, nopaging } =
+        c.req.query();
+
+      const p = parseInt(page) || 1;
+      const ps = parseInt(pageSize) || 25;
+      const skip = (p - 1) * ps;
+      const isNoPaging = nopaging === "true";
+
+      const where: any = search
+        ? {
+            OR: [
+              { firstName: { contains: search, mode: "insensitive" } },
+              { lastName: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {};
+
+      let orderBy: any = {};
+      if (sortBy === "name") {
+        orderBy = [
+          { lastName: sortOrder === "asc" ? "asc" : "desc" },
+          { firstName: sortOrder === "asc" ? "asc" : "desc" },
+        ];
+      } else if (sortBy === "createdAt") {
+        orderBy = { createdAt: sortOrder === "asc" ? "asc" : "desc" };
+      } else {
+        orderBy = { createdAt: "desc" };
+      }
+
+      const [totalCount, result] = await Promise.all([
+        prisma.stagiaire.count({ where }),
+        prisma.stagiaire.findMany({
+          where,
+          include: {
+            stageBookings: {
+              include: {
+                stage: true,
+              },
+            },
+            baptemeBookings: {
+              include: {
+                bapteme: true,
+              },
             },
           },
-          baptemeBookings: {
-            include: {
-              bapteme: true,
-            },
-          },
+          orderBy,
+          ...(isNoPaging ? {} : { skip, take: ps }),
+        }),
+      ]);
+
+      return c.json({
+        success: true,
+        message: "",
+        data: {
+          stagiaires: result,
+          totalCount,
+          page: p,
+          pageSize: ps,
         },
       });
-      return c.json({ success: true, message: "", data: result });
     } catch (error) {
       return c.json({
         success: false,
@@ -115,7 +162,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   );
 
 export default app;

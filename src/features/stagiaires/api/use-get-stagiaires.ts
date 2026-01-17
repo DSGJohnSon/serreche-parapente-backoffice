@@ -5,11 +5,37 @@ import { toast } from "sonner";
 //*------------------*//
 //Get all stagiaires
 //*------------------*//
-export const useGetAllStagiaires = () => {
+export const useGetAllStagiaires = ({
+  page,
+  pageSize,
+  sortBy,
+  sortOrder,
+  search,
+  nopaging,
+}: {
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: string;
+  search?: string;
+  nopaging?: boolean;
+} = {}) => {
   const query = useQuery({
-    queryKey: ["stagiaires"],
+    queryKey: [
+      "stagiaires",
+      { page, pageSize, sortBy, sortOrder, search, nopaging },
+    ],
     queryFn: async () => {
-      const res = await client.api.stagiaires.getAll["$get"]();
+      const res = await client.api.stagiaires.getAll["$get"]({
+        query: {
+          page: page?.toString(),
+          pageSize: pageSize?.toString(),
+          sortBy,
+          sortOrder,
+          search,
+          nopaging: nopaging?.toString(),
+        },
+      });
       if (!res.ok) {
         return null;
       }
@@ -34,7 +60,9 @@ export const useGetStagiaireById = (id: string) => {
   const query = useQuery({
     queryKey: ["stagiaire", id],
     queryFn: async () => {
-      const res = await client.api.stagiaires.getById[":id"].$get({ param: { id } });
+      const res = await client.api.stagiaires.getById[":id"].$get({
+        param: { id },
+      });
       if (!res.ok) {
         return null;
       }

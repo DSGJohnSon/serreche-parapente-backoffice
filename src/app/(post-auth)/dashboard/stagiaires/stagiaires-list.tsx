@@ -26,49 +26,78 @@ import {
   LucideMail,
   LucidePhone,
   LucideCalendar,
+  LucideArrowUpDown,
+  LucideArrowUp,
+  LucideArrowDown,
+  LucideChevronLeft,
+  LucideChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Stagiaire, StageBooking, BaptemeBooking } from "@prisma/client";
+import {
+  Stagiaire,
+  StageBooking,
+  BaptemeBooking,
+  Stage,
+  Bapteme,
+} from "@prisma/client";
 import CopyTextComponent from "@/components/copy-text-component";
+import { ExportStagiairesDialog } from "./export-stagiaires-dialog";
+import { StagiaireAddDialog } from "@/features/stagiaires/components/stagiaire-add-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type StagiaireWithBookings = Stagiaire & {
-  stageBookings: StageBooking[];
-  baptemeBookings: BaptemeBooking[];
+  stageBookings: (StageBooking & { stage: Stage })[];
+  baptemeBookings: (BaptemeBooking & { bapteme: Bapteme })[];
 };
 
 export function StagiairesList() {
-  const { data: stagiairesData, isLoading } = useGetAllStagiaires();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const transformedStagiairesData: StagiaireWithBookings[] | undefined =
-    stagiairesData?.map((stagiaire) => ({
-      ...stagiaire,
-      createdAt: new Date(stagiaire.createdAt),
-      updatedAt: new Date(stagiaire.updatedAt),
-      birthDate: stagiaire.birthDate ? new Date(stagiaire.birthDate) : null,
-      stageBookings: stagiaire.stageBookings.map((sb) => ({
-        ...sb,
-        createdAt: new Date(sb.createdAt),
-        updatedAt: new Date(sb.updatedAt),
-      })),
-      baptemeBookings: stagiaire.baptemeBookings.map((bb) => ({
-        ...bb,
-        createdAt: new Date(bb.createdAt),
-        updatedAt: new Date(bb.updatedAt),
-      })),
-    }));
-
-  const filteredStagiaires = transformedStagiairesData?.filter((stagiaire) => {
-    const query = searchQuery.toLowerCase();
-    return (
-      stagiaire.firstName.toLowerCase().includes(query) ||
-      stagiaire.lastName.toLowerCase().includes(query) ||
-      stagiaire.email.toLowerCase().includes(query) ||
-      stagiaire.phone.toLowerCase().includes(query) ||
-      stagiaire.id.toLowerCase().includes(query)
-    );
+  const { data: response, isLoading } = useGetAllStagiaires({
+    page,
+    pageSize,
+    sortBy,
+    sortOrder,
+    search: searchQuery,
   });
+
+  const stagiaires = response?.stagiaires as
+    | StagiaireWithBookings[]
+    | undefined;
+  const totalCount = response?.totalCount || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const handleSort = (key: string) => {
+    if (sortBy === key) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(key);
+      setSortOrder("desc");
+    }
+    setPage(1);
+  };
+
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortBy !== column)
+      return <LucideArrowUpDown className="ml-2 h-4 w-4" />;
+    return sortOrder === "asc" ? (
+      <LucideArrowUp className="ml-2 h-4 w-4" />
+    ) : (
+      <LucideArrowDown className="ml-2 h-4 w-4" />
+    );
+  };
 
   if (isLoading) {
     return (
@@ -91,6 +120,13 @@ export function StagiairesList() {
             Gérez tous les stagiaires de votre établissement
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <ExportStagiairesDialog
+            stagiaires={stagiaires || []}
+            totalCount={totalCount}
+          />
+          <StagiaireAddDialog />
+        </div>
       </div>
 
       {/* Search */}
@@ -107,7 +143,10 @@ export function StagiairesList() {
             <Input
               placeholder="Rechercher..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="pl-10"
             />
           </div>
@@ -116,26 +155,42 @@ export function StagiairesList() {
 
       {/* Stagiaires Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>Liste des stagiaires</CardTitle>
-          <CardDescription>
-            {filteredStagiaires?.length || 0} stagiaire(s) trouvé(s)
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div>
+            <CardTitle>Liste des stagiaires</CardTitle>
+            <CardDescription>
+              {totalCount} stagiaire(s) au total
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border overflow-x-auto">
             <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Stagiaire</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center">
+                      Stagiaire <SortIcon column="name" />
+                    </div>
+                  </TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Informations</TableHead>
                   <TableHead>Réservations</TableHead>
-                  <TableHead>Inscrit le</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => handleSort("createdAt")}
+                  >
+                    <div className="flex items-center">
+                      Inscrit le <SortIcon column="createdAt" />
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {!filteredStagiaires || filteredStagiaires.length === 0 ? (
+                {!stagiaires || stagiaires.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
@@ -145,7 +200,7 @@ export function StagiairesList() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredStagiaires.map((stagiaire) => {
+                  stagiaires.map((stagiaire) => {
                     const totalBookings =
                       stagiaire.stageBookings.length +
                       stagiaire.baptemeBookings.length;
@@ -191,9 +246,13 @@ export function StagiairesList() {
                                 <LucideCalendar className="h-3 w-3 text-muted-foreground" />
                                 <span className="text-muted-foreground">
                                   Né(e) le{" "}
-                                  {format(stagiaire.birthDate, "dd/MM/yyyy", {
-                                    locale: fr,
-                                  })}
+                                  {format(
+                                    new Date(stagiaire.birthDate),
+                                    "dd/MM/yyyy",
+                                    {
+                                      locale: fr,
+                                    },
+                                  )}
                                 </span>
                               </div>
                             )}
@@ -235,7 +294,7 @@ export function StagiairesList() {
                               {format(
                                 new Date(stagiaire.createdAt),
                                 "dd/MM/yyyy",
-                                { locale: fr }
+                                { locale: fr },
                               )}
                             </span>
                             <span className="text-xs text-muted-foreground">
@@ -251,6 +310,55 @@ export function StagiairesList() {
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Afficher</span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => {
+                  setPageSize(parseInt(value));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-[80px]">
+                  <SelectValue placeholder={pageSize.toString()} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-muted-foreground">par page</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground mr-4">
+                Page {page} sur {totalPages || 1}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <LucideChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                >
+                  <LucideChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
