@@ -1,233 +1,222 @@
 import { Hono } from "hono";
-import { adminSessionMiddleware, sessionMiddleware } from "@/lib/session-middleware";
+import {
+  adminSessionMiddleware,
+  sessionMiddleware,
+} from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { CreateGiftCardSchema, UpdateGiftCardSchema, UseGiftCardSchema, ValidateGiftCardSchema } from "../schemas";
+import {
+  CreateGiftCardSchema,
+  UpdateGiftCardSchema,
+  UseGiftCardSchema,
+  ValidateGiftCardSchema,
+} from "../schemas";
 
 const app = new Hono()
   //*------------------*//
   //ALL GET REQUESTS API
   //*------------------*//
-  
+
   // Get all gift cards
-  .get(
-    "getAll",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        const result = await prisma.giftCard.findMany({
-          include: {
-            client: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
+  .get("getAll", adminSessionMiddleware, async (c) => {
+    try {
+      const result = await prisma.giftCard.findMany({
+        include: {
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
             },
           },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        });
-        return c.json({ success: true, message: "", data: result });
-      } catch (error) {
-        return c.json({
-          success: false,
-          message: "Erreur lors de la récupération des cartes cadeaux",
-          data: null,
-        });
-      }
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+      return c.json({ success: true, message: "", data: result });
+    } catch (error) {
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération des cartes cadeaux",
+        data: null,
+      });
     }
-  )
+  })
 
   // Get gift card by ID
-  .get(
-    "getById/:id",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        const id = c.req.param("id");
-        if (!id) {
-          return c.json({
-            success: false,
-            message: "ID requis",
-            data: null,
-          });
-        }
-        
-        const result = await prisma.giftCard.findUnique({
-          where: { id },
-          include: {
-            client: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-          },
-        });
-        
-        return c.json({ success: true, message: "", data: result });
-      } catch (error) {
+  .get("getById/:id", adminSessionMiddleware, async (c) => {
+    try {
+      const id = c.req.param("id");
+      if (!id) {
         return c.json({
           success: false,
-          message: "Erreur lors de la récupération de la carte cadeau",
+          message: "ID requis",
           data: null,
         });
       }
+
+      const result = await prisma.giftCard.findUnique({
+        where: { id },
+        include: {
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      return c.json({ success: true, message: "", data: result });
+    } catch (error) {
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération de la carte cadeau",
+        data: null,
+      });
     }
-  )
+  })
 
   // Get gift card usage history
-  .get(
-    "getHistory/:id",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        const id = c.req.param("id");
-        if (!id) {
-          return c.json({
-            success: false,
-            message: "ID requis",
-            data: null,
-          });
-        }
-        
-        // Get gift card with all its usage history
-        const giftCard = await prisma.giftCard.findUnique({
-          where: { id },
-          include: {
-            client: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
+  .get("getHistory/:id", adminSessionMiddleware, async (c) => {
+    try {
+      const id = c.req.param("id");
+      if (!id) {
+        return c.json({
+          success: false,
+          message: "ID requis",
+          data: null,
+        });
+      }
+
+      // Get gift card with all its usage history
+      const giftCard = await prisma.giftCard.findUnique({
+        where: { id },
+        include: {
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
             },
-            appliedToOrders: {
-              include: {
-                order: {
-                  select: {
-                    id: true,
-                    orderNumber: true,
-                    createdAt: true,
-                    status: true,
-                    client: {
-                      select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        email: true,
-                      },
+          },
+          appliedToOrders: {
+            include: {
+              order: {
+                select: {
+                  id: true,
+                  orderNumber: true,
+                  createdAt: true,
+                  status: true,
+                  client: {
+                    select: {
+                      id: true,
+                      firstName: true,
+                      lastName: true,
+                      email: true,
                     },
                   },
                 },
               },
-              orderBy: {
-                createdAt: 'desc',
-              },
+            },
+            orderBy: {
+              createdAt: "desc",
             },
           },
-        });
+        },
+      });
 
-        if (!giftCard) {
-          return c.json({
-            success: false,
-            message: "Carte cadeau introuvable",
-            data: null,
-          });
-        }
-        
-        return c.json({ 
-          success: true, 
-          message: "", 
-          data: giftCard 
-        });
-      } catch (error) {
-        console.error("Error fetching gift card history:", error);
+      if (!giftCard) {
         return c.json({
           success: false,
-          message: "Erreur lors de la récupération de l'historique",
+          message: "Carte cadeau introuvable",
           data: null,
         });
       }
+
+      return c.json({
+        success: true,
+        message: "",
+        data: giftCard,
+      });
+    } catch (error) {
+      console.error("Error fetching gift card history:", error);
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération de l'historique",
+        data: null,
+      });
     }
-  )
+  })
 
   // Get unused gift cards
-  .get(
-    "getUnused",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        const result = await prisma.giftCard.findMany({
-          where: {
-            isUsed: false,
-          },
-          include: {
-            client: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
+  .get("getUnused", adminSessionMiddleware, async (c) => {
+    try {
+      const result = await prisma.giftCard.findMany({
+        where: {
+          isUsed: false,
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
             },
           },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        });
-        return c.json({ success: true, message: "", data: result });
-      } catch (error) {
-        return c.json({
-          success: false,
-          message: "Erreur lors de la récupération des cartes cadeaux non utilisées",
-          data: null,
-        });
-      }
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+      return c.json({ success: true, message: "", data: result });
+    } catch (error) {
+      return c.json({
+        success: false,
+        message:
+          "Erreur lors de la récupération des cartes cadeaux non utilisées",
+        data: null,
+      });
     }
-  )
+  })
 
   // Get used gift cards
-  .get(
-    "getUsed",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        const result = await prisma.giftCard.findMany({
-          where: {
-            isUsed: true,
-          },
-          include: {
-            client: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
+  .get("getUsed", adminSessionMiddleware, async (c) => {
+    try {
+      const result = await prisma.giftCard.findMany({
+        where: {
+          isUsed: true,
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
             },
           },
-          orderBy: {
-            usedAt: 'desc',
-          },
-        });
-        return c.json({ success: true, message: "", data: result });
-      } catch (error) {
-        return c.json({
-          success: false,
-          message: "Erreur lors de la récupération des cartes cadeaux utilisées",
-          data: null,
-        });
-      }
+        },
+        orderBy: {
+          usedAt: "desc",
+        },
+      });
+      return c.json({ success: true, message: "", data: result });
+    } catch (error) {
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération des cartes cadeaux utilisées",
+        data: null,
+      });
     }
-  )
+  })
 
   //*------------------*//
   //POST REQUESTS API
@@ -239,7 +228,7 @@ const app = new Hono()
     adminSessionMiddleware,
     zValidator("json", CreateGiftCardSchema),
     async (c) => {
-      const { code, amount, customerId } = c.req.valid("json");
+      const { code, amount, customerId, expiryDate } = c.req.valid("json");
 
       try {
         // Check if code already exists
@@ -254,13 +243,14 @@ const app = new Hono()
             data: null,
           });
         }
-        
+
         const result = await prisma.giftCard.create({
           data: {
             code,
             amount,
             remainingAmount: amount,
             clientId: customerId,
+            expiryDate: expiryDate,
           },
           include: {
             client: {
@@ -286,81 +276,94 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
 
   // Validate gift card
-  .post(
-    "/validate",
-    zValidator("json", ValidateGiftCardSchema),
-    async (c) => {
-      const { code } = c.req.valid("json");
+  .post("/validate", zValidator("json", ValidateGiftCardSchema), async (c) => {
+    const { code } = c.req.valid("json");
 
-      try {
-        // Find gift card by code
-        const giftCard = await prisma.giftCard.findUnique({
-          where: { code },
-        });
+    try {
+      // Find gift card by code
+      const giftCard = await prisma.giftCard.findUnique({
+        where: { code },
+      });
 
-        // Check if gift card exists
-        if (!giftCard) {
-          return c.json({
+      // Check if gift card exists
+      if (!giftCard) {
+        return c.json(
+          {
             success: false,
             message: "Carte cadeau invalide",
-          }, 404);
-        }
-        
-        // Calculate remaining amount (use remainingAmount if set, otherwise use amount)
-        const remainingAmount = giftCard.remainingAmount || giftCard.amount;
-        
-        // Check if gift card is already fully used
-        if (giftCard.isUsed || remainingAmount <= 0) {
-          return c.json({
+          },
+          404,
+        );
+      }
+
+      // Calculate remaining amount (use remainingAmount if set, otherwise use amount)
+      const remainingAmount = giftCard.remainingAmount || giftCard.amount;
+
+      // Check if gift card is already fully used
+      if (giftCard.isUsed || remainingAmount <= 0) {
+        return c.json(
+          {
             success: false,
             message: "Carte cadeau déjà utilisée",
-          }, 400);
-        }
-        
-        // Check expiration date (12 months from creation)
-        const expirationDate = new Date(giftCard.createdAt);
-        expirationDate.setFullYear(expirationDate.getFullYear() + 1);
-        
-        if (new Date() > expirationDate) {
-          return c.json({
+          },
+          400,
+        );
+      }
+
+      // Check expiration date (12 months from creation)
+      const expirationDate = new Date(giftCard.createdAt);
+      expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+
+      if (new Date() > expirationDate) {
+        return c.json(
+          {
             success: false,
             message: "Carte cadeau expirée",
-          }, 400);
-        }
-
-        // Return gift card information
-        return c.json({
-          success: true,
-          data: {
-            giftCard: {
-              code: giftCard.code,
-              remainingAmount: remainingAmount,
-              expirationDate: expirationDate.toISOString(),
-              isValid: true,
-            },
           },
-        });
-      } catch (error) {
-        return c.json({
+          400,
+        );
+      }
+
+      // Return gift card information
+      return c.json({
+        success: true,
+        data: {
+          giftCard: {
+            code: giftCard.code,
+            remainingAmount: remainingAmount,
+            expirationDate: expirationDate.toISOString(),
+            isValid: true,
+          },
+        },
+      });
+    } catch (error) {
+      return c.json(
+        {
           success: false,
           message: "Erreur lors de la validation de la carte cadeau",
-        }, 500);
-      }
+        },
+        500,
+      );
     }
-  )
+  })
 
   // Add manual usage to gift card
   .post(
     "/addUsage/:id",
     adminSessionMiddleware,
-    zValidator("json", z.object({
-      orderId: z.string().min(1, { message: "L'ID de commande est requis" }),
-      usedAmount: z.number().min(0.01, { message: "Le montant doit être supérieur à 0" }),
-    })),
+    zValidator(
+      "json",
+      z.object({
+        orderId: z.string().min(1, { message: "L'ID de commande est requis" }),
+        usedAmount: z
+          .number()
+          .min(0.01, { message: "Le montant doit être supérieur à 0" }),
+      }),
+    ),
     async (c) => {
       const id = c.req.param("id");
       const { orderId, usedAmount } = c.req.valid("json");
@@ -490,7 +493,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
 
   //*------------------*//
@@ -563,7 +566,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
 
   // Use gift card
@@ -636,7 +639,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
 
   //*------------------*//
@@ -644,59 +647,55 @@ const app = new Hono()
   //*------------------*//
 
   // Delete gift card (only unused cards can be deleted)
-  .delete(
-    "/delete/:id",
-    adminSessionMiddleware,
-    async (c) => {
-      const id = c.req.param("id");
+  .delete("/delete/:id", adminSessionMiddleware, async (c) => {
+    const id = c.req.param("id");
 
-      if (!id) {
-        return c.json({
-          success: false,
-          message: "ID requis",
-          data: null,
-        });
-      }
-
-      try {
-        // Check if gift card exists and is not used
-        const existingGiftCard = await prisma.giftCard.findUnique({
-          where: { id },
-        });
-
-        if (!existingGiftCard) {
-          return c.json({
-            success: false,
-            message: "Carte cadeau introuvable",
-            data: null,
-          });
-        }
-
-        if (existingGiftCard.isUsed) {
-          return c.json({
-            success: false,
-            message: "Impossible de supprimer une carte cadeau déjà utilisée",
-            data: null,
-          });
-        }
-
-        await prisma.giftCard.delete({
-          where: { id },
-        });
-
-        return c.json({
-          success: true,
-          message: "Carte cadeau supprimée avec succès",
-          data: null,
-        });
-      } catch (error) {
-        return c.json({
-          success: false,
-          message: "Erreur lors de la suppression de la carte cadeau",
-          data: null,
-        });
-      }
+    if (!id) {
+      return c.json({
+        success: false,
+        message: "ID requis",
+        data: null,
+      });
     }
-  );
+
+    try {
+      // Check if gift card exists and is not used
+      const existingGiftCard = await prisma.giftCard.findUnique({
+        where: { id },
+      });
+
+      if (!existingGiftCard) {
+        return c.json({
+          success: false,
+          message: "Carte cadeau introuvable",
+          data: null,
+        });
+      }
+
+      if (existingGiftCard.isUsed) {
+        return c.json({
+          success: false,
+          message: "Impossible de supprimer une carte cadeau déjà utilisée",
+          data: null,
+        });
+      }
+
+      await prisma.giftCard.delete({
+        where: { id },
+      });
+
+      return c.json({
+        success: true,
+        message: "Carte cadeau supprimée avec succès",
+        data: null,
+      });
+    } catch (error) {
+      return c.json({
+        success: false,
+        message: "Erreur lors de la suppression de la carte cadeau",
+        data: null,
+      });
+    }
+  });
 
 export default app;

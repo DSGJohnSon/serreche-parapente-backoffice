@@ -2,12 +2,18 @@ import { z } from "zod";
 
 export const CreateGiftCardSchema = z.object({
   code: z.string().min(1, { message: "Le code est requis" }),
-  amount: z.number().min(0.01, { message: "Le montant doit être supérieur à 0" }),
+  amount: z
+    .number()
+    .min(0.01, { message: "Le montant doit être supérieur à 0" }),
   customerId: z.string().optional(),
+  expiryDate: z.coerce.date().optional(),
 });
 
 export const UpdateGiftCardSchema = z.object({
-  amount: z.number().min(0.01, { message: "Le montant doit être supérieur à 0" }).optional(),
+  amount: z
+    .number()
+    .min(0.01, { message: "Le montant doit être supérieur à 0" })
+    .optional(),
   isUsed: z.boolean().optional(),
   usedBy: z.string().optional(),
   usedAt: z.coerce.date().optional(),

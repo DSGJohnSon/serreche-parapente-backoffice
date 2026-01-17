@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,13 +48,16 @@ export function StageAddForm({
   isSubmitting = false,
 }: StageAddFormProps) {
   // Récupérer la liste des moniteurs
-  const { data: moniteurs, isLoading: isLoadingMoniteurs } = useGetMoniteursAndAdmins();
-  
+  const { data: moniteurs, isLoading: isLoadingMoniteurs } =
+    useGetMoniteursAndAdmins();
+
   // Récupérer les prix de base des stages depuis la configuration
-  const { data: stagePrices, isLoading: isLoadingStagePrices } = useGetStageBasePrices();
-  
+  const { data: stagePrices, isLoading: isLoadingStagePrices } =
+    useGetStageBasePrices();
+
   // Durées par défaut selon le type de stage
-  const getDefaultDuration = (type: StageType): number => {
+  // Durées par défaut selon le type de stage
+  const getDefaultDuration = useCallback((type: StageType): number => {
     switch (type) {
       case StageType.AUTONOMIE:
         return 14; // 2 semaines
@@ -64,29 +67,32 @@ export function StageAddForm({
       default:
         return 7; // 1 semaine
     }
-  };
-  
+  }, []);
+
   // Prix par défaut selon le type de stage (depuis la configuration)
-  const getDefaultPrice = (type: StageType): number => {
-    if (!stagePrices) {
-      // Valeurs de fallback si les prix ne sont pas encore chargés
-      switch (type) {
-        case StageType.AUTONOMIE:
-          return 450.0;
-        case StageType.PROGRESSION:
-          return 400.0;
-        case StageType.INITIATION:
-          return 350.0;
-        case StageType.DOUBLE:
-        default:
-          return 350.0;
+  const getDefaultPrice = useCallback(
+    (type: StageType): number => {
+      if (!stagePrices) {
+        // Valeurs de fallback si les prix ne sont pas encore chargés
+        switch (type) {
+          case StageType.AUTONOMIE:
+            return 450.0;
+          case StageType.PROGRESSION:
+            return 400.0;
+          case StageType.INITIATION:
+            return 350.0;
+          case StageType.DOUBLE:
+          default:
+            return 350.0;
+        }
       }
-    }
-    
-    const priceConfig = stagePrices.find((p) => p.stageType === type);
-    return priceConfig?.price || 350.0;
-  };
-  
+
+      const priceConfig = stagePrices.find((p) => p.stageType === type);
+      return priceConfig?.price || 350.0;
+    },
+    [stagePrices],
+  );
+
   // État du formulaire
   const [formData, setFormData] = useState({
     startDate: selectedDate || new Date(),
@@ -99,7 +105,6 @@ export function StageAddForm({
   });
   const [showCalendar, setShowCalendar] = useState(false);
 
-
   // Initialiser la durée et le prix selon le type de stage
   useEffect(() => {
     if (stagePrices) {
@@ -109,7 +114,7 @@ export function StageAddForm({
         price: getDefaultPrice(prev.type),
       }));
     }
-  }, [stagePrices]);
+  }, [stagePrices, getDefaultDuration, getDefaultPrice]);
 
   //Modifier le montant de l'acompte d'office quand le prix change (le passer à 2/5 du prix)
   useEffect(() => {
@@ -208,10 +213,18 @@ export function StageAddForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={StageType.INITIATION}>Initiation (7 jours)</SelectItem>
-            <SelectItem value={StageType.PROGRESSION}>Progression (7 jours)</SelectItem>
-            <SelectItem value={StageType.AUTONOMIE}>Autonomie (14 jours)</SelectItem>
-            <SelectItem value={StageType.DOUBLE}>Double - Initiation/Progression (7 jours)</SelectItem>
+            <SelectItem value={StageType.INITIATION}>
+              Initiation (7 jours)
+            </SelectItem>
+            <SelectItem value={StageType.PROGRESSION}>
+              Progression (7 jours)
+            </SelectItem>
+            <SelectItem value={StageType.AUTONOMIE}>
+              Autonomie (14 jours)
+            </SelectItem>
+            <SelectItem value={StageType.DOUBLE}>
+              Double - Initiation/Progression (7 jours)
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -300,7 +313,7 @@ export function StageAddForm({
           <MultiSelect
             options={moniteurs.map((moniteur) => ({
               value: moniteur.id,
-              label: `${moniteur.name} (${moniteur.role === 'ADMIN' ? 'Admin' : 'Moniteur'})`,
+              label: `${moniteur.name} (${moniteur.role === "ADMIN" ? "Admin" : "Moniteur"})`,
             }))}
             onValueChange={(values) =>
               setFormData((prev) => ({ ...prev, moniteurIds: values }))
