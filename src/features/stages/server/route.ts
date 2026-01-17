@@ -1,9 +1,18 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { adminSessionMiddleware, publicAPIMiddleware, sessionMiddleware } from "@/lib/session-middleware";
+import {
+  adminSessionMiddleware,
+  publicAPIMiddleware,
+  sessionMiddleware,
+} from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
-import { CreateStageSchema, DeleteStageSchema, UpdateStageSchema } from "../schemas";
+import {
+  CreateStageSchema,
+  DeleteStageSchema,
+  UpdateStageSchema,
+} from "../schemas";
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 import { Prisma } from "@prisma/client";
 
 const app = new Hono()
@@ -17,7 +26,7 @@ const app = new Hono()
 
     try {
       const now = new Date();
-      
+
       const stages = await prisma.stage.findMany({
         where,
         include: {
@@ -34,73 +43,74 @@ const app = new Hono()
       const enrichedStages = await Promise.all(
         stages.map(async (stage) => {
           const confirmedBookings = stage.bookings.length;
-          
+
           // Compter les réservations temporaires (items dans les paniers non expirés)
           const temporaryReservations = await prisma.cartItem.count({
             where: {
-              type: 'STAGE',
+              type: "STAGE",
               stageId: stage.id,
               expiresAt: { gt: now },
               isExpired: false,
-            }
+            },
           });
-          
-          const availablePlaces = stage.places - confirmedBookings - temporaryReservations;
-          
+
+          const availablePlaces =
+            stage.places - confirmedBookings - temporaryReservations;
+
           return {
             ...stage,
             availablePlaces: Math.max(0, availablePlaces),
             confirmedBookings,
             temporaryReservations,
           };
-        })
+        }),
       );
 
       console.log(enrichedStages);
       return c.json({ success: true, message: "", data: enrichedStages });
     } catch (error) {
-      return c.json({ success: false, message: "Erreur lors de la récupération des stages", data: null });
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération des stages",
+        data: null,
+      });
     }
   })
   // Get stage by id
-  .get(
-    "getById/:id",
-    sessionMiddleware,
-    async (c) => {
-      try {
-        const id = c.req.param("id");
-        if (!id) {
-          return c.json({
-            success: false,
-            message: "ID is required",
-            data: null,
-          });
-        }
-        const result = await prisma.stage.findUnique({
-          where: { id },
-          include: {
-            bookings: {
-              include: {
-                stagiaire: true
-              },
-            },
-            moniteurs: {
-              include: {
-                moniteur: true,
-              },
-            },
-          },
-        });
-        return c.json({ success: true, message: "", data: result });
-      } catch (error) {
+  .get("getById/:id", sessionMiddleware, async (c) => {
+    try {
+      const id = c.req.param("id");
+      if (!id) {
         return c.json({
           success: false,
-          message: "Error fetching stage",
+          message: "ID is required",
           data: null,
         });
       }
+      const result = await prisma.stage.findUnique({
+        where: { id },
+        include: {
+          bookings: {
+            include: {
+              stagiaire: true,
+            },
+          },
+          moniteurs: {
+            include: {
+              moniteur: true,
+            },
+          },
+        },
+      });
+      return c.json({ success: true, message: "", data: result });
+    } catch (error) {
+      return c.json({
+        success: false,
+        message: "Error fetching stage",
+        data: null,
+      });
     }
-  )
+  })
   // CREATE stage
   .post(
     "create",
@@ -108,7 +118,15 @@ const app = new Hono()
     adminSessionMiddleware,
     async (c) => {
       try {
-        const { startDate, duration, places, moniteurIds, price, acomptePrice, type } = c.req.valid("json");
+        const {
+          startDate,
+          duration,
+          places,
+          moniteurIds,
+          price,
+          acomptePrice,
+          type,
+        } = c.req.valid("json");
         const startDateObj = new Date(startDate);
 
         const result = await prisma.stage.create({
@@ -127,6 +145,9 @@ const app = new Hono()
             },
           },
         });
+
+        revalidateTag("min-prices-stages");
+
         return c.json({
           success: true,
           message: `Stage ${type} du ${result.startDate.toLocaleDateString()} créé.`,
@@ -137,7 +158,10 @@ const app = new Hono()
           const zodErrors = error.errors.map((e) => e.message);
           return c.json({
             success: false,
-            message: zodErrors.length > 0 ? zodErrors[0] : "Erreur dans la validation des données",
+            message:
+              zodErrors.length > 0
+                ? zodErrors[0]
+                : "Erreur dans la validation des données",
             data: null,
           });
         }
@@ -169,7 +193,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
   // UPDATE stage
   .post(
@@ -178,7 +202,16 @@ const app = new Hono()
     adminSessionMiddleware,
     async (c) => {
       try {
-        const { id, startDate, duration, places, moniteurIds, price, acomptePrice, type } = c.req.valid("json");
+        const {
+          id,
+          startDate,
+          duration,
+          places,
+          moniteurIds,
+          price,
+          acomptePrice,
+          type,
+        } = c.req.valid("json");
         const startDateObj = new Date(startDate);
 
         const previousData = await prisma.stage.findUnique({
@@ -196,13 +229,16 @@ const app = new Hono()
         if (previousData.bookings.length > places) {
           return c.json({
             success: false,
-            message: "Impossible de réduire le nombre de places, elles sont toutes occupées.",
+            message:
+              "Impossible de réduire le nombre de places, elles sont toutes occupées.",
             data: null,
           });
         }
 
-        const updatedAllTimeHighPrice =Math.max(previousData.allTimeHighPrice, price)
-        
+        const updatedAllTimeHighPrice = Math.max(
+          previousData.allTimeHighPrice,
+          price,
+        );
 
         const result = await prisma.stage.update({
           where: { id },
@@ -222,6 +258,9 @@ const app = new Hono()
             },
           },
         });
+
+        revalidateTag("min-prices-stages");
+
         return c.json({
           success: true,
           message: `Stage ${result.type} du ${result.startDate.toLocaleDateString()} mis à jour.`,
@@ -232,12 +271,16 @@ const app = new Hono()
           const zodErrors = error.errors.map((e) => e.message);
           return c.json({
             success: false,
-            message: zodErrors.length > 0 ? zodErrors[0] : "Erreur dans la validation des données",
+            message:
+              zodErrors.length > 0
+                ? zodErrors[0]
+                : "Erreur dans la validation des données",
             data: null,
           });
         }
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
-          switch (error.code) {}
+          switch (error.code) {
+          }
         }
         return c.json({
           success: false,
@@ -245,7 +288,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
   // DELETE stage
   .post(
@@ -270,7 +313,8 @@ const app = new Hono()
         if (stageToDelete.bookings.length > 0) {
           return c.json({
             success: false,
-            message: "Ce stage ne peut pas être supprimé car il contient des réservations.",
+            message:
+              "Ce stage ne peut pas être supprimé car il contient des réservations.",
             data: null,
           });
         }
@@ -278,6 +322,9 @@ const app = new Hono()
         const result = await prisma.stage.delete({
           where: { id },
         });
+
+        revalidateTag("min-prices-stages");
+
         return c.json({
           success: true,
           message: `Stage ${result.type} du ${result.startDate.toLocaleDateString()} supprimé.`,
@@ -288,12 +335,16 @@ const app = new Hono()
           const zodErrors = error.errors.map((e) => e.message);
           return c.json({
             success: false,
-            message: zodErrors.length > 0 ? zodErrors[0] : "Erreur dans la validation des données",
+            message:
+              zodErrors.length > 0
+                ? zodErrors[0]
+                : "Erreur dans la validation des données",
             data: null,
           });
         }
         if (error instanceof Prisma.PrismaClientKnownRequestError) {
-          switch (error.code) {}
+          switch (error.code) {
+          }
         }
         return c.json({
           success: false,
@@ -301,7 +352,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   );
 
 export default app;

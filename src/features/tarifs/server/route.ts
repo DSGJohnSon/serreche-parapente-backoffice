@@ -1,10 +1,118 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { adminSessionMiddleware, sessionMiddleware } from "@/lib/session-middleware";
+import {
+  adminSessionMiddleware,
+  sessionMiddleware,
+} from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { UpdateTarifSchema, UpdateVideoOptionPriceSchema, UpdateStageBasePriceSchema, UpdateBaptemeDepositPriceSchema } from "../schemas";
+import {
+  UpdateTarifSchema,
+  UpdateVideoOptionPriceSchema,
+  UpdateStageBasePriceSchema,
+  UpdateBaptemeDepositPriceSchema,
+} from "../schemas";
 import { BaptemeCategory, StageType } from "@prisma/client";
+import { unstable_cache, revalidateTag } from "next/cache";
+
+// Cache tags
+export const CACHE_TAGS = {
+  STAGES: "min-prices-stages",
+  BAPTEMES: "min-prices-baptemes",
+};
+
+// Validations
+const MinPriceQuerySchema = z.object({
+  type: z.enum(["STAGE", "BAPTEME"]),
+  subType: z.string().optional(),
+});
+
+// Cached Data Fetchers
+const getMinStagePrice = unstable_cache(
+  async (stageType?: StageType) => {
+    const now = new Date();
+
+    const where: any = {
+      startDate: { gt: now },
+    };
+
+    if (stageType) {
+      where.type = stageType;
+    }
+
+    // On cherche le stage le moins cher dans le futur
+    const minPriceStage = await prisma.stage.findFirst({
+      where,
+      orderBy: {
+        price: "asc",
+      },
+      select: {
+        price: true,
+      },
+    });
+
+    return minPriceStage?.price || null;
+  },
+  ["get-min-stage-price"], // Key parts
+  {
+    tags: [CACHE_TAGS.STAGES],
+    revalidate: 86400, // 24h
+  },
+);
+
+const getMinBaptemePrice = unstable_cache(
+  async (category?: BaptemeCategory) => {
+    const now = new Date();
+
+    // 1. Récupérer tous les prix des catégories
+    const categoryPrices = await prisma.baptemeCategoryPrice.findMany();
+    const priceMap = new Map(
+      categoryPrices.map((cp) => [cp.category, cp.price]),
+    );
+
+    // 2. Trouver les créneaux futurs qui ont encore de la place
+    // Note: On ne filtre pas encore par catégorie ici car 'categories' est un tableau dans Bapteme
+    const potentialBaptemes = await prisma.bapteme.findMany({
+      where: {
+        date: { gt: now },
+      },
+      include: {
+        bookings: true,
+      },
+    });
+
+    let minPrice: number | null = null;
+
+    for (const bapteme of potentialBaptemes) {
+      // Vérifier s'il reste de la place
+      if (bapteme.bookings.length >= bapteme.places) {
+        continue;
+      }
+
+      // Pour chaque catégorie disponible dans ce créneau
+      for (const cat of bapteme.categories) {
+        // Si un sous-type est demandé, on filtre
+        if (category && cat !== category) {
+          continue;
+        }
+
+        const price = priceMap.get(cat);
+        if (price !== undefined) {
+          if (minPrice === null || price < minPrice) {
+            minPrice = price;
+          }
+        }
+      }
+    }
+
+    return minPrice;
+  },
+  ["get-min-bapteme-price"],
+  {
+    tags: [CACHE_TAGS.BAPTEMES],
+    revalidate: 86400, // 24h
+  },
+);
 
 const app = new Hono()
   // GET all tarifs (accessible to authenticated users)
@@ -28,7 +136,7 @@ const app = new Hono()
   .get("getByCategory/:category", async (c) => {
     try {
       const category = c.req.param("category") as BaptemeCategory;
-      
+
       if (!Object.values(BaptemeCategory).includes(category)) {
         return c.json({
           success: false,
@@ -82,6 +190,8 @@ const app = new Hono()
           },
         });
 
+        revalidateTag(CACHE_TAGS.BAPTEMES);
+
         return c.json({
           success: true,
           message: `Tarif pour ${category} mis à jour avec succès`,
@@ -105,7 +215,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
   // GET video option price (accessible to authenticated users)
   .get("getVideoOptionPrice", async (c) => {
@@ -177,7 +287,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
   // GET all stage base prices (accessible to authenticated users)
   .get("getStageBasePrices", async (c) => {
@@ -200,7 +310,7 @@ const app = new Hono()
   .get("getStageBasePriceByType/:stageType", async (c) => {
     try {
       const stageType = c.req.param("stageType") as StageType;
-      
+
       if (!Object.values(StageType).includes(stageType)) {
         return c.json({
           success: false,
@@ -277,7 +387,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
   // GET bapteme deposit price (accessible to authenticated users)
   .get("getBaptemeDepositPrice", async (c) => {
@@ -300,7 +410,8 @@ const app = new Hono()
     } catch (error) {
       return c.json({
         success: false,
-        message: "Erreur lors de la récupération du prix de l'acompte des baptêmes",
+        message:
+          "Erreur lors de la récupération du prix de l'acompte des baptêmes",
         data: null,
       });
     }
@@ -349,7 +460,74 @@ const app = new Hono()
           data: null,
         });
       }
+    },
+  )
+  .get("min", zValidator("query", MinPriceQuerySchema), async (c) => {
+    const { type, subType } = c.req.valid("query");
+
+    try {
+      let minPrice: number | null = null;
+
+      if (type === "STAGE") {
+        // Validation du subType pour Stage
+        let stageType: StageType | undefined;
+        if (subType) {
+          if (Object.values(StageType).includes(subType as StageType)) {
+            stageType = subType as StageType;
+          } else {
+            return c.json(
+              {
+                success: false,
+                message: "Invalid stage subType",
+                data: null,
+              },
+              400,
+            );
+          }
+        }
+        minPrice = await getMinStagePrice(stageType);
+      } else if (type === "BAPTEME") {
+        // Validation du subType pour Bapteme
+        let category: BaptemeCategory | undefined;
+        if (subType) {
+          if (
+            Object.values(BaptemeCategory).includes(subType as BaptemeCategory)
+          ) {
+            category = subType as BaptemeCategory;
+          } else {
+            return c.json(
+              {
+                success: false,
+                message: "Invalid bapteme subType",
+                data: null,
+              },
+              400,
+            );
+          }
+        }
+        minPrice = await getMinBaptemePrice(category);
+      }
+
+      return c.json({
+        success: true,
+        message:
+          minPrice !== null ? "Prix minimum trouvé" : "Aucun tarif trouvé",
+        data: {
+          minPrice,
+          currency: "EUR",
+        },
+      });
+    } catch (error) {
+      console.error("Error calculating min price:", error);
+      return c.json(
+        {
+          success: false,
+          message: "Erreur lors du calcul du prix minimum",
+          data: null,
+        },
+        500,
+      );
     }
-  );
+  });
 
 export default app;

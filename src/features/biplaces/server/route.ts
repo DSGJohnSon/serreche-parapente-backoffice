@@ -9,6 +9,7 @@ import {
 } from "@/lib/session-middleware";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 import { Prisma } from "@prisma/client";
 import {
   CreateBaptemeSchema,
@@ -60,7 +61,7 @@ const app = new Hono()
       const tempReservationsMap = new Map(
         allTemporaryReservations
           .filter((item) => item.baptemeId !== null)
-          .map((item) => [item.baptemeId!, item._count.id])
+          .map((item) => [item.baptemeId!, item._count.id]),
       );
 
       // Enrichir chaque baptême
@@ -152,7 +153,7 @@ const app = new Hono()
                   "Un moniteur ne peut créer de créneau que pour lui-même.",
                 data: null,
               },
-              403
+              403,
             );
           }
           // Monitor cannot change default deposit price (need to get it first or rely on client-side + extra check if possible)
@@ -166,7 +167,7 @@ const app = new Hono()
                   "Un moniteur ne peut pas modifier le montant de l'acompte.",
                 data: null,
               },
-              403
+              403,
             );
           }
         }
@@ -187,6 +188,9 @@ const app = new Hono()
             },
           },
         });
+
+        revalidateTag("min-prices-baptemes");
+
         return c.json({
           success: true,
           message: `Créneau du ${result.date.toISOString()} créé.`,
@@ -232,7 +236,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
   // UPDATE bapteme
   .post(
@@ -273,7 +277,7 @@ const app = new Hono()
         if (role === "MONITEUR") {
           // Monitor must be one of the assigned monitors to edit
           const isAssigned = previousData.moniteurs.some(
-            (m) => m.moniteurId === userId
+            (m) => m.moniteurId === userId,
           );
           if (!isAssigned) {
             return c.json(
@@ -283,7 +287,7 @@ const app = new Hono()
                   "Vous ne pouvez modifier que les créneaux où vous êtes assigné.",
                 data: null,
               },
-              403
+              403,
             );
           }
 
@@ -297,7 +301,7 @@ const app = new Hono()
                   "Un moniteur ne peut pas modifier le montant de l'acompte.",
                 data: null,
               },
-              403
+              403,
             );
           }
 
@@ -309,7 +313,7 @@ const app = new Hono()
                 message: "Vous devez rester assigné à ce créneau.",
                 data: null,
               },
-              403
+              403,
             );
           }
         }
@@ -339,6 +343,9 @@ const app = new Hono()
             },
           },
         });
+
+        revalidateTag("min-prices-baptemes");
+
         return c.json({
           success: true,
           message: `Créneau du ${result.date.toISOString()} mis à jour.`,
@@ -366,7 +373,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   )
   // DELETE bapteme
   .post(
@@ -396,7 +403,7 @@ const app = new Hono()
         if (role === "MONITEUR") {
           // Monitor must be assigned to delete
           const isAssigned = baptemeToDelete.moniteurs.some(
-            (m) => m.moniteurId === userId
+            (m) => m.moniteurId === userId,
           );
           if (!isAssigned) {
             return c.json(
@@ -406,7 +413,7 @@ const app = new Hono()
                   "Vous ne pouvez supprimer que les créneaux où vous êtes assigné.",
                 data: null,
               },
-              403
+              403,
             );
           }
         }
@@ -423,6 +430,9 @@ const app = new Hono()
         const result = await prisma.bapteme.delete({
           where: { date: dateObj },
         });
+
+        revalidateTag("min-prices-baptemes");
+
         return c.json({
           success: true,
           message: `Créneau du ${result.date.toISOString()} supprimé.`,
@@ -450,7 +460,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   );
 
 export default app;
