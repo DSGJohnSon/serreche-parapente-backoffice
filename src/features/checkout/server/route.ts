@@ -77,7 +77,7 @@ const app = new Hono()
 // NOTE: Cette fonction est OBSOLÈTE et ne devrait JAMAIS être appelée pour les paiements Stripe
 // Les réservations et gift cards sont créées par le webhook Stripe
 async function createBookingsFromOrder(order: any) {
-  console.log(`[CHECKOUT] ⚠️⚠️⚠️ createBookingsFromOrder called in checkout/server - THIS IS OBSOLETE FOR STRIPE PAYMENTS - Order: ${order.id} - Timestamp: ${new Date().toISOString()}`);
+  // console.log(`[CHECKOUT] ⚠️⚠️⚠️ createBookingsFromOrder called in checkout/server - THIS IS OBSOLETE FOR STRIPE PAYMENTS - Order: ${order.id} - Timestamp: ${new Date().toISOString()}`);
   
   // NE RIEN FAIRE - Tout est géré par le webhook Stripe
   // Cette fonction est conservée uniquement pour compatibilité avec d'anciens paiements manuels

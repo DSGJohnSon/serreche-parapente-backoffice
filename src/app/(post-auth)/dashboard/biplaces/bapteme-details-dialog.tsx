@@ -74,7 +74,9 @@ export function BaptemeDetailsDialog({
 
   if (!bapteme) return null;
 
-  const hasBookings = bapteme.bookings && bapteme.bookings.length > 0;
+  const hasBookings =
+    (bapteme as any).confirmedBookings > 0 ||
+    (bapteme.bookings && bapteme.bookings.length > 0);
   const isAssigned = bapteme.moniteurs.some((m) => m.moniteur.id === userId);
   const canEdit = role === "ADMIN" || (role === "MONITEUR" && isAssigned);
 
@@ -85,7 +87,7 @@ export function BaptemeDetailsDialog({
   const handleDelete = async () => {
     if (hasBookings) {
       alert(
-        "Ce baptême ne peut pas être supprimé car il contient des réservations."
+        "Ce baptême ne peut pas être supprimé car il contient des réservations.",
       );
       return;
     }

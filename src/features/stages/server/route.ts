@@ -27,48 +27,83 @@ const app = new Hono()
     try {
       const now = new Date();
 
+      // 1. Récupérer les stages avec le comptage des bookings (plus léger que de tout charger)
       const stages = await prisma.stage.findMany({
         where,
-        include: {
-          bookings: true,
+        select: {
+          id: true,
+          startDate: true,
+          type: true,
+          price: true,
+          acomptePrice: true, // Requis pour le backoffice (détails)
+          duration: true,
+          places: true,
+          allTimeHighPrice: true,
+          _count: {
+            select: { bookings: true }, // Requis pour la logique de places restantes
+          },
           moniteurs: {
-            include: {
-              moniteur: true,
+            select: {
+              moniteur: {
+                select: {
+                  id: true,
+                  name: true,
+                  role: true,
+                  avatarUrl: true,
+                },
+              },
             },
           },
         },
       });
 
-      // Enrichir chaque stage avec les disponibilités en temps réel
-      const enrichedStages = await Promise.all(
-        stages.map(async (stage) => {
-          const confirmedBookings = stage.bookings.length;
+      // 2. Récupérer tous les CartItems pertinents en une seule requête groupée
+      // On ne compte que ceux qui ne sont pas expirés
+      const cartItemsCounts = await prisma.cartItem.groupBy({
+        by: ["stageId"],
+        where: {
+          type: "STAGE",
+          stageId: { in: stages.map((s) => s.id) },
+          expiresAt: { gt: now },
+          isExpired: false,
+        },
+        _count: {
+          _all: true,
+        },
+      });
 
-          // Compter les réservations temporaires (items dans les paniers non expirés)
-          const temporaryReservations = await prisma.cartItem.count({
-            where: {
-              type: "STAGE",
-              stageId: stage.id,
-              expiresAt: { gt: now },
-              isExpired: false,
-            },
-          });
+      // Créer une map pour accès rapide : stageId -> count
+      const temporaryReservationsMap = new Map<string, number>();
+      cartItemsCounts.forEach((item) => {
+        if (item.stageId) {
+          temporaryReservationsMap.set(item.stageId, item._count._all);
+        }
+      });
 
-          const availablePlaces =
-            stage.places - confirmedBookings - temporaryReservations;
+      // 3. Assembler les données en mémoire
+      const enrichedStages = stages.map((stage) => {
+        const confirmedBookings = stage._count.bookings;
+        const temporaryReservations =
+          temporaryReservationsMap.get(stage.id) || 0;
 
-          return {
-            ...stage,
-            availablePlaces: Math.max(0, availablePlaces),
-            confirmedBookings,
-            temporaryReservations,
-          };
-        }),
-      );
+        const availablePlaces =
+          stage.places - confirmedBookings - temporaryReservations;
 
-      console.log(enrichedStages);
+        // On nettoie l'objet pour le retour (retrait de _count si non désiré, ou garde tel quel)
+        // Ici on garde la structure attendue par le front
+        const { _count, ...stageData } = stage;
+
+        return {
+          ...stageData,
+          availablePlaces: Math.max(0, availablePlaces),
+          confirmedBookings,
+          temporaryReservations,
+        };
+      });
+
       return c.json({ success: true, message: "", data: enrichedStages });
     } catch (error) {
+      console.error("Error in getAll stages:", error);
       return c.json({
         success: false,
         message: "Erreur lors de la récupération des stages",

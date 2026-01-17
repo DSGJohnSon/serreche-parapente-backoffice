@@ -63,8 +63,6 @@ export function BaptemeBiPlaceAddForm({
 
   const handleSubmit = async (baptemeData: BaptemeData) => {
     try {
-      console.log("BaptemeBiPlaceAddForm received data:", baptemeData);
-
       // Convert to the format expected by the API
       const apiData = {
         date: baptemeData.date.toISOString(),
@@ -74,8 +72,7 @@ export function BaptemeBiPlaceAddForm({
         categories: baptemeData.categories,
         acomptePrice: baptemeData.acomptePrice,
       };
-
-      console.log("Sending to API:", apiData);
+      
       await createBapteme.mutateAsync(apiData);
 
       // Redirect to biplaces page after successful creation

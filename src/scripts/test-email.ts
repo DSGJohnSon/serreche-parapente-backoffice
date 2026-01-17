@@ -68,16 +68,10 @@ const testOrderData = {
 };
 
 async function testEmail() {
-  console.log('🧪 Testing email sending...');
-  console.log('📧 Sending to:', testOrderData.customerEmail);
   
   try {
     const result = await sendOrderConfirmationEmail(testOrderData);
-    console.log('✅ Email sent successfully!');
-    console.log('📬 Email ID:', result.emailId);
-    console.log('\n⚠️  IMPORTANT: Vérifiez votre boîte mail (et les spams) pour voir l\'email de confirmation.');
   } catch (error) {
-    console.error('❌ Error sending email:', error);
     process.exit(1);
   }
 }

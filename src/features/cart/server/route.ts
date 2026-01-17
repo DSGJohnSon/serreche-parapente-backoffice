@@ -139,7 +139,6 @@ const app = new Hono()
             id: { in: expiredItemIds },
           },
         });
-        console.log(`[CART CLEANUP] Supprimé ${expiredItemIds.length} item(s) expiré(s)`);
       }
 
       // Calculer le total avec les items valides uniquement
@@ -605,12 +604,6 @@ const app = new Hono()
           };
 
           dataToUpdate.participantData = newParticipantData;
-
-          // Log pour le suivi
-          console.log(`[CART UPDATE] Item ${itemId} - Participant data updated:`, {
-            oldData: oldParticipantData,
-            newData: newParticipantData,
-          });
         }
 
         // Mettre à jour l'item
@@ -658,9 +651,6 @@ const app = new Hono()
             totalAmount += item.giftVoucherAmount || 0;
           }
         }
-
-        // Log du recalcul
-        console.log(`[CART UPDATE] Total recalculated: ${totalAmount}€`);
 
         return c.json({
           success: true,

@@ -145,8 +145,6 @@ export function StageAddForm({
       return;
     }
 
-    console.log("Submitting form with data:", formData);
-
     onSubmit({
       startDate: formData.startDate,
       duration: formData.duration,

@@ -31,8 +31,6 @@ interface OrderEmailData {
 export async function sendOrderConfirmationEmail(data: OrderEmailData) {
   try {
     const sender = process.env.RESEND_FROM_EMAIL || 'Serre Chevalier Parapente <noreply@stage-de-parapente.fr>';
-    console.log(`[RESEND] 📧 Sending order confirmation email to ${data.customerEmail}`);
-    console.log(`[RESEND] 📧 Sender: ${sender}`);
 
     const { data: emailData, error } = await resend.emails.send({
       from: sender,
@@ -54,14 +52,10 @@ export async function sendOrderConfirmationEmail(data: OrderEmailData) {
     });
 
     if (error) {
-      console.error('[RESEND] ❌ Error sending email:', error);
       throw error;
     }
-
-    console.log(`[RESEND] ✅ Email sent successfully. ID: ${emailData?.id}`);
     return { success: true, emailId: emailData?.id };
   } catch (error) {
-    console.error('[RESEND] ❌ Failed to send email:', error);
     throw error;
   }
 }
@@ -70,8 +64,6 @@ export async function sendAdminNewOrderEmail(data: OrderEmailData) {
   try {
     const sender = process.env.RESEND_FROM_EMAIL || 'Serre Chevalier Parapente <noreply@stage-de-parapente.fr>';
     const adminEmail = process.env.ADMIN_EMAIL || '';
-
-    console.log(`[RESEND] 📧 Sending admin notification email to ${adminEmail}`);
 
     const { data: emailData, error } = await resend.emails.send({
       from: sender,
@@ -92,14 +84,10 @@ export async function sendAdminNewOrderEmail(data: OrderEmailData) {
     });
 
     if (error) {
-      console.error('[RESEND] ❌ Error sending admin email:', error);
       throw error;
     }
-
-    console.log(`[RESEND] ✅ Admin email sent successfully. ID: ${emailData?.id}`);
     return { success: true, emailId: emailData?.id };
   } catch (error) {
-    console.error('[RESEND] ❌ Failed to send admin email:', error);
     throw error;
   }
 }
@@ -128,8 +116,6 @@ export async function sendGiftVoucherPurchaseEmail(data: GiftVoucherEmailData) {
       ? `🎁 Bon cadeau de ${data.buyerName} !`
       : `Votre bon cadeau pour ${data.recipientName} est prêt !`;
 
-    console.log(`[RESEND] 📧 Sending gift voucher email to ${recipientEmail} (${data.notifyRecipient ? 'recipient' : 'buyer'})`);
-
     const { data: emailData, error } = await resend.emails.send({
       from: sender,
       to: [recipientEmail!],
@@ -150,14 +136,10 @@ export async function sendGiftVoucherPurchaseEmail(data: GiftVoucherEmailData) {
     });
 
     if (error) {
-      console.error('[RESEND] ❌ Error sending gift voucher email:', error);
       throw error;
     }
-
-    console.log(`[RESEND] ✅ Gift voucher email sent successfully. ID: ${emailData?.id}`);
     return { success: true, emailId: emailData?.id };
   } catch (error) {
-    console.error('[RESEND] ❌ Failed to send gift voucher email:', error);
     throw error;
   }
 }

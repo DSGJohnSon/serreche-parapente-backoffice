@@ -166,7 +166,6 @@ const app = new Hono()
                 country: customerData.country || 'France',
               },
             });
-            console.log(`[FREE CHECKOUT] Client created: ${client.id}`);
           }
         }
 
@@ -222,8 +221,6 @@ const app = new Hono()
                     remainingAmount = (basePrice - item.bapteme.acomptePrice) * item.quantity;
                     isFullyPaid = false;
                   }
-                  
-                  console.log(`BAPTEME OrderItem creation: basePrice=${basePrice}, videoPrice=${videoPrice}, unitPrice=${unitPrice}, depositAmount=${depositAmount}, remainingAmount=${remainingAmount}`);
                 } else if (item.type === 'GIFT_CARD') {
                   unitPrice = item.giftCardAmount || 0;
                   isFullyPaid = true;
@@ -289,15 +286,6 @@ const app = new Hono()
           sessionId: cartSession.sessionId, // Pour vider le panier
           customerEmail: customerEmail, // Pour créer le client
           customerData: customerData, // Données complètes du client
-        });
-
-        console.log('PaymentIntent créé:', {
-          id: paymentIntent.id,
-          hasClientSecret: !!paymentIntent.client_secret,
-          clientSecretFormat: paymentIntent.client_secret?.substring(0, 20) + '...',
-          amount: paymentIntent.amount,
-          depositAmount: depositAmount,
-          fullAmount: order.totalAmount,
         });
 
         // Enregistrer le paiement (montant de l'acompte)

@@ -239,8 +239,6 @@ const app = new Hono()
           stageType
         );
 
-        console.log('Périodes disponibles:', periods);
-
         return c.json({
           success: true,
           data: periods,

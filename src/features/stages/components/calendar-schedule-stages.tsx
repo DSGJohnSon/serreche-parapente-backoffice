@@ -229,7 +229,7 @@ export function CalendarScheduleStages({
                       const daysFromTodayToEnd =
                         Math.floor(
                           (stageEnd.getTime() - day.getTime()) /
-                            (1000 * 60 * 60 * 24)
+                            (1000 * 60 * 60 * 24),
                         ) + 1;
                       spanDays = Math.min(daysFromTodayToEnd, 7);
                     } else {
@@ -242,7 +242,7 @@ export function CalendarScheduleStages({
                       <div
                         key={stage.id}
                         className={`relative pointer-events-auto cursor-pointer border rounded-md p-2 text-xs ${getTypeColor(
-                          stage.type
+                          stage.type,
                         )} transition-all ${
                           hoveredStageId === stage.id
                             ? `ring-2 ${getTypeRingColor(stage.type)} shadow-lg`
@@ -279,8 +279,11 @@ export function CalendarScheduleStages({
                           <span className="font-bold">
                             {stage.placesRestantes || 0} places restantes
                           </span>{" "}
-                          • {stage.bookings?.length || 0} réservations •{" "}
-                          {stage.duration}j
+                          •{" "}
+                          {stage.confirmedBookings !== undefined
+                            ? stage.confirmedBookings
+                            : stage.bookings?.length || 0}{" "}
+                          réservations • {stage.duration}j
                         </div>
                       </div>
                     );
@@ -364,7 +367,7 @@ export function CalendarScheduleStages({
                         const stageStart = new Date(stage.startDate);
                         const stageEnd = addDays(
                           stageStart,
-                          stage.duration - 1
+                          stage.duration - 1,
                         );
                         const isContinuing = stageStart < week[0];
 
@@ -377,7 +380,7 @@ export function CalendarScheduleStages({
                           const daysFromTodayToEnd =
                             Math.floor(
                               (stageEnd.getTime() - day.getTime()) /
-                                (1000 * 60 * 60 * 24)
+                                (1000 * 60 * 60 * 24),
                             ) + 1;
                           spanDays = Math.min(daysFromTodayToEnd, 7);
                         } else {
@@ -385,7 +388,7 @@ export function CalendarScheduleStages({
                           const remainingDaysInWeek = 7 - dayIndex;
                           spanDays = Math.min(
                             stage.duration,
-                            remainingDaysInWeek
+                            remainingDaysInWeek,
                           );
                         }
 
@@ -393,11 +396,11 @@ export function CalendarScheduleStages({
                           <div
                             key={`${stage.id}-${weekIndex}`}
                             className={`relative pointer-events-auto cursor-pointer border rounded-sm px-1 py-0.5 text-xs ${getTypeColor(
-                              stage.type
+                              stage.type,
                             )} transition-all ${
                               hoveredStageId === stage.id
                                 ? `ring-2 ${getTypeRingColor(
-                                    stage.type
+                                    stage.type,
                                   )} shadow-lg`
                                 : "border"
                             }`}
@@ -434,8 +437,11 @@ export function CalendarScheduleStages({
                               >
                                 {stage.placesRestantes || 0} places restantes
                               </span>{" "}
-                              • {stage.bookings?.length || 0} réservations •{" "}
-                              {stage.duration}j
+                              •{" "}
+                              {stage.confirmedBookings !== undefined
+                                ? stage.confirmedBookings
+                                : stage.bookings?.length || 0}{" "}
+                              réservations • {stage.duration}j
                             </div>
                           </div>
                         );

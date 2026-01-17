@@ -32,10 +32,6 @@ export class AvailabilityService {
       where: whereExpired,
     });
     
-    if (deletedCount.count > 0) {
-      console.log(`[AVAILABILITY CHECK] Nettoyé ${deletedCount.count} item(s) expiré(s) pour ${type} ${itemId}`);
-    }
-    
     if (type === 'stage') {
       const stage = await prisma.stage.findUnique({
         where: { id: itemId },
@@ -191,7 +187,6 @@ export class AvailabilityService {
       }
     });
 
-    console.log(`Nettoyage: ${result.count} réservations temporaires expirées supprimées`);
     return result.count;
   }
 
@@ -278,8 +273,6 @@ export class AvailabilityService {
     }
 
     if (type === 'bapteme') {
-      console.log('Searching baptemes for category:', category);
-      
       // D'abord récupérer tous les baptêmes futurs
       const allBaptemes = await prisma.bapteme.findMany({
         where: {
@@ -294,16 +287,12 @@ export class AvailabilityService {
         },
       });
 
-      console.log('All future baptemes:', allBaptemes.length);
-      console.log('Sample baptemes:', allBaptemes.slice(0, 3));
-
       // Filtrer côté application si une catégorie est spécifiée
       let filteredBaptemes = allBaptemes;
       if (category) {
         filteredBaptemes = allBaptemes.filter(bapteme =>
           bapteme.categories.includes(category as any)
         );
-        console.log(`Baptemes with category ${category}:`, filteredBaptemes.length);
       }
 
       return this.processPeriodsWithCounts(filteredBaptemes.map(b => b.date));

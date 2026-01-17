@@ -31,11 +31,27 @@ const app = new Hono()
 
       const baptemes = await prisma.bapteme.findMany({
         where,
-        include: {
-          bookings: true,
+        select: {
+          id: true,
+          date: true,
+          duration: true,
+          places: true,
+          categories: true,
+          acomptePrice: true,
+          _count: {
+            select: { bookings: true },
+          },
           moniteurs: {
-            include: {
-              moniteur: true,
+            select: {
+              moniteur: {
+                select: {
+                  id: true,
+                  name: true,
+                  role: true,
+                  avatarUrl: true,
+                  email: true,
+                },
+              },
             },
           },
         },
@@ -66,7 +82,7 @@ const app = new Hono()
 
       // Enrichir chaque baptême
       const enrichedBaptemes = baptemes.map((bapteme) => {
-        const confirmedBookings = bapteme.bookings.length;
+        const confirmedBookings = bapteme._count.bookings;
         const temporaryReservations = tempReservationsMap.get(bapteme.id) || 0;
 
         const availablePlaces =

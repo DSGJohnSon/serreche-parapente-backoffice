@@ -26,6 +26,7 @@ import { Stage, User, StageBooking } from "@prisma/client";
 import { useState } from "react";
 import { Plus, Minus, Edit2, Trash2, Save, X } from "lucide-react";
 import { useGetMoniteursAndAdmins } from "@/features/users/api/use-get-moniteurs-and-admins";
+import { useGetStageById } from "../api/use-get-stage";
 import { useUpdateStage } from "../api/use-update-stages";
 import { useDeleteStage } from "../api/use-delete-stages";
 import { toast } from "sonner";
@@ -62,20 +63,32 @@ export function StageDetailsSheet({
   } | null>(null);
 
   const { data: moniteurs } = useGetMoniteursAndAdmins();
+  const { data: fullStageData, isLoading: isLoadingDetails } = useGetStageById(
+    stage?.id || "",
+  );
+
+  const displayStage = fullStageData || stage;
+
   const updateStage = useUpdateStage();
   const deleteStage = useDeleteStage();
 
-  if (!stage) return null;
+  if (!displayStage) return null;
 
-  const currentBookingsCount = stage.bookings.length;
-  const placesRestantes = stage.places - currentBookingsCount;
+  // Use optional chaining for bookings as it might be undefined in basic stage object
+  const bookings = fullStageData?.bookings || [];
+  const currentBookingsCount =
+    fullStageData?.bookings?.length ??
+    (displayStage as any).confirmedBookings ??
+    0;
+
+  const placesRestantes = displayStage.places - currentBookingsCount;
 
   const handleEdit = () => {
     setEditedStage({
-      places: stage.places,
-      price: stage.price,
-      acomptePrice: stage.acomptePrice,
-      moniteurIds: stage.moniteurs.map((m) => m.moniteur.id),
+      places: displayStage.places,
+      price: displayStage.price,
+      acomptePrice: displayStage.acomptePrice,
+      moniteurIds: displayStage.moniteurs.map((m: any) => m.moniteur.id),
     });
     setIsEditing(true);
   };
@@ -90,14 +103,14 @@ export function StageDetailsSheet({
 
     updateStage.mutate(
       {
-        id: stage.id,
-        startDate: stage.startDate.toISOString(),
-        duration: stage.duration,
+        id: displayStage.id,
+        startDate: new Date(displayStage.startDate).toISOString(),
+        duration: displayStage.duration,
         places: editedStage.places,
         price: editedStage.price,
         acomptePrice: editedStage.acomptePrice,
         moniteurIds: editedStage.moniteurIds,
-        type: stage.type,
+        type: displayStage.type,
       },
       {
         onSuccess: () => {
@@ -105,7 +118,7 @@ export function StageDetailsSheet({
           setEditedStage(null);
           onOpenChange(false);
         },
-      }
+      },
     );
   };
 
@@ -121,7 +134,7 @@ export function StageDetailsSheet({
     if (!editedStage) return;
     if (editedStage.places <= currentBookingsCount) {
       toast.error(
-        `Impossible de réduire en dessous de ${currentBookingsCount} places (nombre de réservations actuelles)`
+        `Impossible de réduire en dessous de ${currentBookingsCount} places (nombre de réservations actuelles)`,
       );
       return;
     }
@@ -142,12 +155,12 @@ export function StageDetailsSheet({
     }
 
     deleteStage.mutate(
-      { id: stage.id },
+      { id: displayStage.id },
       {
         onSuccess: () => {
           onOpenChange(false);
         },
-      }
+      },
     );
   };
 
@@ -187,9 +200,9 @@ export function StageDetailsSheet({
         <SheetHeader>
           <SheetTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              Stage {getTypeLabel(stage.type)}
-              <Badge className={getTypeColor(stage.type)}>
-                {getTypeLabel(stage.type)}
+              Stage {getTypeLabel(displayStage.type)}
+              <Badge className={getTypeColor(displayStage.type)}>
+                {getTypeLabel(displayStage.type)}
               </Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -246,7 +259,7 @@ export function StageDetailsSheet({
                     Date de début:
                   </span>
                   <span>
-                    {format(new Date(stage.startDate), "EEEE d MMMM yyyy", {
+                    {format(new Date(displayStage.startDate), "EEEE d MMMM yyyy", {
                       locale: fr,
                     })}
                   </span>
@@ -255,7 +268,7 @@ export function StageDetailsSheet({
                   <span className="font-medium text-muted-foreground">
                     Durée:
                   </span>
-                  <span>{stage.duration} jours</span>
+                  <span>{displayStage.duration} jours</span>
                 </div>
 
                 {/* Prix - Editable */}
@@ -285,7 +298,7 @@ export function StageDetailsSheet({
                       <span>€</span>
                     </div>
                   ) : (
-                    <span className="font-semibold">{stage.price}€</span>
+                    <span className="font-semibold">{displayStage.price}€</span>
                   )}
                 </div>
 
@@ -312,7 +325,7 @@ export function StageDetailsSheet({
                       <span>€</span>
                     </div>
                   ) : (
-                    <span className="font-semibold">{stage.acomptePrice}€</span>
+                    <span className="font-semibold">{displayStage.acomptePrice}€</span>
                   )}
                 </div>
 
@@ -345,7 +358,7 @@ export function StageDetailsSheet({
                     </Button>
                   </div>
                 ) : (
-                  <span>{stage.places}</span>
+                  <span>{displayStage.places}</span>
                 )}
               </div>
 
@@ -369,7 +382,7 @@ export function StageDetailsSheet({
           {/* Moniteurs - Editable */}
           <div>
             <h3 className="font-semibold mb-3">
-              Moniteur{stage.moniteurs.length > 1 ? "s" : ""}
+              Moniteur{displayStage.moniteurs.length > 1 ? "s" : ""}
             </h3>
             {isEditing && editedStage ? (
               <div className="space-y-2">
@@ -397,7 +410,7 @@ export function StageDetailsSheet({
               </div>
             ) : (
               <div className="space-y-3">
-                {stage.moniteurs.map((moniteurData, index) => (
+                {displayStage.moniteurs.map((moniteurData: any, index: number) => (
                   <div
                     key={moniteurData.moniteur.id}
                     className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg"
@@ -438,24 +451,32 @@ export function StageDetailsSheet({
         <div>
           <h3 className="font-semibold mb-3">
             Réservations ({currentBookingsCount}/
-            {isEditing && editedStage ? editedStage.places : stage.places})
+            {isEditing && editedStage
+              ? editedStage.places
+              : displayStage.places}
+            )
           </h3>
-          {stage.bookings.length > 0 ? (
+          {isLoadingDetails ? (
+            <div className="text-sm text-muted-foreground">
+              Chargement des réservations...
+            </div>
+          ) : bookings.length > 0 ? (
             <div className="space-y-3">
-              {stage.bookings.map((booking) => (
+              {bookings.map((booking: any) => (
                 <div
                   key={booking.id}
                   className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
                 >
                   <div>
                     <div className="font-medium">
-                      {booking.customer.firstName} {booking.customer.lastName}
+                      {booking.stagiaire?.firstName}{" "}
+                      {booking.stagiaire?.lastName}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {booking.customer.email}
+                      {booking.stagiaire?.email}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {booking.customer.phone}
+                      {booking.stagiaire?.phone}
                     </div>
                   </div>
                   <Badge variant="outline">{booking.type}</Badge>

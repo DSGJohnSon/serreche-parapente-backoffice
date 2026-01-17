@@ -11,8 +11,10 @@ import { useCreateBapteme } from "@/features/biplaces/api/use-create-bapteme";
 import { BaptemeCategory } from "@/features/biplaces/schemas";
 
 // Type for the API response from the server
-interface BaptemeApiResponse
-  extends Omit<Bapteme, "categories" | "date" | "createdAt" | "updatedAt"> {
+interface BaptemeApiResponse extends Omit<
+  Bapteme,
+  "categories" | "date" | "createdAt" | "updatedAt"
+> {
   date: string; // API returns dates as strings
   createdAt: string;
   updatedAt: string;
@@ -93,47 +95,50 @@ export default function Page() {
 
   // Transform API data to match the expected Bapteme type with additional info
   const baptemes =
-    baptemesData?.map((bapteme: BaptemeApiResponse) => ({
+    baptemesData?.map((bapteme: any) => ({
       id: bapteme.id,
       date: new Date(bapteme.date),
       duration: bapteme.duration,
       places: bapteme.places,
       categories: bapteme.categories || [],
-      moniteurs: bapteme.moniteurs.map((m) => ({
+      moniteurs: bapteme.moniteurs.map((m: any) => ({
         moniteur: {
-          ...m.moniteur,
-          createdAt: new Date(m.moniteur.createdAt),
-          updatedAt: new Date(m.moniteur.updatedAt),
+          id: m.moniteur.id,
+          name: m.moniteur.name,
+          role: m.moniteur.role,
+          email: m.moniteur.email,
+          avatarUrl: m.moniteur.avatarUrl,
+          createdAt: new Date(), // Not returned by API
+          updatedAt: new Date(),
         },
       })),
-      bookings: bapteme.bookings.map((booking) => ({
-        ...booking,
-        createdAt: new Date(booking.createdAt),
-        updatedAt: new Date(booking.updatedAt),
-      })),
-      placesRestantes: bapteme.places - bapteme.bookings.length,
+      bookings: [], // Bookings are not returned by getAll anymore
+      confirmedBookings: bapteme.confirmedBookings,
+      placesRestantes: bapteme.availablePlaces,
     })) || [];
 
   // Keep the full data with moniteurs for details dialog
   const baptemesWithMoniteurs: BaptemeWithMoniteurs[] =
-    baptemesData?.map((bapteme: BaptemeApiResponse) => ({
+    baptemesData?.map((bapteme: any) => ({
       id: bapteme.id,
       date: new Date(bapteme.date),
       duration: bapteme.duration,
       places: bapteme.places,
       acomptePrice: bapteme.acomptePrice,
       categories: bapteme.categories || [],
-      createdAt: new Date(bapteme.createdAt),
-      updatedAt: new Date(bapteme.updatedAt),
-      moniteurs: bapteme.moniteurs.map((m) => ({
+      createdAt: new Date(), // Not returned by API
+      updatedAt: new Date(),
+      bookings: [], // Bookings are not returned by getAll anymore
+      confirmedBookings: bapteme.confirmedBookings,
+      moniteurs: bapteme.moniteurs.map((m: any) => ({
         moniteur: {
           id: m.moniteur.id,
           email: m.moniteur.email,
           name: m.moniteur.name,
           avatarUrl: m.moniteur.avatarUrl,
           role: m.moniteur.role,
-          createdAt: new Date(m.moniteur.createdAt),
-          updatedAt: new Date(m.moniteur.updatedAt),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       })),
     })) || [];
@@ -148,7 +153,6 @@ export default function Page() {
   };
 
   const handleHourClick = (date: Date, hour?: number) => {
-    console.log("Day clicked:", date, "Hour:", hour);
     // Redirect to add page with date and hour parameters
     const params = new URLSearchParams({
       type: "bapteme-biplace",
@@ -159,7 +163,6 @@ export default function Page() {
   };
 
   const handleAddBapteme = () => {
-    console.log("Add new bapteme");
     // Redirect to add page
     window.location.href = "/dashboard/add?type=bapteme-biplace";
   };

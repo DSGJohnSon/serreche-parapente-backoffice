@@ -100,14 +100,6 @@ export function BaptemeEditForm({
       const isCustom = !presetDurations.includes(bapteme.duration);
 
       const acompteValue = bapteme.acomptePrice || depositPrice?.price || 35;
-      console.log(
-        "Initializing form with acomptePrice:",
-        acompteValue,
-        "from bapteme:",
-        bapteme.acomptePrice,
-        "depositPrice:",
-        depositPrice?.price
-      );
 
       setFormData({
         date: baptemeDate,
@@ -161,8 +153,6 @@ export function BaptemeEditForm({
     baptemeDate.setHours(hours, minutes, 0, 0);
 
     const originalDate = new Date(bapteme.date);
-
-    console.log("Submitting update with acomptePrice:", formData.acomptePrice);
 
     try {
       await updateBapteme.mutateAsync({

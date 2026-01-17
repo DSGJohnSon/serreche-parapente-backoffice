@@ -254,8 +254,6 @@ const app = new Hono()
             data: null,
           });
         }
-
-        console.log(`[GIFTCARDS/CREATE] 🔵 CREATING GIFT CARD via admin endpoint - Code: ${code} - Amount: ${amount}€ - Timestamp: ${new Date().toISOString()}`);
         
         const result = await prisma.giftCard.create({
           data: {
@@ -275,8 +273,6 @@ const app = new Hono()
             },
           },
         });
-
-        console.log(`[GIFTCARDS/CREATE] 🟢 GIFT CARD CREATED via admin - Code: ${result.code} - ID: ${result.id} - Timestamp: ${new Date().toISOString()}`);
 
         return c.json({
           success: true,
@@ -305,8 +301,6 @@ const app = new Hono()
         const giftCard = await prisma.giftCard.findUnique({
           where: { code },
         });
-
-        console.log(giftCard);
 
         // Check if gift card exists
         if (!giftCard) {

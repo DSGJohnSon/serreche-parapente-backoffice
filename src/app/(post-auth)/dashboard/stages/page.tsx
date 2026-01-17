@@ -36,7 +36,7 @@ interface StageWithDetails {
 export default function Page() {
   const [showDetailsSheet, setShowDetailsSheet] = useState(false);
   const [selectedStage, setSelectedStage] = useState<StageWithDetails | null>(
-    null
+    null,
   );
   const [mounted, setMounted] = useState(false);
 
@@ -63,7 +63,7 @@ export default function Page() {
 
   // Transform API data to match the expected Stage type with additional info
   const stages =
-    stagesData?.map((stage: StageApiResponse) => ({
+    stagesData?.map((stage: any) => ({
       id: stage.id,
       startDate: new Date(stage.startDate),
       duration: stage.duration,
@@ -72,44 +72,54 @@ export default function Page() {
       acomptePrice: stage.acomptePrice,
       allTimeHighPrice: stage.allTimeHighPrice,
       type: stage.type,
-      createdAt: new Date(stage.createdAt),
-      updatedAt: new Date(stage.updatedAt),
-      moniteurs: stage.moniteurs.map((m) => ({
-        moniteur: {
-          ...m.moniteur,
-          createdAt: new Date(m.moniteur.createdAt),
-          updatedAt: new Date(m.moniteur.updatedAt),
-        },
-      })),
-      bookings: stage.bookings || [],
-      placesRestantes: stage.places - (stage.bookings?.length || 0),
-    })) || [];
-
-  // Keep the full data with moniteurs for details sheet
-  const stagesWithDetails: StageWithDetails[] =
-    stagesData?.map((stage: StageApiResponse) => ({
-      id: stage.id,
-      startDate: new Date(stage.startDate),
-      duration: stage.duration,
-      places: stage.places,
-      price: stage.price,
-      acomptePrice: stage.acomptePrice,
-      allTimeHighPrice: stage.allTimeHighPrice,
-      type: stage.type,
-      createdAt: new Date(stage.createdAt),
-      updatedAt: new Date(stage.updatedAt),
-      moniteurs: stage.moniteurs.map((m) => ({
+      // createdAt/updatedAt not returned by optimized API
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      moniteurs: stage.moniteurs.map((m: any) => ({
         moniteur: {
           id: m.moniteur.id,
-          email: m.moniteur.email,
           name: m.moniteur.name,
           avatarUrl: m.moniteur.avatarUrl,
           role: m.moniteur.role,
-          createdAt: new Date(m.moniteur.createdAt),
-          updatedAt: new Date(m.moniteur.updatedAt),
+          // Minimal fields for list view
+          email: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       })),
-      bookings: stage.bookings || [],
+      bookings: [], // Bookings are not returned by getAll anymore
+      confirmedBookings: stage.confirmedBookings, // New field from API
+      bookingsCount: stage.confirmedBookings, // Hack for frontend compatibility if needed, or use specific field
+      placesRestantes: stage.availablePlaces, // New field from API
+    })) || [];
+
+  // Keep the full data with moniteurs for details sheet
+  // Note: bookings will be empty here, need to fetch details on click
+  const stagesWithDetails: StageWithDetails[] =
+    stagesData?.map((stage: any) => ({
+      id: stage.id,
+      startDate: new Date(stage.startDate),
+      duration: stage.duration,
+      places: stage.places,
+      price: stage.price,
+      acomptePrice: stage.acomptePrice,
+      allTimeHighPrice: stage.allTimeHighPrice,
+      type: stage.type,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      moniteurs: stage.moniteurs.map((m: any) => ({
+        moniteur: {
+          id: m.moniteur.id,
+          name: m.moniteur.name,
+          avatarUrl: m.moniteur.avatarUrl,
+          role: m.moniteur.role,
+          email: "",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      })),
+      bookings: [],
+      placesRestantes: stage.availablePlaces,
     })) || [];
 
   const handleStageClick = (stage: StageWithDetails) => {
@@ -122,7 +132,6 @@ export default function Page() {
   };
 
   const handleDayClick = (date: Date) => {
-    console.log("Day clicked:", date);
     // Redirect to add page with date parameter
     const params = new URLSearchParams({
       type: "stage",
@@ -132,7 +141,6 @@ export default function Page() {
   };
 
   const handleAddStage = () => {
-    console.log("Add new stage");
     // Redirect to add page
     window.location.href = "/dashboard/add?type=stage";
   };

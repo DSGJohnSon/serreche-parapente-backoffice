@@ -117,8 +117,6 @@ export function BaptemeAddForm({
     const submissionMoniteurIds =
       role === "MONITEUR" && userId ? [userId] : formData.moniteurIds;
 
-    console.log("Submitting bapteme with moniteurs:", submissionMoniteurIds);
-
     if (!submissionMoniteurIds || submissionMoniteurIds.length === 0) {
       alert("Veuillez sélectionner au moins un moniteur");
       return;
@@ -141,8 +139,6 @@ export function BaptemeAddForm({
       categories: formData.categories,
       acomptePrice: formData.acomptePrice,
     };
-
-    console.log("Submitting bapteme:", newBapteme);
     onSubmit(newBapteme);
   };
 
@@ -376,7 +372,6 @@ export function BaptemeAddForm({
               })`,
             }))}
             onValueChange={(values) => {
-              console.log("MultiSelect values changed:", values);
               setFormData((prev) => ({ ...prev, moniteurIds: values }));
             }}
             defaultValue={formData.moniteurIds}
