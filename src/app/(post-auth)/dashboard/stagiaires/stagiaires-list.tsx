@@ -64,6 +64,7 @@ export function StagiairesList() {
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
   const { data: response, isLoading } = useGetAllStagiaires({
     page,
@@ -86,6 +87,12 @@ export function StagiairesList() {
       setSortBy(key);
       setSortOrder("desc");
     }
+    setPage(1);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchQuery(searchInput);
     setPage(1);
   };
 
@@ -138,18 +145,18 @@ export function StagiairesList() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="relative">
-            <LucideSearch className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              className="pl-10"
-            />
-          </div>
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <LucideSearch className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button type="submit">Rechercher</Button>
+          </form>
         </CardContent>
       </Card>
 
