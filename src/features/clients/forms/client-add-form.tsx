@@ -43,7 +43,6 @@ export function ClientAddForm({ onSuccess, onCancel }: ClientAddFormProps) {
     const values = form.getValues();
     if (!values.firstName) form.setValue("firstName", "n/a");
     if (!values.lastName) form.setValue("lastName", "n/a");
-    if (!values.email) form.setValue("email", "empty@empty.fr");
     if (!values.phone) form.setValue("phone", "+330000000000");
     if (!values.address) form.setValue("address", "n/a");
     if (!values.postalCode) form.setValue("postalCode", "n/a");

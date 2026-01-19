@@ -45,11 +45,10 @@ export function StagiaireAddForm({
     const values = form.getValues();
     if (!values.firstName) form.setValue("firstName", "n/a");
     if (!values.lastName) form.setValue("lastName", "n/a");
-    if (!values.email) form.setValue("email", "empty@empty.fr");
     if (!values.phone) form.setValue("phone", "+330000000000");
     if (!values.birthDate) form.setValue("birthDate", new Date("2000-01-01"));
-    if (!values.height || values.height === 0) form.setValue("height", 0);
-    if (!values.weight || values.weight === 0) form.setValue("weight", 0);
+    if (!values.height || values.height === 0) form.setValue("height", 1);
+    if (!values.weight || values.weight === 0) form.setValue("weight", 1);
   };
 
   async function onSubmit(values: z.infer<typeof AddStagiaireSchema>) {

@@ -158,7 +158,6 @@ const app = new Hono()
       if (
         !firstName ||
         !lastName ||
-        !email ||
         !phone ||
         !address ||
         !postalCode ||
@@ -177,7 +176,7 @@ const app = new Hono()
           data: {
             firstName,
             lastName,
-            email,
+            email: email || null,
             phone,
             address,
             postalCode,
@@ -198,7 +197,7 @@ const app = new Hono()
           data: null,
         });
       }
-    }
+    },
   );
 
 export default app;

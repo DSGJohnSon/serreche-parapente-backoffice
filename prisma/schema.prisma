@@ -290,10 +290,10 @@ model GiftVoucher {
 
 // Client (celui qui paie la commande)
 model Client {
-  id         String @id @default(cuid())
+  id         String  @id @default(cuid())
   firstName  String
   lastName   String
-  email      String @unique
+  email      String? @unique
   phone      String
   address    String
   postalCode String
