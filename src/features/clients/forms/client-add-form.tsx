@@ -35,9 +35,21 @@ export function ClientAddForm({ onSuccess, onCancel }: ClientAddFormProps) {
       address: "",
       postalCode: "",
       city: "",
-      country: "France",
+      country: "",
     },
   });
+
+  const handleAutoFill = () => {
+    const values = form.getValues();
+    if (!values.firstName) form.setValue("firstName", "n/a");
+    if (!values.lastName) form.setValue("lastName", "n/a");
+    if (!values.email) form.setValue("email", "empty@empty.fr");
+    if (!values.phone) form.setValue("phone", "+330000000000");
+    if (!values.address) form.setValue("address", "n/a");
+    if (!values.postalCode) form.setValue("postalCode", "n/a");
+    if (!values.city) form.setValue("city", "n/a");
+    if (!values.country) form.setValue("country", "n/a");
+  };
 
   async function onSubmit(values: z.infer<typeof AddClientSchema>) {
     setIsSubmitting(true);
@@ -175,20 +187,31 @@ export function ClientAddForm({ onSuccess, onCancel }: ClientAddFormProps) {
           )}
         />
 
-        <div className="flex justify-end gap-2 pt-4">
-          {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSubmitting}
-            >
-              Annuler
-            </Button>
-          )}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Création..." : "Créer le client"}
+        <div className="flex justify-between items-center pt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleAutoFill}
+            disabled={isSubmitting}
+          >
+            Remplir les champs vides
           </Button>
+          <div className="flex gap-2">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={isSubmitting}
+              >
+                Annuler
+              </Button>
+            )}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Création..." : "Créer le client"}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>

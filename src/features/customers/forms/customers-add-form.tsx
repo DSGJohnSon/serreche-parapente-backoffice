@@ -34,7 +34,7 @@ function CustomersAddForm() {
       adress: "",
       postalCode: "",
       city: "",
-      country: "France",
+      country: "",
       height: 0,
       weight: 0,
     },

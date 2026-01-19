@@ -41,6 +41,17 @@ export function StagiaireAddForm({
     },
   });
 
+  const handleAutoFill = () => {
+    const values = form.getValues();
+    if (!values.firstName) form.setValue("firstName", "n/a");
+    if (!values.lastName) form.setValue("lastName", "n/a");
+    if (!values.email) form.setValue("email", "empty@empty.fr");
+    if (!values.phone) form.setValue("phone", "+330000000000");
+    if (!values.birthDate) form.setValue("birthDate", new Date("2000-01-01"));
+    if (!values.height || values.height === 0) form.setValue("height", 0);
+    if (!values.weight || values.weight === 0) form.setValue("weight", 0);
+  };
+
   async function onSubmit(values: z.infer<typeof AddStagiaireSchema>) {
     setIsSubmitting(true);
     try {
@@ -184,20 +195,31 @@ export function StagiaireAddForm({
           />
         </div>
 
-        <div className="flex justify-end gap-2 pt-4">
-          {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSubmitting}
-            >
-              Annuler
-            </Button>
-          )}
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Création..." : "Créer le stagiaire"}
+        <div className="flex justify-between items-center pt-4">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleAutoFill}
+            disabled={isSubmitting}
+          >
+            Remplir les champs vides
           </Button>
+          <div className="flex gap-2">
+            {onCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={isSubmitting}
+              >
+                Annuler
+              </Button>
+            )}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Création..." : "Créer le stagiaire"}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>
