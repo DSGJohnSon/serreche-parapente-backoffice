@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import prisma from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
 import { sendOrderConfirmationEmail, sendAdminNewOrderEmail, sendGiftVoucherPurchaseEmail } from "@/lib/resend";
+import { finalizeOrder, allocatePaymentToOrderItems } from "@/lib/order-processing";
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -208,6 +209,7 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
         where: { stripePaymentIntentId: paymentIntent.id },
         data: {
           status: "SUCCEEDED",
+          paymentType: "STRIPE", // Assurer que c'est bien marqué comme Stripe
         },
       });
       console.log(`Payment ${payment.id} status updated to SUCCEEDED`);
@@ -278,71 +280,48 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
       throw new Error("Order not found after update");
     }
 
-    // 7. Créer les réservations pour chaque item (incluant l'envoi d'emails pour les bons cadeaux)
-    await createBookingsFromOrder(updatedOrder);
-
-    // 9. VIDER LE PANIER après confirmation du paiement (IDEMPOTENCE: vérifier d'abord)
+    // 7. Finaliser la commande (réservations + panier + emails)
     const sessionId = paymentIntent.metadata.sessionId;
+    await finalizeOrder(updatedOrder, sessionId);
 
-    if (sessionId) {
-      const cartSession = await prisma.cartSession.findUnique({
-        where: { sessionId },
-        include: {
-          cartItems: true,
-        },
-      });
-
-      if (cartSession && cartSession.cartItems.length > 0) {
-        await prisma.cartItem.deleteMany({
-          where: {
-            cartSessionId: cartSession.id,
-          },
-        });
-        console.log(`Cart cleared for session: ${cartSession.id} (${cartSession.cartItems.length} items removed)`);
-      } else if (cartSession) {
-        console.log(`Cart already cleared for session: ${cartSession.id}`);
-      } else {
-        console.log(`Cart session not found: ${sessionId}`);
-      }
-    } else {
-      console.log("No sessionId in payment intent metadata - cart not cleared");
-    }
-
-    console.log(`Order ${updatedOrder.orderNumber} confirmed with status ${newStatus}, client ${client ? 'created/linked' : 'not found'}, and cart cleared`);
-
-    // 9. ENVOYER L'EMAIL DE CONFIRMATION
-    try {
-      console.log(`[WEBHOOK] 📧 Preparing to send confirmation email for order ${updatedOrder.orderNumber}`);
-
-      // Calculer les totaux pour l'email
-      const emailData = prepareEmailData(updatedOrder);
-
-      // Envoyer l'email
-      await sendOrderConfirmationEmail(emailData);
-
-      console.log(`[WEBHOOK] ✅ Confirmation email sent successfully for order ${updatedOrder.orderNumber}`);
-
-      // Envoyer l'email à l'admin
-      try {
-        await sendAdminNewOrderEmail(emailData);
-        console.log(`[WEBHOOK] ✅ Admin notification email sent successfully`);
-      } catch (adminEmailError) {
-        console.error(`[WEBHOOK] ⚠️ Failed to send admin notification email:`, adminEmailError);
-      }
-    } catch (emailError) {
-      // Ne pas faire échouer le webhook si l'email échoue
-      console.error(`[WEBHOOK] ⚠️ Failed to send confirmation email for order ${updatedOrder.orderNumber}:`, emailError);
-      // L'erreur est loggée mais ne bloque pas le traitement du paiement
-    }
+    console.log(`Order ${updatedOrder.orderNumber} confirmed with status ${newStatus}, client ${client ? 'created/linked' : 'not found'}, finalized successfully`);
   } catch (error) {
     console.error("Error handling payment success:", error);
     throw error;
   }
 }
 
-// Fonction pour préparer les données de l'email
-function prepareEmailData(order: any) {
-  // Calculer les totaux
+async function handlePaymentFailure(paymentIntent: Stripe.PaymentIntent) {
+  const orderId = paymentIntent.metadata.orderId;
+
+  if (!orderId) {
+    console.error("No orderId in payment intent metadata");
+    return;
+  }
+
+  console.log(`Processing failed payment for order: ${orderId}`);
+
+  try {
+    // Mettre à jour le statut du paiement
+    await prisma.payment.update({
+      where: { stripePaymentIntentId: paymentIntent.id },
+      data: {
+        status: "FAILED",
+      },
+    });
+
+    // Optionnel: Mettre à jour le statut de la commande
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status: "CANCELLED" },
+    });
+
+    console.log(`Payment failed for order: ${orderId}`);
+  } catch (error) {
+    console.error("Error handling payment failure:", error);
+    throw error;
+  }
+}
   let depositTotal = 0;
   let remainingTotal = 0;
   const futurePayments: Array<{
@@ -829,46 +808,4 @@ async function generateUniqueVoucherCodeInTransaction(tx: any): Promise<string> 
   } while (exists);
 
   return code;
-}
-
-// Fonction pour répartir un paiement entre les OrderItems
-async function allocatePaymentToOrderItems(payment: any, orderItems: any[]) {
-  console.log(`Allocating payment ${payment.id} (${payment.amount}€) to ${orderItems.length} items`);
-
-  // Créer les allocations pour chaque OrderItem selon son prix
-  for (const item of orderItems) {
-    let allocatedAmount = 0;
-
-    if (item.type === 'STAGE') {
-      // Pour les stages, allouer le montant de l'acompte (ou 0 si bon cadeau)
-      allocatedAmount = item.depositAmount || 0;
-      console.log(`STAGE item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}`);
-    } else if (item.type === 'BAPTEME') {
-      // Pour les baptêmes, allouer le montant de l'acompte (ou 0 si bon cadeau)
-      allocatedAmount = item.depositAmount || 0;
-      console.log(`BAPTEME item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}, hasVideo=${item.participantData?.hasVideo}`);
-    } else if (item.type === 'GIFT_CARD') {
-      // Pour les cartes cadeaux, allouer le montant de la carte
-      allocatedAmount = item.giftCardAmount || 0;
-      console.log(`GIFT_CARD item ${item.id}: giftCardAmount=${item.giftCardAmount}`);
-    } else if (item.type === 'GIFT_VOUCHER') {
-      // Pour les achats de bons cadeaux, allouer le montant
-      allocatedAmount = item.giftVoucherAmount || 0;
-      console.log(`GIFT_VOUCHER item ${item.id}: giftVoucherAmount=${item.giftVoucherAmount}`);
-    }
-
-    if (allocatedAmount > 0) {
-      await prisma.paymentAllocation.create({
-        data: {
-          paymentId: payment.id,
-          orderItemId: item.id,
-          allocatedAmount,
-        },
-      });
-
-      console.log(`✓ Allocated ${allocatedAmount}€ from payment ${payment.id} to item ${item.id} (${item.type})`);
-    } else {
-      console.warn(`⚠ No amount to allocate for item ${item.id} (${item.type})`);
-    }
-  }
 }

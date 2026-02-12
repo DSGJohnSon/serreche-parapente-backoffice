@@ -79,6 +79,12 @@ enum ManualPaymentMethod {
   CHECK
 }
 
+enum PaymentType {
+  STRIPE
+  MANUAL
+  GIFT_VOUCHER
+}
+
 //Catégories de baptêmes avec leurs prix fixes
 model BaptemeCategoryPrice {
   id       String          @id @default(cuid())
@@ -554,6 +560,9 @@ model Payment {
   orderId String
   order   Order  @relation(fields: [orderId], references: [id])
 
+  // Type de paiement
+  paymentType PaymentType @default(STRIPE)
+
   stripePaymentIntentId String?       @unique // Optionnel pour les paiements manuels
   status                PaymentStatus @default(PENDING)
   amount                Float
@@ -579,6 +588,7 @@ model Payment {
   @@index([stripePaymentIntentId])
   @@index([status, createdAt])
   @@index([status, isManual, createdAt])
+  @@index([status, paymentType, createdAt])
 }
 
 // Table pour éviter le traitement multiple des webhooks Stripe (idempotence)

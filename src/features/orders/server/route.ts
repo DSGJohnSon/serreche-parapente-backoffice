@@ -5,6 +5,7 @@ import { cartSessionMiddleware } from "@/lib/cart-middleware";
 import prisma from "@/lib/prisma";
 import { CreateOrderSchema, UpdateOrderStatusSchema, CreatePaymentIntentSchema, ConfirmPaymentSchema } from "../schemas";
 import { generateOrderNumber, createPaymentIntent } from "@/lib/stripe";
+import { getBaptemePrice, finalizeOrder, allocatePaymentToOrderItems } from "@/lib/order-processing";
 import { z } from "zod";
 
 const app = new Hono()
@@ -277,31 +278,6 @@ const app = new Hono()
           });
         }
 
-        // Créer le Payment Intent Stripe pour le montant de l'acompte
-        // Inclure le sessionId ET les données client dans les métadonnées
-        const paymentIntent = await createPaymentIntent({
-          id: order.id,
-          orderNumber: order.orderNumber,
-          totalAmount: depositAmount, // Utiliser le montant de l'acompte
-          sessionId: cartSession.sessionId, // Pour vider le panier
-          customerEmail: customerEmail, // Pour créer le client
-          customerData: customerData, // Données complètes du client
-        });
-
-        // Enregistrer le paiement (montant de l'acompte)
-        await prisma.payment.create({
-          data: {
-            orderId: order.id,
-            stripePaymentIntentId: paymentIntent.id,
-            status: 'PENDING',
-            amount: depositAmount, // Montant de l'acompte
-            currency: 'eur',
-          },
-        });
-
-        // NE PAS vider le panier ici - il sera vidé lors de la confirmation du paiement via webhook
-        // Le panier reste disponible si l'utilisateur ferme la page et revient plus tard
-
         // Calculer les détails des paiements restants par stage ET baptême
         const remainingPayments = [
           // Stages
@@ -334,30 +310,139 @@ const app = new Hono()
 
         const totalRemainingAmount = remainingPayments.reduce((sum, payment) => sum + payment.remainingAmount, 0);
 
-        return c.json({
-          success: true,
-          message: "Commande créée avec succès",
-          data: {
-            order: {
-              id: order.id,
-              orderNumber: order.orderNumber,
-              totalAmount: order.totalAmount, // Montant total de la commande
-              subtotal: order.subtotal, // Sous-total avant réductions
-              discountAmount: order.discountAmount, // Montant des réductions (cartes cadeaux)
-              depositAmount: depositAmount, // Montant à payer AUJOURD'HUI
-              remainingAmount: totalRemainingAmount, // Montant restant à payer plus tard
-              customerEmail: customerEmail,
-              status: order.status,
-              createdAt: order.createdAt,
+        // LOGIQUE CONDITIONNELLE SELON LE MONTANT À PAYER
+        if (depositAmount === 0) {
+          // ========================================
+          // CAS 1 : COMMANDE GRATUITE (100% couverte par bon cadeau)
+          // ========================================
+          console.log(`[ORDER-CREATE] 🎁 Free order detected (depositAmount = 0€) for order ${order.orderNumber}`);
+
+          // Créer un Payment de type GIFT_VOUCHER pour traçabilité (ne compte pas dans le CA)
+          const totalPaidByVouchers = order.orderItems.reduce((sum: number, item: any) => {
+            if (item.participantData?.usedGiftVoucherCode) {
+              return sum + (item.totalPrice || 0);
+            }
+            return sum;
+          }, 0);
+
+          const payment = await prisma.payment.create({
+            data: {
+              orderId: order.id,
+              paymentType: 'GIFT_VOUCHER',
+              status: 'SUCCEEDED',
+              amount: totalPaidByVouchers, // Montant réel couvert par les bons
+              currency: 'eur',
             },
-            paymentIntent: {
-              id: paymentIntent.id,
-              clientSecret: paymentIntent.client_secret,
-              amount: paymentIntent.amount, // Montant en centimes
+          });
+
+          console.log(`[ORDER-CREATE] ✓ GIFT_VOUCHER payment created: ${payment.id} (${payment.amount}€)`);
+
+          // Allouer le paiement aux orderItems
+          await allocatePaymentToOrderItems(payment, order.orderItems);
+
+          // Recharger la commande avec toutes les relations pour finalizeOrder
+          const fullOrder = await prisma.order.findUnique({
+            where: { id: order.id },
+            include: {
+              orderItems: {
+                include: {
+                  stage: true,
+                  bapteme: true,
+                },
+              },
+              client: true,
             },
-            remainingPayments: remainingPayments, // Détails des paiements restants par stage
-          },
-        });
+          });
+
+          if (!fullOrder) {
+            throw new Error("Order not found after creation");
+          }
+
+          // Finaliser la commande (réservations + emails + panier)
+          await finalizeOrder(fullOrder, cartSession.sessionId);
+
+          console.log(`[ORDER-CREATE] ✅ Free order ${order.orderNumber} finalized successfully`);
+
+          return c.json({
+            success: true,
+            message: "Commande créée avec succès (paiement par bon cadeau)",
+            data: {
+              order: {
+                id: order.id,
+                orderNumber: order.orderNumber,
+                totalAmount: order.totalAmount,
+                subtotal: order.subtotal,
+                discountAmount: order.discountAmount,
+                depositAmount: 0, // Rien à payer
+                remainingAmount: totalRemainingAmount,
+                customerEmail: customerEmail,
+                status: order.status,
+                createdAt: order.createdAt,
+              },
+              paymentIntent: null, // Pas de PaymentIntent Stripe
+              requiresPayment: false,
+              remainingPayments: remainingPayments,
+            },
+          });
+        } else {
+          // ========================================
+          // CAS 2 : COMMANDE PAYANTE (Stripe)
+          // ========================================
+          console.log(`[ORDER-CREATE] 💳 Paid order detected (depositAmount = ${depositAmount}€) for order ${order.orderNumber}`);
+
+          // Créer le Payment Intent Stripe pour le montant de l'acompte
+          const paymentIntent = await createPaymentIntent({
+            id: order.id,
+            orderNumber: order.orderNumber,
+            totalAmount: depositAmount, // Utiliser le montant de l'acompte
+            sessionId: cartSession.sessionId, // Pour vider le panier
+            customerEmail: customerEmail, // Pour créer le client
+            customerData: customerData, // Données complètes du client
+          });
+
+          // Enregistrer le paiement (montant de l'acompte)
+          await prisma.payment.create({
+            data: {
+              orderId: order.id,
+              paymentType: 'STRIPE',
+              stripePaymentIntentId: paymentIntent.id,
+              status: 'PENDING',
+              amount: depositAmount, // Montant de l'acompte
+              currency: 'eur',
+            },
+          });
+
+          // NE PAS vider le panier ici - il sera vidé lors de la confirmation du paiement via webhook
+          // Le panier reste disponible si l'utilisateur ferme la page et revient plus tard
+
+          console.log(`[ORDER-CREATE] ✓ Stripe payment created: ${paymentIntent.id}`);
+
+          return c.json({
+            success: true,
+            message: "Commande créée avec succès",
+            data: {
+              order: {
+                id: order.id,
+                orderNumber: order.orderNumber,
+                totalAmount: order.totalAmount, // Montant total de la commande
+                subtotal: order.subtotal, // Sous-total avant réductions
+                discountAmount: order.discountAmount, // Montant des réductions (cartes cadeaux)
+                depositAmount: depositAmount, // Montant à payer AUJOURD'HUI
+                remainingAmount: totalRemainingAmount, // Montant restant à payer plus tard
+                customerEmail: customerEmail,
+                status: order.status,
+                createdAt: order.createdAt,
+              },
+              paymentIntent: {
+                id: paymentIntent.id,
+                clientSecret: paymentIntent.client_secret,
+                amount: paymentIntent.amount, // Montant en centimes
+              },
+              requiresPayment: true,
+              remainingPayments: remainingPayments, // Détails des paiements restants par stage
+            },
+          });
+        }
 
       } catch (error) {
         console.error('Erreur création commande:', error);
@@ -735,30 +820,5 @@ const app = new Hono()
       }
     }
   );
-
-// Fonction utilitaire pour obtenir le prix d'un baptême selon la catégorie
-async function getBaptemePrice(category: string): Promise<number> {
-  const defaultPrices = {
-    AVENTURE: 110,
-    DUREE: 150,
-    LONGUE_DUREE: 185,
-    ENFANT: 90,
-    HIVER: 130,
-  };
-  
-  if (!category || category === '') {
-    return 110;
-  }
-  
-  try {
-    const categoryPrice = await prisma.baptemeCategoryPrice.findUnique({
-      where: { category: category as any },
-    });
-    
-    return categoryPrice?.price || defaultPrices[category as keyof typeof defaultPrices] || 110;
-  } catch (error) {
-    return defaultPrices[category as keyof typeof defaultPrices] || 110;
-  }
-}
 
 export default app;

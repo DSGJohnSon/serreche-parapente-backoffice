@@ -39,6 +39,7 @@ const app = new Hono()
           where: {
             status: "SUCCEEDED",
             isManual: false,
+            paymentType: { not: "GIFT_VOUCHER" }, // Exclure les paiements par bon cadeau
             createdAt: { gte: currentMonthStart, lte: currentMonthEnd },
           },
           _sum: { amount: true },
@@ -49,6 +50,7 @@ const app = new Hono()
           where: {
             status: "SUCCEEDED",
             isManual: true,
+            paymentType: { not: "GIFT_VOUCHER" }, // Exclure les paiements par bon cadeau
             createdAt: { gte: currentMonthStart, lte: currentMonthEnd },
           },
           _sum: { amount: true },
@@ -58,6 +60,7 @@ const app = new Hono()
         prisma.payment.aggregate({
           where: {
             status: "SUCCEEDED",
+            paymentType: { not: "GIFT_VOUCHER" }, // Exclure les paiements par bon cadeau
             createdAt: { gte: currentYearStart },
           },
           _sum: { amount: true },
@@ -73,6 +76,7 @@ const app = new Hono()
             COALESCE(SUM(amount), 0) as total
           FROM "Payment"
           WHERE status = 'SUCCEEDED'
+            AND "paymentType" != 'GIFT_VOUCHER'
             AND "createdAt" >= ${thirteenMonthsAgo}
           GROUP BY DATE_TRUNC('month', "createdAt")
           ORDER BY month ASC

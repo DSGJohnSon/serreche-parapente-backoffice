@@ -19,10 +19,17 @@ const paymentMethodLabels = {
   CHECK: "Chèque",
 };
 
+const paymentTypeLabels = {
+  STRIPE: "Stripe",
+  MANUAL: "Manuel",
+  GIFT_VOUCHER: "Bon Cadeau",
+};
+
 const itemTypeLabels = {
   STAGE: "Stage",
   BAPTEME: "Baptême",
   GIFT_CARD: "Carte cadeau",
+  GIFT_VOUCHER: "Bon cadeau",
 };
 
 const stageTypeLabels = {
@@ -68,10 +75,11 @@ export function PaymentsList() {
 
   // Calculate stats
   const totalPayments = payments?.length || 0;
-  const stripePayments = payments?.filter((p: any) => !p.isManual).length || 0;
-  const manualPayments = payments?.filter((p: any) => p.isManual).length || 0;
+  const stripePayments = payments?.filter((p: any) => p.paymentType === 'STRIPE' || (!p.paymentType && !p.isManual)).length || 0;
+  const manualPayments = payments?.filter((p: any) => p.paymentType === 'MANUAL' || p.isManual).length || 0;
+  const giftVoucherPayments = payments?.filter((p: any) => p.paymentType === 'GIFT_VOUCHER').length || 0;
   const totalAmount = payments
-    ?.filter((p: any) => p.status === "SUCCEEDED")
+    ?.filter((p: any) => p.status === "SUCCEEDED" && p.paymentType !== 'GIFT_VOUCHER')
     .reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
 
   return (
@@ -81,7 +89,7 @@ export function PaymentsList() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Paiements</h1>
           <p className="text-muted-foreground">
-            Consultez tous les paiements enregistrés (Stripe et manuels)
+            Consultez tous les paiements enregistrés (Stripe, manuels et bons cadeaux)
           </p>
         </div>
       </div>
@@ -166,7 +174,16 @@ export function PaymentsList() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {payment.isManual ? (
+                        {payment.paymentType === 'GIFT_VOUCHER' ? (
+                          <div className="flex flex-col gap-1">
+                            <Badge variant="outline" className="w-fit bg-green-50 text-green-700 border-green-300">
+                              Bon Cadeau
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              Payé via bon cadeau
+                            </span>
+                          </div>
+                        ) : payment.paymentType === 'MANUAL' || payment.isManual ? (
                           <div className="flex flex-col gap-1">
                             <Badge variant="outline" className="w-fit">
                               Manuel
@@ -231,6 +248,16 @@ export function PaymentsList() {
                                     {allocation.orderItem.type === "GIFT_CARD" && (
                                       <div className="text-muted-foreground">
                                         Carte cadeau de {allocation.orderItem.giftCardAmount?.toFixed(2)}€
+                                      </div>
+                                    )}
+                                    {allocation.orderItem.type === "GIFT_VOUCHER" && (
+                                      <div className="text-muted-foreground">
+                                        Bon cadeau de {allocation.orderItem.giftVoucherAmount?.toFixed(2)}€
+                                        {participantData?.voucherProductType && (
+                                          <span className="ml-1">
+                                            ({participantData.voucherProductType === 'STAGE' ? `Stage ${participantData.voucherStageCategory}` : `Baptême ${participantData.voucherBaptemeCategory}`})
+                                          </span>
+                                        )}
                                       </div>
                                     )}
                                   </div>
