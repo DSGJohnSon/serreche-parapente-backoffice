@@ -18,6 +18,7 @@ import checkout from "@/features/checkout/server/route";
 import tarifs from "@/features/tarifs/server/route";
 import payments from "@/features/payments/server/route";
 import dashboard from "@/features/dashboard/server/route";
+import content from "@/features/content/server/route";
 import { cors } from "hono/cors";
 
 const app = new Hono().basePath("/api");
@@ -33,14 +34,14 @@ const routes = app
           "https://serreche-parapente-front.vercel.app",
           "https://serreche-parapente-backoffice.vercel.app",
           "https://www.stage-de-parapente.fr",
-          "https://www.serre-chevalier-parapente.fr"
+          "https://www.serre-chevalier-parapente.fr",
         ].includes(origin ?? "")
           ? origin
           : "";
       },
       allowMethods: ["POST", "GET", "PUT", "PATCH", "DELETE", "OPTIONS"],
       allowHeaders: ["Content-Type", "x-api-key", "x-session-id"],
-    })
+    }),
   )
   // .use("*", async (c, next) => {
   //   console.log("Incoming request:", c.req.method, c.req.path);
@@ -63,7 +64,8 @@ const routes = app
   .route("/checkout", checkout)
   .route("/tarifs", tarifs)
   .route("/payments", payments)
-  .route("/dashboard", dashboard);
+  .route("/dashboard", dashboard)
+  .route("/content", content);
 
 export const GET = handle(app);
 export const POST = handle(app);

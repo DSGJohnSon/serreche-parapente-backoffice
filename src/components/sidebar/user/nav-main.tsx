@@ -15,6 +15,7 @@ import {
   LucideUsersRound,
   LucideUserCheck,
   LucideCreditCard,
+  LucideLayout,
 } from "lucide-react";
 
 import {
@@ -265,6 +266,23 @@ export function NavMain({ role }: { role: string }) {
                 <SidebarMenuButton tooltip={"Tarifs"}>
                   <LucideEuro className="size-4" />
                   <span>Tarifs</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem
+              className={cn(
+                "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+                slugToKnowIfActive[0] === "content"
+                  ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                  : ""
+              )}
+            >
+              <Link
+                href={`/${pathname.split("/").slice(1, 2).join("/")}/content`}
+              >
+                <SidebarMenuButton tooltip={"Contenu Site Web"}>
+                  <LucideLayout className="size-4" />
+                  <span>Contenu Site Web</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

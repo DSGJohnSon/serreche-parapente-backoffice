@@ -601,3 +601,21 @@ model ProcessedWebhookEvent {
   @@index([stripeEventId])
   @@index([eventType])
 }
+
+// -----------------------------------------------------------------------------
+// Contenu du site web (Front Public)
+// -----------------------------------------------------------------------------
+
+model TopBar {
+  id            String  @id @default(cuid())
+  isActive      Boolean @default(false)
+  title         String
+  secondaryText String?
+  ctaTitle      String?
+  ctaLink       String?
+  ctaIsFull     Boolean @default(false)
+  ctaIsExternal Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
