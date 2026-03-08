@@ -20,7 +20,6 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ReservationsList } from "./reservation-list";
-import { GiftCardsList } from "./giftcards-list";
 
 export default function CustomerDetails({ id }: { id: string }) {
   const { data: customer, isLoading, error } = useGetCustomerById(id);
@@ -58,7 +57,7 @@ export default function CustomerDetails({ id }: { id: string }) {
     const startDate = new Date(booking.stage.startDate);
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + booking.stage.duration);
-    
+
     return {
       ...booking,
       createdAt: new Date(booking.createdAt),
@@ -77,7 +76,7 @@ export default function CustomerDetails({ id }: { id: string }) {
     ? calculateAge(new Date(customer.birthDate))
     : null;
   const initials = `${customer.firstName.charAt(0)}${customer.lastName.charAt(
-    0
+    0,
   )}`;
 
   return (
@@ -105,7 +104,7 @@ export default function CustomerDetails({ id }: { id: string }) {
               <p className="text-muted-foreground">
                 Client depuis le{" "}
                 {formatDate(
-                  customer.createdAt ? new Date(customer.createdAt) : undefined
+                  customer.createdAt ? new Date(customer.createdAt) : undefined,
                 )}
               </p>
             </div>
@@ -131,7 +130,7 @@ export default function CustomerDetails({ id }: { id: string }) {
                         {formatDate(
                           customer.birthDate
                             ? new Date(customer.birthDate)
-                            : undefined
+                            : undefined,
                         )}
                         {age && (
                           <span className="text-muted-foreground ml-2">
@@ -198,7 +197,7 @@ export default function CustomerDetails({ id }: { id: string }) {
         </CardContent>
       </Card>
       <ReservationsList bookings={transformedBookings} />
-      
+
       {/* Gift Cards Section removed - Stagiaire model doesn't have gift card relations */}
     </>
   );

@@ -222,7 +222,7 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
   const order = orderItem?.order;
   const client = order?.client;
   const allPayments = order?.payments || [];
-  const giftCards = order?.orderGiftCards || [];
+
   const paymentAllocations = (orderItem as any)?.paymentAllocations || [];
 
   // Stage or Bapteme specific data
@@ -250,12 +250,12 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
       }
       return sum;
     },
-    0
+    0,
   );
 
   // Get deposit payment date (first successful allocated payment)
   const depositAllocation = paymentAllocations.find(
-    (a: any) => a.payment?.status === "SUCCEEDED"
+    (a: any) => a.payment?.status === "SUCCEEDED",
   );
   const depositDate = depositAllocation?.payment
     ? new Date(depositAllocation.payment.createdAt)
@@ -504,7 +504,7 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
                       {format(
                         new Date(orderItem.finalPaymentDate),
                         "dd/MM/yyyy",
-                        { locale: fr }
+                        { locale: fr },
                       )}
                     </p>
                   )}
@@ -513,38 +513,7 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
             )}
           </div>
 
-          {/* Gift Cards Used */}
-          {giftCards.length > 0 && (
-            <div>
-              <h4 className="font-semibold mb-3 flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Cartes cadeaux utilisées
-              </h4>
-              <div className="space-y-2">
-                {giftCards.map((gc: any) => (
-                  <div
-                    key={gc.id}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div>
-                      <p className="font-medium">{gc.giftCard.code}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Appliqué le{" "}
-                        {format(
-                          new Date(gc.createdAt),
-                          "dd/MM/yyyy 'à' HH:mm",
-                          { locale: fr }
-                        )}
-                      </p>
-                    </div>
-                    <Badge variant="secondary">
-                      -{formatCurrency(gc.usedAmount)}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Gift Cards Used removed */}
 
           {/* Payment History */}
           <div>
@@ -577,7 +546,7 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
                           {format(
                             new Date(payment.createdAt),
                             "dd/MM/yyyy 'à' HH:mm",
-                            { locale: fr }
+                            { locale: fr },
                           )}
                         </span>
                       </div>
@@ -616,7 +585,7 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
                     <div className="text-left sm:text-right shrink-0 border-t sm:border-0 pt-2 sm:pt-0">
                       <p className="text-xl font-bold">
                         {formatCurrency(
-                          payment.allocatedAmount || payment.amount
+                          payment.allocatedAmount || payment.amount,
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground uppercase">
@@ -643,7 +612,7 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
                     {format(
                       new Date(orderItem.finalPaymentDate),
                       "dd MMMM yyyy 'à' HH:mm",
-                      { locale: fr }
+                      { locale: fr },
                     )}
                   </span>
                 </p>
@@ -796,7 +765,7 @@ export function ReservationDetails({ id }: ReservationDetailsProps) {
                     {format(
                       new Date(activityDate),
                       isStage ? "dd MMMM yyyy" : "dd MMMM yyyy 'à' HH:mm",
-                      { locale: fr }
+                      { locale: fr },
                     )}
                   </p>
                 </div>

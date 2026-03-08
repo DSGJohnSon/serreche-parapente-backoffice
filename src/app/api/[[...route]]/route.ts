@@ -9,7 +9,8 @@ import stages from "@/features/stages/server/route";
 import reservationStages from "@/features/reservations/stages/server/route";
 import reservations from "@/features/reservations/server/route";
 import baptemes from "@/features/biplaces/server/route";
-import giftcards from "@/features/giftcards/server/route";
+import promocodes from "@/features/promocodes/server/route";
+import audiences from "@/features/audiences/server/route";
 import giftvouchers from "@/features/giftvouchers/server/route";
 import cart from "@/features/cart/server/route";
 import availability from "@/features/availability/server/route";
@@ -19,6 +20,7 @@ import tarifs from "@/features/tarifs/server/route";
 import payments from "@/features/payments/server/route";
 import dashboard from "@/features/dashboard/server/route";
 import content from "@/features/content/server/route";
+import campaigns from "@/features/campaigns/server/route";
 import { cors } from "hono/cors";
 
 const app = new Hono().basePath("/api");
@@ -56,7 +58,8 @@ const routes = app
   .route("/reservationStages", reservationStages)
   .route("/reservations", reservations)
   .route("/baptemes", baptemes)
-  .route("/giftcards", giftcards)
+  .route("/promocodes", promocodes)
+  .route("/audiences", audiences)
   .route("/giftvouchers", giftvouchers)
   .route("/cart", cart)
   .route("/availability", availability)
@@ -65,7 +68,8 @@ const routes = app
   .route("/tarifs", tarifs)
   .route("/payments", payments)
   .route("/dashboard", dashboard)
-  .route("/content", content);
+  .route("/content", content)
+  .route("/campaigns", campaigns);
 
 export const GET = handle(app);
 export const POST = handle(app);

@@ -240,7 +240,7 @@ const app = new Hono()
           // Sort by creation date descending (most recent first)
           allBookings.sort(
             (a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
           );
 
           // Apply pagination
@@ -288,10 +288,10 @@ const app = new Hono()
             message: "Erreur lors de la récupération des réservations",
             data: null,
           },
-          500
+          500,
         );
       }
-    }
+    },
   )
   // GET single reservation by ID with complete details
   .get("/:id", monitorSessionMiddleware, async (c) => {
@@ -341,11 +341,6 @@ const app = new Hono()
                     },
                     orderBy: {
                       createdAt: "asc",
-                    },
-                  },
-                  orderGiftCards: {
-                    include: {
-                      giftCard: true,
                     },
                   },
                 },
@@ -429,11 +424,6 @@ const app = new Hono()
                       createdAt: "asc",
                     },
                   },
-                  orderGiftCards: {
-                    include: {
-                      giftCard: true,
-                    },
-                  },
                 },
               },
               paymentAllocations: {
@@ -476,7 +466,7 @@ const app = new Hono()
           message: "Réservation non trouvée",
           data: null,
         },
-        404
+        404,
       );
     } catch (error) {
       console.error("Erreur récupération détails réservation:", error);
@@ -487,7 +477,7 @@ const app = new Hono()
             "Erreur lors de la récupération des détails de la réservation",
           data: null,
         },
-        500
+        500,
       );
     }
   })
@@ -515,7 +505,7 @@ const app = new Hono()
               success: false,
               message: "Réservation non trouvée",
             },
-            404
+            404,
           );
         }
 
@@ -586,8 +576,8 @@ const app = new Hono()
         });
 
         const allItemsFullyPaid = allOrderItems.every((item) => {
-          // Gift cards are always considered "paid" since they're generated
-          if (item.type === "GIFT_CARD") return true;
+          // Gift vouchers used for reservation are always considered "paid"
+          if (item.type === "GIFT_VOUCHER") return true;
           // Baptemes are paid in full upfront
           if (item.type === "BAPTEME") return true;
           // Stages need to check isFullyPaid
@@ -641,10 +631,10 @@ const app = new Hono()
             success: false,
             message: "Erreur lors de l'enregistrement du paiement",
           },
-          500
+          500,
         );
       }
-    }
+    },
   );
 
 export default app;

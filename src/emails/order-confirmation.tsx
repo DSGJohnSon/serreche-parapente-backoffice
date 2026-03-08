@@ -18,7 +18,6 @@ interface OrderItem {
   id: string;
   type: string;
   totalPrice: number;
-  giftCardAmount?: number;
   participantData: any;
   stage?: any;
   bapteme?: any;
@@ -80,11 +79,11 @@ export const OrderConfirmationEmail = ({
     switch (item.type) {
       case "STAGE":
         return `Stage ${item.stage?.type} - ${formatDate(
-          item.stage?.startDate
+          item.stage?.startDate,
         )}`;
       case "BAPTEME":
         return `Baptême ${item.participantData.selectedCategory} - ${formatDate(
-          item.bapteme?.date
+          item.bapteme?.date,
         )}`;
       case "GIFT_VOUCHER":
         // Bon cadeau acheté
@@ -93,8 +92,6 @@ export const OrderConfirmationEmail = ({
             ? `Stage ${item.participantData.voucherStageCategory}`
             : `Baptême ${item.participantData.voucherBaptemeCategory}`;
         return `🎁 Bon Cadeau - ${voucherType}`;
-      case "GIFT_CARD":
-        return `Carte cadeau ${item.giftCardAmount}€`;
       default:
         return "Article";
     }
@@ -227,7 +224,7 @@ export const OrderConfirmationEmail = ({
                           {item.type === "STAGE"
                             ? item.stage?.price
                             : getCategoryPrice(
-                                item.participantData.selectedCategory
+                                item.participantData.selectedCategory,
                               )}
                           €
                         </Text>
@@ -264,7 +261,7 @@ export const OrderConfirmationEmail = ({
               {discountAmount > 0 && (
                 <div style={discountBox}>
                   <div style={flexBetween}>
-                    <Text style={discountLabel}>Cartes cadeaux appliquées</Text>
+                    <Text style={discountLabel}>Réduction appliquée</Text>
                     <Text style={discountAmountStyle}>
                       -{discountAmount.toFixed(2)}€
                     </Text>

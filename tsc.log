@@ -1,0 +1,2 @@
+src/app/(post-auth)/dashboard/audiences/audiences.tsx(99,50): error TS2339: Property 'length' does not exist on type 'never'.
+src/app/(post-auth)/dashboard/audiences/audiences.tsx(101,32): error TS2339: Property 'map' does not exist on type 'never'.

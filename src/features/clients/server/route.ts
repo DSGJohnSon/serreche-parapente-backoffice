@@ -66,7 +66,6 @@ const app = new Hono()
           where,
           include: {
             orders: true,
-            giftCards: true,
           },
           orderBy,
           ...(isNoPaging ? {} : { skip, take: ps }),
@@ -125,7 +124,6 @@ const app = new Hono()
               },
             },
           },
-          giftCards: true,
         },
       });
       return c.json({ success: true, message: "", data: result });

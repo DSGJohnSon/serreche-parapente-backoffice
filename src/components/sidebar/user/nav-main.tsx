@@ -16,6 +16,9 @@ import {
   LucideUserCheck,
   LucideCreditCard,
   LucideLayout,
+  LucideMailCheck,
+  LucideTag,
+  LucideUsers,
 } from "lucide-react";
 
 import {
@@ -45,7 +48,7 @@ export function NavMain({ role }: { role: string }) {
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
               isDashboard
                 ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                : ""
+                : "",
             )}
           >
             <Link href={`/dashboard`}>
@@ -60,7 +63,7 @@ export function NavMain({ role }: { role: string }) {
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
               slugToKnowIfActive[0] === "stages"
                 ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                : ""
+                : "",
             )}
           >
             <Link href={`/${pathname.split("/").slice(1, 2).join("/")}/stages`}>
@@ -75,7 +78,7 @@ export function NavMain({ role }: { role: string }) {
               "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
               slugToKnowIfActive[0] === "biplaces"
                 ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                : ""
+                : "",
             )}
           >
             <Link
@@ -101,7 +104,7 @@ export function NavMain({ role }: { role: string }) {
                   "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                   slugToKnowIfActive[0] === "reservations"
                     ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                    : ""
+                    : "",
                 )}
               >
                 <Link
@@ -121,7 +124,7 @@ export function NavMain({ role }: { role: string }) {
                   "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                   slugToKnowIfActive[0] === "commandes"
                     ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                    : ""
+                    : "",
                 )}
               >
                 <Link
@@ -141,7 +144,7 @@ export function NavMain({ role }: { role: string }) {
                   "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                   slugToKnowIfActive[0] === "paiements"
                     ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                    : ""
+                    : "",
                 )}
               >
                 <Link
@@ -161,7 +164,7 @@ export function NavMain({ role }: { role: string }) {
                   "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                   slugToKnowIfActive[0] === "clients"
                     ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                    : ""
+                    : "",
                 )}
               >
                 <Link
@@ -183,7 +186,7 @@ export function NavMain({ role }: { role: string }) {
                 "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                 slugToKnowIfActive[0] === "stagiaires"
                   ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                  : ""
+                  : "",
               )}
             >
               <Link
@@ -205,20 +208,20 @@ export function NavMain({ role }: { role: string }) {
               <SidebarMenuItem
                 className={cn(
                   "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
-                  slugToKnowIfActive[0] === "cartes-cadeaux"
+                  slugToKnowIfActive[0] === "codes-promo"
                     ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                    : ""
+                    : "",
                 )}
               >
                 <Link
                   href={`/${pathname
                     .split("/")
                     .slice(1, 2)
-                    .join("/")}/cartes-cadeaux`}
+                    .join("/")}/codes-promo`}
                 >
-                  <SidebarMenuButton tooltip={"Cartes Cadeaux"}>
-                    <LucideGift className="size-4" />
-                    <span>Cartes Cadeaux</span>
+                  <SidebarMenuButton tooltip={"Codes Promo"}>
+                    <LucideTag className="size-4" />
+                    <span>Codes Promo</span>
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>
@@ -227,7 +230,7 @@ export function NavMain({ role }: { role: string }) {
                   "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                   slugToKnowIfActive[0] === "bons-cadeaux"
                     ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                    : ""
+                    : "",
                 )}
               >
                 <Link
@@ -257,7 +260,7 @@ export function NavMain({ role }: { role: string }) {
                 "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                 slugToKnowIfActive[0] === "tarifs"
                   ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                  : ""
+                  : "",
               )}
             >
               <Link
@@ -274,7 +277,7 @@ export function NavMain({ role }: { role: string }) {
                 "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                 slugToKnowIfActive[0] === "content"
                   ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                  : ""
+                  : "",
               )}
             >
               <Link
@@ -288,7 +291,7 @@ export function NavMain({ role }: { role: string }) {
             </SidebarMenuItem>
             <SidebarMenuItem
               className={cn(
-                "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition group/external-link"
+                "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition group/external-link",
               )}
             >
               <Link
@@ -305,9 +308,51 @@ export function NavMain({ role }: { role: string }) {
                   </div>
                   <LucideExternalLink
                     className={cn(
-                      "transition opacity-0 group-hover/external-link:opacity-50"
+                      "transition opacity-0 group-hover/external-link:opacity-50",
                     )}
                   />
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+      )}
+      {/* MARKETING SECTION */}
+      {role === "ADMIN" && (
+        <SidebarGroup>
+          <SidebarGroupLabel>Marketing</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem
+              className={cn(
+                "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+                slugToKnowIfActive[0] === "campagnes"
+                  ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                  : "",
+              )}
+            >
+              <Link
+                href={`/${pathname.split("/").slice(1, 2).join("/")}/campagnes`}
+              >
+                <SidebarMenuButton tooltip={"Campagnes"}>
+                  <LucideMailCheck className="size-4" />
+                  <span>Campagnes</span>
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem
+              className={cn(
+                "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
+                slugToKnowIfActive[0] === "audiences"
+                  ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
+                  : "",
+              )}
+            >
+              <Link
+                href={`/${pathname.split("/").slice(1, 2).join("/")}/audiences`}
+              >
+                <SidebarMenuButton tooltip={"Audiences"}>
+                  <LucideUsers className="size-4" />
+                  <span>Audiences</span>
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
@@ -325,7 +370,7 @@ export function NavMain({ role }: { role: string }) {
                 "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                 slugToKnowIfActive[0] === "administrators"
                   ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                  : ""
+                  : "",
               )}
             >
               <Link
@@ -345,7 +390,7 @@ export function NavMain({ role }: { role: string }) {
                 "hover:bg-foreground/5 hover:dark:bg-foreground/10 rounded-md transition",
                 slugToKnowIfActive[0] === "monitors"
                   ? "bg-foreground/5 dark:bg-white dark:text-black hover:dark:bg-white"
-                  : ""
+                  : "",
               )}
             >
               <Link

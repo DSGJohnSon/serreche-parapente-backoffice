@@ -15,7 +15,7 @@ import CustomersAddForm from "@/features/customers/forms/customers-add-form";
 import MonitorAddForm from "@/features/users/forms/monitor-add-form";
 import ReservationStageAddForm from "@/features/reservations/stages/forms/reservationStage-add-form";
 import BaptemeBiPlaceAddForm from "@/features/biplaces/forms/bapteme-biplace-add-form";
-import { GiftCardAddForm } from "@/features/giftcards/forms/giftcard-add-form";
+
 import { StageAddForm } from "@/features/stages/forms/stage-add-form";
 import { useCreateStage } from "@/features/stages/api/use-create-stage";
 import { StageType } from "@prisma/client";

@@ -41,12 +41,47 @@ enum BaptemeCategory {
   HIVER
 }
 
-// Nouveaux enums pour le système de panier
+// Enums pour le système de panier
 enum CartItemType {
   STAGE
   BAPTEME
-  GIFT_CARD
   GIFT_VOUCHER
+}
+
+// Enum pour les types de réduction (codes promo)
+enum DiscountType {
+  FIXED
+  PERCENTAGE
+}
+
+// Enum pour les règles d'audience SMS
+enum AudienceRuleType {
+  CLIENT_RESERVED_STAGE // A réservé un stage (client payeur)
+  CLIENT_RESERVED_BAPTEME // A réservé un baptême (client payeur)
+  STAGIAIRE_STAGE // A participé à un stage (participant)
+  STAGIAIRE_BAPTEME // A participé à un baptême (participant)
+  PURCHASED_GIFT_VOUCHER // A acheté un bon cadeau
+  ORDER_ABOVE_AMOUNT // A passé une commande > X€
+}
+
+// État d'une campagne SMS
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  COMPLETED
+  FAILED
+}
+
+// État de livraison d'un SMS individuel (statuts Twilio)
+enum SmsStatus {
+  ACCEPTED
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  UNDELIVERED
+  FAILED
 }
 
 enum VoucherProductType {
@@ -228,25 +263,148 @@ model BaptemeBooking {
   updatedAt DateTime @updatedAt
 }
 
-model GiftCard {
-  id              String   @id @default(cuid())
-  code            String   @unique
-  amount          Float    @default(0.0) // Montant initial en euros
-  remainingAmount Float    @default(0.0) // Montant restant disponible
-  isUsed          Boolean  @default(false) // True quand remainingAmount = 0
-  expiryDate      DateTime @default(dbgenerated("CURRENT_DATE + INTERVAL '1 year'")) // Expire après 1 an par défaut
-  clientId        String?
-  client          Client?  @relation(name: "GiftCardBuyer", fields: [clientId], references: [id])
+// Code Promo (remplace GiftCard)
+model PromoCode {
+  id            String  @id @default(cuid())
+  code          String  @unique
+  label         String? // Label interne (ex: "Promo hiver 2025")
+  recipientNote String? // Note informative (ex: "Pour M. Dupont")
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  usedAt        DateTime? // Date de première utilisation
-  usedByOrderId String? // ID de la dernière commande qui a utilisé la carte-cadeau (deprecated, use orderGiftCards)
+  discountType      DiscountType // FIXED | PERCENTAGE
+  discountValue     Float // Montant € ou % (ex: 20.0 = 20%)
+  maxDiscountAmount Float? // Plafond de réduction (requis si PERCENTAGE)
 
-  // Nouvelles relations pour le système de commandes
-  appliedToOrders        OrderGiftCard[] // Many-to-many avec Order
-  deprecatedOrders       Order[]         @relation("DeprecatedGiftCard")
-  generatedFromOrderItem OrderItem[]     @relation("GeneratedGiftCard")
+  minCartAmount Float? // Montant min du panier requis
+  maxUses       Int? // Nombre max d'utilisations total (null = illimité)
+  currentUses   Int    @default(0)
+
+  expiryDate DateTime?
+  isActive   Boolean   @default(true)
+
+  campaignId String? // Lien optionnel à une campagne SMS
+
+  usages PromoCodeUsage[]
+  orders Order[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  smsCampaign SmsCampaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([code])
+  @@index([isActive])
+}
+
+// Traçabilité des utilisations de codes promo
+model PromoCodeUsage {
+  id              String    @id @default(cuid())
+  promoCodeId     String
+  promoCode       PromoCode @relation(fields: [promoCodeId], references: [id])
+  orderId         String    @unique
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  discountApplied Float // Montant réellement déduit
+  createdAt       DateTime  @default(now())
+
+  @@index([promoCodeId])
+}
+
+// Audience dynamique pour les campagnes SMS
+model Audience {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  rules       AudienceRule[]
+  contacts    AudienceContact[] // Contacts ajoutés manuellement
+  campaigns   SmsCampaign[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// Règle de filtrage d'une audience
+model AudienceRule {
+  id         String           @id @default(cuid())
+  audienceId String
+  audience   Audience         @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  ruleType   AudienceRuleType
+
+  // Filtres optionnels selon le type de règle
+  stageType       StageBookingType? // Pour STAGIAIRE_STAGE / CLIENT_RESERVED_STAGE
+  baptemeCategory BaptemeCategory? // Pour STAGIAIRE_BAPTEME / CLIENT_RESERVED_BAPTEME
+  minOrderAmount  Float? // Pour ORDER_ABOVE_AMOUNT
+
+  // Plage de dates (optionnelle)
+  dateFrom DateTime?
+  dateTo   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([audienceId])
+}
+
+// Contact sélectionné manuellement dans une audience
+model AudienceContact {
+  id         String   @id @default(cuid())
+  audienceId String
+  audience   Audience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  phone      String
+  name       String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([audienceId, phone]) // Un même numéro ne peut être ajouté qu'une fois manuellement par audience
+  @@index([audienceId])
+}
+
+// Campagne SMS (regroupe le message, l'audience ciblée et potentiellement un code promo)
+model SmsCampaign {
+  id          String         @id @default(cuid())
+  name        String
+  content     String // Contenu du SMS
+  status      CampaignStatus @default(DRAFT)
+  scheduledAt DateTime? // Envoi différé
+  sentAt      DateTime? // Date d'envoi effectif
+
+  // Relations
+  audiences Audience[]
+
+  // Paramètres de promo à générer lors de l'envoi (sauvegardés dans la campagne)
+  generatePromoCode      Boolean       @default(false)
+  promoDiscountType      DiscountType?
+  promoDiscountValue     Float?
+  promoMaxDiscountAmount Float?
+  promoMinCartAmount     Float?
+  promoMaxUses           Int?
+  promoExpiryDate        DateTime?
+
+  // L'historique des codes générés par cette campagne
+  promoCodes PromoCode[]
+
+  logs SmsCampaignLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// Suivi d'envoi individuel de chaque SMS de la campagne
+model SmsCampaignLog {
+  id         String      @id @default(cuid())
+  campaignId String
+  campaign   SmsCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  recipientPhone String // Téléphone du destinataire (format E.164)
+  recipientName  String? // Nom du destinataire pour personnalisation
+
+  messageSid   String? // ID unique retourné par Twilio
+  status       SmsStatus @default(QUEUED)
+  errorMessage String? // Si echec d'envoi
+
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([campaignId])
+  @@index([status])
 }
 
 // Bon cadeau (Gift Voucher) - Place gratuite pour un stage ou baptême
@@ -308,7 +466,6 @@ model Client {
 
   // Relations
   orders       Order[]
-  giftCards    GiftCard[]    @relation(name: "GiftCardBuyer")
   giftVouchers GiftVoucher[]
 
   createdAt DateTime @default(now())
@@ -440,18 +597,19 @@ model Order {
   discountAmount Float @default(0.0)
   totalAmount    Float
 
+  // Code promo appliqué
+  promoCodeId         String?
+  promoCode           PromoCode? @relation(fields: [promoCodeId], references: [id])
+  promoDiscountAmount Float      @default(0.0) // Montant total de la réduction
+
   // Relation avec le client (celui qui paie) - Optionnel jusqu'au paiement
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])
 
-  // Bon cadeau utilisé (deprecated - use orderGiftCards for many-to-many)
-  appliedGiftCardId String?
-  appliedGiftCard   GiftCard? @relation("DeprecatedGiftCard", fields: [appliedGiftCardId], references: [id])
-
   // Relations
   orderItems     OrderItem[]
   payments       Payment[]
-  orderGiftCards OrderGiftCard[] // Many-to-many avec GiftCard
+  promoCodeUsage PromoCodeUsage?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -460,24 +618,6 @@ model Order {
   @@index([clientId])
   @@index([status])
   @@index([createdAt])
-}
-
-// Table de liaison pour les cartes cadeaux appliquées aux commandes
-model OrderGiftCard {
-  id         String   @id @default(cuid())
-  orderId    String
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  giftCardId String
-  giftCard   GiftCard @relation(fields: [giftCardId], references: [id])
-
-  // Montant utilisé de cette carte cadeau pour cette commande
-  usedAmount Float
-
-  createdAt DateTime @default(now())
-
-  @@unique([orderId, giftCardId])
-  @@index([orderId])
-  @@index([giftCardId])
 }
 
 // Articles de la commande
@@ -498,11 +638,6 @@ model OrderItem {
   baptemeId String?
   bapteme   Bapteme? @relation(fields: [baptemeId], references: [id])
 
-  // Pour les cartes cadeaux
-  giftCardAmount      Float?
-  generatedGiftCardId String?
-  generatedGiftCard   GiftCard? @relation("GeneratedGiftCard", fields: [generatedGiftCardId], references: [id])
-
   // Pour les bons cadeaux (gift vouchers)
   giftVoucherAmount      Float? // Montant du bon cadeau acheté
   generatedGiftVoucherId String?      @unique
@@ -514,12 +649,17 @@ model OrderItem {
   // Données du participant (historique JSON)
   participantData Json // {firstName, lastName, email, phone, weight, height, birthDate?}
 
-  // Gestion des acomptes (stages uniquement)
-  depositAmount    Float? // Montant de l'acompte payé (pour les stages)
-  remainingAmount  Float? // Montant restant à payer (pour les stages)
-  isFullyPaid      Boolean   @default(false) // True quand tout est payé
-  finalPaymentDate DateTime? // Date du paiement final en physique
-  finalPaymentNote String? // Note optionnelle sur le paiement final
+  // Gestion des acomptes
+  depositAmount    Float? // Montant de l'acompte original
+  remainingAmount  Float? // Montant restant original
+  isFullyPaid      Boolean   @default(false)
+  finalPaymentDate DateTime?
+  finalPaymentNote String?
+
+  // Réduction code promo allouée à cet article
+  discountAmount           Float  @default(0.0) // Portion de réduction allouée
+  effectiveDepositAmount   Float? // Acompte réel après réduction (ce qui est encaissé en ligne)
+  effectiveRemainingAmount Float? // Solde réel après réduction (ce que l'admin encaisse en physique)
 
   // Réservations créées (liées au stagiaire)
   stageBookingId String?       @unique

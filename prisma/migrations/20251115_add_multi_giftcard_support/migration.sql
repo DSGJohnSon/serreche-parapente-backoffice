@@ -1,3 +1,23 @@
+-- CreateTable (ajouté pour la shadow database - la table existait avant les migrations tracées)
+CREATE TABLE IF NOT EXISTS "GiftCard" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    "isUsed" BOOLEAN NOT NULL DEFAULT false,
+    "expiryDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "clientId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "usedAt" TIMESTAMP(3),
+    "usedByOrderId" TEXT,
+    "appliedToOrderId" TEXT,
+
+    CONSTRAINT "GiftCard_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex (IF NOT EXISTS pour éviter les doublons en prod)
+CREATE UNIQUE INDEX IF NOT EXISTS "GiftCard_code_key" ON "GiftCard"("code");
+
 -- AlterTable
 ALTER TABLE "GiftCard" ADD COLUMN "remainingAmount" DOUBLE PRECISION NOT NULL DEFAULT 0.0;
 

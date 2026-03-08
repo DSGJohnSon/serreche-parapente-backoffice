@@ -2,12 +2,31 @@
 
 import { useState } from "react";
 import { useGetPayments } from "@/features/payments/api/use-get-payments";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { LucideSearch, LucideCalendar, LucideEuro, LucideCreditCard, LucideUser } from "lucide-react";
+import {
+  LucideSearch,
+  LucideCalendar,
+  LucideEuro,
+  LucideCreditCard,
+  LucideUser,
+} from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import CopyTextComponent from "@/components/copy-text-component";
@@ -75,12 +94,22 @@ export function PaymentsList() {
 
   // Calculate stats
   const totalPayments = payments?.length || 0;
-  const stripePayments = payments?.filter((p: any) => p.paymentType === 'STRIPE' || (!p.paymentType && !p.isManual)).length || 0;
-  const manualPayments = payments?.filter((p: any) => p.paymentType === 'MANUAL' || p.isManual).length || 0;
-  const giftVoucherPayments = payments?.filter((p: any) => p.paymentType === 'GIFT_VOUCHER').length || 0;
-  const totalAmount = payments
-    ?.filter((p: any) => p.status === "SUCCEEDED" && p.paymentType !== 'GIFT_VOUCHER')
-    .reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+  const stripePayments =
+    payments?.filter(
+      (p: any) => p.paymentType === "STRIPE" || (!p.paymentType && !p.isManual),
+    ).length || 0;
+  const manualPayments =
+    payments?.filter((p: any) => p.paymentType === "MANUAL" || p.isManual)
+      .length || 0;
+  const giftVoucherPayments =
+    payments?.filter((p: any) => p.paymentType === "GIFT_VOUCHER").length || 0;
+  const totalAmount =
+    payments
+      ?.filter(
+        (p: any) =>
+          p.status === "SUCCEEDED" && p.paymentType !== "GIFT_VOUCHER",
+      )
+      .reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
 
   return (
     <div className="space-y-6">
@@ -89,7 +118,8 @@ export function PaymentsList() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Paiements</h1>
           <p className="text-muted-foreground">
-            Consultez tous les paiements enregistrés (Stripe, manuels et bons cadeaux)
+            Consultez tous les paiements enregistrés (Stripe, manuels et bons
+            cadeaux)
           </p>
         </div>
       </div>
@@ -99,7 +129,8 @@ export function PaymentsList() {
         <CardHeader>
           <CardTitle>Rechercher un paiement</CardTitle>
           <CardDescription>
-            Recherchez par numéro de commande, nom du client, email, ID de transaction ou administrateur
+            Recherchez par numéro de commande, nom du client, email, ID de
+            transaction ou administrateur
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -138,7 +169,10 @@ export function PaymentsList() {
               <TableBody>
                 {!filteredPayments || filteredPayments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-8"
+                    >
                       Aucun paiement trouvé
                     </TableCell>
                   </TableRow>
@@ -148,49 +182,80 @@ export function PaymentsList() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">
-                            {format(new Date(payment.createdAt), "dd/MM/yyyy", { locale: fr })}
+                            {format(new Date(payment.createdAt), "dd/MM/yyyy", {
+                              locale: fr,
+                            })}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {format(new Date(payment.createdAt), "HH:mm", { locale: fr })}
+                            {format(new Date(payment.createdAt), "HH:mm", {
+                              locale: fr,
+                            })}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-medium">{payment.order?.orderNumber || "-"}</span>
+                          <span className="font-medium">
+                            {payment.order?.orderNumber || "-"}
+                          </span>
                           {payment.order?.client ? (
                             <span className="text-xs text-muted-foreground">
-                              {payment.order.client.firstName} {payment.order.client.lastName}
+                              {payment.order.client.firstName}{" "}
+                              {payment.order.client.lastName}
                             </span>
-                          ) : payment.allocations?.[0]?.orderItem?.stageBooking?.stagiaire ? (
+                          ) : payment.allocations?.[0]?.orderItem?.stageBooking
+                              ?.stagiaire ? (
                             <span className="text-xs text-muted-foreground">
-                              {payment.allocations[0].orderItem.stageBooking.stagiaire.firstName} {payment.allocations[0].orderItem.stageBooking.stagiaire.lastName}
+                              {
+                                payment.allocations[0].orderItem.stageBooking
+                                  .stagiaire.firstName
+                              }{" "}
+                              {
+                                payment.allocations[0].orderItem.stageBooking
+                                  .stagiaire.lastName
+                              }
                             </span>
-                          ) : payment.allocations?.[0]?.orderItem?.baptemeBooking?.stagiaire ? (
+                          ) : payment.allocations?.[0]?.orderItem
+                              ?.baptemeBooking?.stagiaire ? (
                             <span className="text-xs text-muted-foreground">
-                              {payment.allocations[0].orderItem.baptemeBooking.stagiaire.firstName} {payment.allocations[0].orderItem.baptemeBooking.stagiaire.lastName}
+                              {
+                                payment.allocations[0].orderItem.baptemeBooking
+                                  .stagiaire.firstName
+                              }{" "}
+                              {
+                                payment.allocations[0].orderItem.baptemeBooking
+                                  .stagiaire.lastName
+                              }
                             </span>
                           ) : null}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {payment.paymentType === 'GIFT_VOUCHER' ? (
+                        {payment.paymentType === "GIFT_VOUCHER" ? (
                           <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className="w-fit bg-green-50 text-green-700 border-green-300">
+                            <Badge
+                              variant="outline"
+                              className="w-fit bg-green-50 text-green-700 border-green-300"
+                            >
                               Bon Cadeau
                             </Badge>
                             <span className="text-xs text-muted-foreground">
                               Payé via bon cadeau
                             </span>
                           </div>
-                        ) : payment.paymentType === 'MANUAL' || payment.isManual ? (
+                        ) : payment.paymentType === "MANUAL" ||
+                          payment.isManual ? (
                           <div className="flex flex-col gap-1">
                             <Badge variant="outline" className="w-fit">
                               Manuel
                             </Badge>
                             {payment.manualPaymentMethod && (
                               <span className="text-xs text-muted-foreground">
-                                {paymentMethodLabels[payment.manualPaymentMethod as keyof typeof paymentMethodLabels]}
+                                {
+                                  paymentMethodLabels[
+                                    payment.manualPaymentMethod as keyof typeof paymentMethodLabels
+                                  ]
+                                }
                               </span>
                             )}
                             {payment.recordedByUser && (
@@ -201,7 +266,10 @@ export function PaymentsList() {
                           </div>
                         ) : (
                           <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className="w-fit bg-blue-50">
+                            <Badge
+                              variant="outline"
+                              className="w-fit bg-blue-50"
+                            >
                               Stripe
                             </Badge>
                             {payment.stripePaymentIntentId && (
@@ -209,53 +277,148 @@ export function PaymentsList() {
                                 <span className="text-xs text-muted-foreground font-mono">
                                   {payment.stripePaymentIntentId}
                                 </span>
-                                <CopyTextComponent text={payment.stripePaymentIntentId} size="sm" />
+                                <CopyTextComponent
+                                  text={payment.stripePaymentIntentId}
+                                  size="sm"
+                                />
                               </div>
                             )}
                           </div>
                         )}
+                        <div className="mt-2">
+                          {payment.status === "PENDING" && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-none w-fit"
+                            >
+                              Non finalisé
+                            </Badge>
+                          )}
+                          {payment.status === "SUCCEEDED" && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-green-100 text-green-800 hover:bg-green-100 border-none w-fit"
+                            >
+                              Finalisé
+                            </Badge>
+                          )}
+                          {payment.status === "FAILED" && (
+                            <Badge variant="destructive" className="w-fit">
+                              Échoué
+                            </Badge>
+                          )}
+                          {payment.status === "CANCELLED" && (
+                            <Badge
+                              variant="outline"
+                              className="text-gray-500 w-fit"
+                            >
+                              Annulé
+                            </Badge>
+                          )}
+                          {payment.status === "REFUNDED" && (
+                            <Badge
+                              variant="outline"
+                              className="text-orange-500 border-orange-200 bg-orange-50 w-fit"
+                            >
+                              Remboursé
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="font-medium">
                         {payment.amount.toFixed(2)}€
                       </TableCell>
                       <TableCell>
                         <div className="space-y-2">
-                          {payment.allocations && payment.allocations.length > 0 ? (
+                          {payment.allocations &&
+                          payment.allocations.length > 0 ? (
                             <div className="space-y-1">
                               {payment.allocations.length > 1 && (
-                                <span className="text-xs font-medium text-muted-foreground">Allocations:</span>
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  Allocations:
+                                </span>
                               )}
                               {payment.allocations.map((allocation: any) => {
-                                const participantData = allocation.orderItem.participantData as any;
+                                const participantData = allocation.orderItem
+                                  .participantData as any;
                                 return (
-                                  <div key={allocation.id} className="text-xs space-y-0.5">
+                                  <div
+                                    key={allocation.id}
+                                    className="text-xs space-y-0.5"
+                                  >
                                     <div className="flex items-center gap-2">
-                                      <Badge variant="outline" className="text-xs">
-                                        {itemTypeLabels[allocation.orderItem.type as keyof typeof itemTypeLabels]}
+                                      <Badge
+                                        variant="outline"
+                                        className="text-xs"
+                                      >
+                                        {
+                                          itemTypeLabels[
+                                            allocation.orderItem
+                                              .type as keyof typeof itemTypeLabels
+                                          ]
+                                        }
                                       </Badge>
-                                      <span className="font-medium">{allocation.allocatedAmount.toFixed(2)}€</span>
+                                      <span className="font-medium">
+                                        {allocation.allocatedAmount.toFixed(2)}€
+                                      </span>
                                     </div>
-                                    {allocation.orderItem.type === "STAGE" && allocation.orderItem.stage && (
+                                    {allocation.orderItem.type === "STAGE" &&
+                                      allocation.orderItem.stage && (
+                                        <div className="text-muted-foreground">
+                                          Stage{" "}
+                                          {
+                                            stageTypeLabels[
+                                              allocation.orderItem.stage
+                                                .type as keyof typeof stageTypeLabels
+                                            ]
+                                          }{" "}
+                                          du{" "}
+                                          {format(
+                                            new Date(
+                                              allocation.orderItem.stage
+                                                .startDate,
+                                            ),
+                                            "dd/MM/yyyy",
+                                            { locale: fr },
+                                          )}
+                                        </div>
+                                      )}
+                                    {allocation.orderItem.type === "BAPTEME" &&
+                                      allocation.orderItem.bapteme && (
+                                        <div className="text-muted-foreground">
+                                          Baptême{" "}
+                                          {participantData?.selectedCategory
+                                            ? baptemeCategoryLabels[
+                                                participantData.selectedCategory as keyof typeof baptemeCategoryLabels
+                                              ]
+                                            : ""}{" "}
+                                          du{" "}
+                                          {format(
+                                            new Date(
+                                              allocation.orderItem.bapteme.date,
+                                            ),
+                                            "dd/MM/yyyy",
+                                            { locale: fr },
+                                          )}
+                                        </div>
+                                      )}
+
+                                    {allocation.orderItem.type ===
+                                      "GIFT_VOUCHER" && (
                                       <div className="text-muted-foreground">
-                                        Stage {stageTypeLabels[allocation.orderItem.stage.type as keyof typeof stageTypeLabels]} du {format(new Date(allocation.orderItem.stage.startDate), "dd/MM/yyyy", { locale: fr })}
-                                      </div>
-                                    )}
-                                    {allocation.orderItem.type === "BAPTEME" && allocation.orderItem.bapteme && (
-                                      <div className="text-muted-foreground">
-                                        Baptême {participantData?.selectedCategory ? baptemeCategoryLabels[participantData.selectedCategory as keyof typeof baptemeCategoryLabels] : ""} du {format(new Date(allocation.orderItem.bapteme.date), "dd/MM/yyyy", { locale: fr })}
-                                      </div>
-                                    )}
-                                    {allocation.orderItem.type === "GIFT_CARD" && (
-                                      <div className="text-muted-foreground">
-                                        Carte cadeau de {allocation.orderItem.giftCardAmount?.toFixed(2)}€
-                                      </div>
-                                    )}
-                                    {allocation.orderItem.type === "GIFT_VOUCHER" && (
-                                      <div className="text-muted-foreground">
-                                        Bon cadeau de {allocation.orderItem.giftVoucherAmount?.toFixed(2)}€
+                                        Bon cadeau de{" "}
+                                        {allocation.orderItem.giftVoucherAmount?.toFixed(
+                                          2,
+                                        )}
+                                        €
                                         {participantData?.voucherProductType && (
                                           <span className="ml-1">
-                                            ({participantData.voucherProductType === 'STAGE' ? `Stage ${participantData.voucherStageCategory}` : `Baptême ${participantData.voucherBaptemeCategory}`})
+                                            (
+                                            {participantData.voucherProductType ===
+                                            "STAGE"
+                                              ? `Stage ${participantData.voucherStageCategory}`
+                                              : `Baptême ${participantData.voucherBaptemeCategory}`}
+                                            )
                                           </span>
                                         )}
                                       </div>
@@ -265,11 +428,14 @@ export function PaymentsList() {
                               })}
                             </div>
                           ) : (
-                            <span className="text-xs text-muted-foreground">Aucune allocation</span>
+                            <span className="text-xs text-muted-foreground">
+                              Aucune allocation
+                            </span>
                           )}
                           {payment.manualPaymentNote && (
                             <div className="text-xs text-muted-foreground mt-2">
-                              <span className="font-medium">Note:</span> {payment.manualPaymentNote}
+                              <span className="font-medium">Note:</span>{" "}
+                              {payment.manualPaymentNote}
                             </div>
                           )}
                         </div>

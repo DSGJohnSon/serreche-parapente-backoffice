@@ -1,6 +1,10 @@
 import "server-only";
 import prisma from "@/lib/prisma";
-import { sendOrderConfirmationEmail, sendAdminNewOrderEmail, sendGiftVoucherPurchaseEmail } from "@/lib/resend";
+import {
+  sendOrderConfirmationEmail,
+  sendAdminNewOrderEmail,
+  sendGiftVoucherPurchaseEmail,
+} from "@/lib/resend";
 
 /**
  * Fonction pour obtenir le prix d'un baptême selon sa catégorie
@@ -13,17 +17,21 @@ export async function getBaptemePrice(category: string): Promise<number> {
     ENFANT: 90,
     HIVER: 130,
   };
-  
-  if (!category || category === '') {
+
+  if (!category || category === "") {
     return 110;
   }
-  
+
   try {
     const categoryPrice = await prisma.baptemeCategoryPrice.findUnique({
       where: { category: category as any },
     });
-    
-    return categoryPrice?.price || defaultPrices[category as keyof typeof defaultPrices] || 110;
+
+    return (
+      categoryPrice?.price ||
+      defaultPrices[category as keyof typeof defaultPrices] ||
+      110
+    );
   } catch (error) {
     return defaultPrices[category as keyof typeof defaultPrices] || 110;
   }
@@ -69,31 +77,11 @@ export async function findOrCreateStagiaire(participantData: any) {
 }
 
 /**
- * Fonction pour générer un code unique de carte cadeau DANS une transaction
- */
-export async function generateUniqueGiftCardCodeInTransaction(tx: any): Promise<string> {
-  let code: string;
-  let exists = true;
-
-  do {
-    const prefix = "SCP";
-    const timestamp = Date.now().toString(36).toUpperCase();
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    code = `${prefix}-${timestamp}-${random}`;
-
-    const existing = await tx.giftCard.findUnique({
-      where: { code },
-    });
-    exists = !!existing;
-  } while (exists);
-
-  return code;
-}
-
-/**
  * Fonction pour générer un code unique de bon cadeau DANS une transaction
  */
-export async function generateUniqueVoucherCodeInTransaction(tx: any): Promise<string> {
+export async function generateUniqueVoucherCodeInTransaction(
+  tx: any,
+): Promise<string> {
   let code: string;
   let exists = true;
 
@@ -115,50 +103,61 @@ export async function generateUniqueVoucherCodeInTransaction(tx: any): Promise<s
 /**
  * Fonction pour répartir un paiement entre les OrderItems
  */
-export async function allocatePaymentToOrderItems(payment: any, orderItems: any[]) {
-  console.log(`Allocating payment ${payment.id} (${payment.amount}€) to ${orderItems.length} items - paymentType: ${payment.paymentType}`);
+export async function allocatePaymentToOrderItems(
+  payment: any,
+  orderItems: any[],
+) {
+  console.log(
+    `Allocating payment ${payment.id} (${payment.amount}€) to ${orderItems.length} items - paymentType: ${payment.paymentType}`,
+  );
 
   // Pour les paiements GIFT_VOUCHER, on alloue le prix total des items payés par bon cadeau
-  const isGiftVoucherPayment = payment.paymentType === 'GIFT_VOUCHER';
+  const isGiftVoucherPayment = payment.paymentType === "GIFT_VOUCHER";
 
   // Créer les allocations pour chaque OrderItem selon son prix
   for (const item of orderItems) {
     let allocatedAmount = 0;
 
-    if (item.type === 'STAGE') {
+    if (item.type === "STAGE") {
       if (isGiftVoucherPayment) {
         // Pour un paiement par bon cadeau, allouer le prix total si l'item utilise un bon cadeau
         const participantData = item.participantData as any;
         if (participantData?.usedGiftVoucherCode) {
           allocatedAmount = item.totalPrice || 0;
-          console.log(`STAGE item ${item.id} (GIFT_VOUCHER): allocating totalPrice=${allocatedAmount}€`);
+          console.log(
+            `STAGE item ${item.id} (GIFT_VOUCHER): allocating totalPrice=${allocatedAmount}€`,
+          );
         }
       } else {
         // Pour un paiement normal (Stripe/Manuel), allouer le montant de l'acompte
         allocatedAmount = item.depositAmount || 0;
-        console.log(`STAGE item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}`);
+        console.log(
+          `STAGE item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}`,
+        );
       }
-    } else if (item.type === 'BAPTEME') {
+    } else if (item.type === "BAPTEME") {
       if (isGiftVoucherPayment) {
         // Pour un paiement par bon cadeau, allouer le prix total si l'item utilise un bon cadeau
         const participantData = item.participantData as any;
         if (participantData?.usedGiftVoucherCode) {
           allocatedAmount = item.totalPrice || 0;
-          console.log(`BAPTEME item ${item.id} (GIFT_VOUCHER): allocating totalPrice=${allocatedAmount}€`);
+          console.log(
+            `BAPTEME item ${item.id} (GIFT_VOUCHER): allocating totalPrice=${allocatedAmount}€`,
+          );
         }
       } else {
         // Pour un paiement normal (Stripe/Manuel), allouer le montant de l'acompte
         allocatedAmount = item.depositAmount || 0;
-        console.log(`BAPTEME item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}, hasVideo=${item.participantData?.hasVideo}`);
+        console.log(
+          `BAPTEME item ${item.id}: depositAmount=${item.depositAmount}, totalPrice=${item.totalPrice}, remainingAmount=${item.remainingAmount}, hasVideo=${item.participantData?.hasVideo}`,
+        );
       }
-    } else if (item.type === 'GIFT_CARD') {
-      // Pour les cartes cadeaux, allouer le montant de la carte
-      allocatedAmount = item.giftCardAmount || 0;
-      console.log(`GIFT_CARD item ${item.id}: giftCardAmount=${item.giftCardAmount}`);
-    } else if (item.type === 'GIFT_VOUCHER') {
+    } else if (item.type === "GIFT_VOUCHER") {
       // Pour les achats de bons cadeaux, allouer le montant
       allocatedAmount = item.giftVoucherAmount || 0;
-      console.log(`GIFT_VOUCHER item ${item.id}: giftVoucherAmount=${item.giftVoucherAmount}`);
+      console.log(
+        `GIFT_VOUCHER item ${item.id}: giftVoucherAmount=${item.giftVoucherAmount}`,
+      );
     }
 
     if (allocatedAmount > 0) {
@@ -170,9 +169,13 @@ export async function allocatePaymentToOrderItems(payment: any, orderItems: any[
         },
       });
 
-      console.log(`✓ Allocated ${allocatedAmount}€ from payment ${payment.id} to item ${item.id} (${item.type})`);
+      console.log(
+        `✓ Allocated ${allocatedAmount}€ from payment ${payment.id} to item ${item.id} (${item.type})`,
+      );
     } else {
-      console.warn(`⚠ No amount to allocate for item ${item.id} (${item.type})`);
+      console.warn(
+        `⚠ No amount to allocate for item ${item.id} (${item.type})`,
+      );
     }
   }
 }
@@ -181,31 +184,35 @@ export async function allocatePaymentToOrderItems(payment: any, orderItems: any[
  * Fonction pour créer les réservations à partir d'une commande
  */
 export async function createBookingsFromOrder(order: any) {
-  console.log(`[ORDER-PROCESSING] 🎯 createBookingsFromOrder called for order ${order.id} with ${order.orderItems.length} items - Timestamp: ${new Date().toISOString()}`);
+  console.log(
+    `[ORDER-PROCESSING] 🎯 createBookingsFromOrder called for order ${order.id} with ${order.orderItems.length} items - Timestamp: ${new Date().toISOString()}`,
+  );
 
-  // TRAITER TOUS LES GIFT_CARDS ET GIFT_VOUCHERS DANS UNE SEULE TRANSACTION GLOBALE
-  const giftItems = order.orderItems.filter((item: any) => item.type === "GIFT_CARD" || item.type === "GIFT_VOUCHER");
+  // TRAITER TOUS LES BONS CADEAUX (GIFT VOUCHERS) DANS UNE SEULE TRANSACTION GLOBALE
+  const giftItems = order.orderItems.filter(
+    (item: any) => item.type === "GIFT_VOUCHER",
+  );
 
   if (giftItems.length > 0) {
     try {
       await prisma.$transaction(async (tx) => {
         for (const item of giftItems) {
           // Extraire les données du participantData
-          const participantData = typeof item.participantData === 'string'
-            ? JSON.parse(item.participantData)
-            : item.participantData;
+          const participantData =
+            typeof item.participantData === "string"
+              ? JSON.parse(item.participantData)
+              : item.participantData;
 
           console.log(`Processing GIFT item ${item.id}:`, {
             hasVoucherProductType: !!participantData?.voucherProductType,
-            voucherProductType: participantData?.voucherProductType,
-            giftCardAmount: item.giftCardAmount,
             hasGeneratedVoucher: !!item.generatedGiftVoucherId,
-            hasGeneratedCard: !!item.generatedGiftCardId,
           });
 
           if (item.type === "GIFT_VOUCHER") {
             // ACHAT d'un bon cadeau pour une activité
-            console.log(`[ORDER-PROCESSING] Item ${item.id} is a GIFT VOUCHER purchase`);
+            console.log(
+              `[ORDER-PROCESSING] Item ${item.id} is a GIFT VOUCHER purchase`,
+            );
 
             // Vérifier dans la transaction (lock pessimiste)
             const freshItem = await tx.orderItem.findUnique({
@@ -213,14 +220,20 @@ export async function createBookingsFromOrder(order: any) {
               select: { generatedGiftVoucherId: true },
             });
 
-            console.log(`[ORDER-PROCESSING] Fresh check for item ${item.id}: generatedGiftVoucherId = ${freshItem?.generatedGiftVoucherId || 'NULL'}`);
+            console.log(
+              `[ORDER-PROCESSING] Fresh check for item ${item.id}: generatedGiftVoucherId = ${freshItem?.generatedGiftVoucherId || "NULL"}`,
+            );
 
             if (freshItem?.generatedGiftVoucherId) {
-              console.log(`[ORDER-PROCESSING] ⚠️ Gift voucher already created for item ${item.id} (detected in transaction) - Existing ID: ${freshItem.generatedGiftVoucherId}`);
+              console.log(
+                `[ORDER-PROCESSING] ⚠️ Gift voucher already created for item ${item.id} (detected in transaction) - Existing ID: ${freshItem.generatedGiftVoucherId}`,
+              );
               continue; // Skip creation
             }
 
-            console.log(`[ORDER-PROCESSING] 🔵 CREATING GIFT VOUCHER for item ${item.id} - Type: ${participantData.voucherProductType} - Timestamp: ${new Date().toISOString()}`);
+            console.log(
+              `[ORDER-PROCESSING] 🔵 CREATING GIFT VOUCHER for item ${item.id} - Type: ${participantData.voucherProductType} - Timestamp: ${new Date().toISOString()}`,
+            );
 
             // Générer le code DANS la transaction pour éviter les race conditions
             const code = await generateUniqueVoucherCodeInTransaction(tx);
@@ -236,14 +249,18 @@ export async function createBookingsFromOrder(order: any) {
                 stageCategory: participantData.voucherStageCategory || null,
                 baptemeCategory: participantData.voucherBaptemeCategory || null,
                 purchasePrice: item.giftVoucherAmount || item.unitPrice || 0,
-                recipientName: participantData.recipientName || 'Non spécifié',
-                recipientEmail: participantData.recipientEmail || 'non-specifie@placeholder.local',
+                recipientName: participantData.recipientName || "Non spécifié",
+                recipientEmail:
+                  participantData.recipientEmail ||
+                  "non-specifie@placeholder.local",
                 expiryDate,
                 clientId: order.clientId,
               },
             });
 
-            console.log(`[ORDER-PROCESSING] 🟢 GIFT VOUCHER CREATED: ${voucher.code} - ID: ${voucher.id} - Type: ${voucher.productType} - Timestamp: ${new Date().toISOString()}`);
+            console.log(
+              `[ORDER-PROCESSING] 🟢 GIFT VOUCHER CREATED: ${voucher.code} - ID: ${voucher.id} - Type: ${voucher.productType} - Timestamp: ${new Date().toISOString()}`,
+            );
 
             // Lier le bon cadeau à l'order item dans la même transaction
             await tx.orderItem.update({
@@ -251,13 +268,16 @@ export async function createBookingsFromOrder(order: any) {
               data: { generatedGiftVoucherId: voucher.id },
             });
 
-            console.log(`[ORDER-PROCESSING] ✓ Gift voucher ${voucher.code} linked to OrderItem ${item.id}`);
+            console.log(
+              `[ORDER-PROCESSING] ✓ Gift voucher ${voucher.code} linked to OrderItem ${item.id}`,
+            );
 
             // ENVOYER L'EMAIL DU BON CADEAU
             try {
-              const voucherType = voucher.productType === 'STAGE'
-                ? `Stage ${voucher.stageCategory}`
-                : `Baptême ${voucher.baptemeCategory}`;
+              const voucherType =
+                voucher.productType === "STAGE"
+                  ? `Stage ${voucher.stageCategory}`
+                  : `Baptême ${voucher.baptemeCategory}`;
 
               await sendGiftVoucherPurchaseEmail({
                 buyerName: participantData.buyerName,
@@ -273,55 +293,24 @@ export async function createBookingsFromOrder(order: any) {
                 orderNumber: order.orderNumber,
               });
 
-              console.log(`[ORDER-PROCESSING] 📧 Gift voucher email sent for ${voucher.code}`);
+              console.log(
+                `[ORDER-PROCESSING] 📧 Gift voucher email sent for ${voucher.code}`,
+              );
             } catch (emailError) {
-              console.error(`[ORDER-PROCESSING] ⚠️ Failed to send gift voucher email for ${voucher.code}:`, emailError);
+              console.error(
+                `[ORDER-PROCESSING] ⚠️ Failed to send gift voucher email for ${voucher.code}:`,
+                emailError,
+              );
               // Ne pas throw pour ne pas bloquer le traitement
             }
-          } else if (item.type === "GIFT_CARD") {
-            // CARTE CADEAU monétaire classique
-            console.log(`[ORDER-PROCESSING] Item ${item.id} is a GIFT CARD (monetary)`);
-
-            // Vérifier dans la transaction (lock pessimiste)
-            const freshItem = await tx.orderItem.findUnique({
-              where: { id: item.id },
-              select: { generatedGiftCardId: true },
-            });
-
-            console.log(`[ORDER-PROCESSING] Fresh check for item ${item.id}: generatedGiftCardId = ${freshItem?.generatedGiftCardId || 'NULL'}`);
-
-            if (freshItem?.generatedGiftCardId) {
-              console.log(`[ORDER-PROCESSING] ⚠️ Gift card already created for item ${item.id} (detected in transaction) - Existing ID: ${freshItem.generatedGiftCardId}`);
-              continue; // Skip creation
-            }
-
-            console.log(`[ORDER-PROCESSING] 🔵 CREATING GIFT CARD for item ${item.id} - Amount: ${item.giftCardAmount}€ - Timestamp: ${new Date().toISOString()}`);
-
-            // Générer le code DANS la transaction pour éviter les race conditions
-            const code = await generateUniqueGiftCardCodeInTransaction(tx);
-
-            const giftCard = await tx.giftCard.create({
-              data: {
-                code,
-                amount: item.giftCardAmount!,
-                clientId: null, // Sera assigné lors de l'utilisation
-              },
-            });
-
-            console.log(`[ORDER-PROCESSING] 🟢 GIFT CARD CREATED: ${code} - ID: ${giftCard.id} - Amount: ${item.giftCardAmount}€ - Timestamp: ${new Date().toISOString()}`);
-
-            // Lier la carte cadeau à l'order item dans la même transaction
-            await tx.orderItem.update({
-              where: { id: item.id },
-              data: { generatedGiftCardId: giftCard.id },
-            });
-
-            console.log(`[ORDER-PROCESSING] ✓ Gift card ${code} linked to OrderItem ${item.id}`);
           }
         }
       });
     } catch (error) {
-      console.error(`[ORDER-PROCESSING] ❌ Error creating gift cards/vouchers:`, error);
+      console.error(
+        `[ORDER-PROCESSING] ❌ Error creating gift cards/vouchers:`,
+        error,
+      );
       // Ne pas throw pour ne pas bloquer le traitement des autres items
     }
   }
@@ -336,10 +325,13 @@ export async function createBookingsFromOrder(order: any) {
       // Récupérer le type de stage choisi par le client (selectedStageType)
       // Si le stage est de type DOUBLE, le client a choisi soit INITIATION soit PROGRESSION
       // On utilise selectedStageType qui contient le choix réel du client
-      const stageType = item.participantData.selectedStageType || item.stage?.type || 'INITIATION';
+      const stageType =
+        item.participantData.selectedStageType ||
+        item.stage?.type ||
+        "INITIATION";
 
       // Vérifier que le type est valide pour StageBookingType (pas DOUBLE)
-      const validStageType = stageType === 'DOUBLE' ? 'INITIATION' : stageType;
+      const validStageType = stageType === "DOUBLE" ? "INITIATION" : stageType;
 
       // Créer la réservation de stage
       const booking = await prisma.stageBooking.create({
@@ -356,7 +348,9 @@ export async function createBookingsFromOrder(order: any) {
         data: { stageBookingId: booking.id },
       });
 
-      console.log(`Stage booking created: ${booking.id} for stagiaire ${stagiaire.id}`);
+      console.log(
+        `Stage booking created: ${booking.id} for stagiaire ${stagiaire.id}`,
+      );
     }
 
     if (item.type === "BAPTEME" && item.baptemeId && !item.baptemeBookingId) {
@@ -387,7 +381,9 @@ export async function createBookingsFromOrder(order: any) {
         data: { baptemeBookingId: booking.id },
       });
 
-      console.log(`Bapteme booking created: ${booking.id} for stagiaire ${stagiaire.id}`);
+      console.log(
+        `Bapteme booking created: ${booking.id} for stagiaire ${stagiaire.id}`,
+      );
     }
 
     // GIFT_CARD et GIFT_VOUCHER items sont déjà traités dans la transaction globale ci-dessus
@@ -454,14 +450,15 @@ export function prepareEmailData(order: any) {
   }> = [];
 
   order.orderItems.forEach((item: any) => {
-    if (item.type === 'STAGE') {
+    if (item.type === "STAGE") {
       const deposit = item.depositAmount || 0;
       const remaining = item.remainingAmount || 0;
       depositTotal += deposit;
       remainingTotal += remaining;
 
       if (remaining > 0) {
-        const participantName = `${item.participantData?.firstName || ''} ${item.participantData?.lastName || ''}`.trim();
+        const participantName =
+          `${item.participantData?.firstName || ""} ${item.participantData?.lastName || ""}`.trim();
         futurePayments.push({
           amount: remaining,
           date: item.stage?.startDate,
@@ -469,14 +466,15 @@ export function prepareEmailData(order: any) {
           participantName: participantName,
         });
       }
-    } else if (item.type === 'BAPTEME') {
+    } else if (item.type === "BAPTEME") {
       const deposit = item.depositAmount || 0;
       const remaining = item.remainingAmount || 0;
       depositTotal += deposit;
       remainingTotal += remaining;
 
       if (remaining > 0) {
-        const participantName = `${item.participantData?.firstName || ''} ${item.participantData?.lastName || ''}`.trim();
+        const participantName =
+          `${item.participantData?.firstName || ""} ${item.participantData?.lastName || ""}`.trim();
         futurePayments.push({
           amount: remaining,
           date: item.bapteme?.date,
@@ -497,14 +495,17 @@ export function prepareEmailData(order: any) {
   // Récupérer les informations du premier participant pour le nom et téléphone
   const firstParticipant = order.orderItems[0]?.participantData;
   const customerName = firstParticipant
-    ? `${firstParticipant.firstName || ''} ${firstParticipant.lastName || ''}`.trim()
-    : 'Client';
-  const customerPhone = firstParticipant?.phone || 'Non spécifié';
+    ? `${firstParticipant.firstName || ""} ${firstParticipant.lastName || ""}`.trim()
+    : "Client";
+  const customerPhone = firstParticipant?.phone || "Non spécifié";
 
   return {
     orderNumber: order.orderNumber,
     orderDate: order.createdAt,
-    customerEmail: order.customerEmail || order.client?.email || 'non-specifie@placeholder.local',
+    customerEmail:
+      order.customerEmail ||
+      order.client?.email ||
+      "non-specifie@placeholder.local",
     customerName,
     customerPhone,
     orderItems: order.orderItems,
@@ -535,9 +536,13 @@ export async function clearCart(sessionId: string) {
         cartSessionId: cartSession.id,
       },
     });
-    console.log(`[ORDER-PROCESSING] Cart cleared for session: ${cartSession.id} (${cartSession.cartItems.length} items removed)`);
+    console.log(
+      `[ORDER-PROCESSING] Cart cleared for session: ${cartSession.id} (${cartSession.cartItems.length} items removed)`,
+    );
   } else if (cartSession) {
-    console.log(`[ORDER-PROCESSING] Cart already cleared for session: ${cartSession.id}`);
+    console.log(
+      `[ORDER-PROCESSING] Cart already cleared for session: ${cartSession.id}`,
+    );
   } else {
     console.log(`[ORDER-PROCESSING] Cart session not found: ${sessionId}`);
   }
@@ -550,7 +555,9 @@ export async function clearCart(sessionId: string) {
  * - Envoie les emails de confirmation
  */
 export async function finalizeOrder(order: any, sessionId?: string) {
-  console.log(`[ORDER-PROCESSING] 🎯 Finalizing order ${order.orderNumber} (${order.id})`);
+  console.log(
+    `[ORDER-PROCESSING] 🎯 Finalizing order ${order.orderNumber} (${order.id})`,
+  );
 
   try {
     // 1. Créer les réservations pour chaque item
@@ -567,24 +574,39 @@ export async function finalizeOrder(order: any, sessionId?: string) {
     // 4. Envoyer l'email de confirmation client
     try {
       await sendOrderConfirmationEmail(emailData);
-      console.log(`[ORDER-PROCESSING] ✅ Confirmation email sent successfully for order ${order.orderNumber}`);
+      console.log(
+        `[ORDER-PROCESSING] ✅ Confirmation email sent successfully for order ${order.orderNumber}`,
+      );
     } catch (emailError) {
-      console.error(`[ORDER-PROCESSING] ⚠️ Failed to send confirmation email for order ${order.orderNumber}:`, emailError);
+      console.error(
+        `[ORDER-PROCESSING] ⚠️ Failed to send confirmation email for order ${order.orderNumber}:`,
+        emailError,
+      );
       // Ne pas faire échouer la finalisation si l'email échoue
     }
 
     // 5. Envoyer l'email à l'admin
     try {
       await sendAdminNewOrderEmail(emailData);
-      console.log(`[ORDER-PROCESSING] ✅ Admin notification email sent successfully`);
+      console.log(
+        `[ORDER-PROCESSING] ✅ Admin notification email sent successfully`,
+      );
     } catch (adminEmailError) {
-      console.error(`[ORDER-PROCESSING] ⚠️ Failed to send admin notification email:`, adminEmailError);
+      console.error(
+        `[ORDER-PROCESSING] ⚠️ Failed to send admin notification email:`,
+        adminEmailError,
+      );
       // Ne pas faire échouer la finalisation si l'email échoue
     }
 
-    console.log(`[ORDER-PROCESSING] ✅ Order ${order.orderNumber} finalized successfully`);
+    console.log(
+      `[ORDER-PROCESSING] ✅ Order ${order.orderNumber} finalized successfully`,
+    );
   } catch (error) {
-    console.error(`[ORDER-PROCESSING] ❌ Error finalizing order ${order.orderNumber}:`, error);
+    console.error(
+      `[ORDER-PROCESSING] ❌ Error finalizing order ${order.orderNumber}:`,
+      error,
+    );
     throw error;
   }
 }

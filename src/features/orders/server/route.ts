@@ -1,11 +1,23 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { publicAPIMiddleware, adminSessionMiddleware } from "@/lib/session-middleware";
+import {
+  publicAPIMiddleware,
+  adminSessionMiddleware,
+} from "@/lib/session-middleware";
 import { cartSessionMiddleware } from "@/lib/cart-middleware";
 import prisma from "@/lib/prisma";
-import { CreateOrderSchema, UpdateOrderStatusSchema, CreatePaymentIntentSchema, ConfirmPaymentSchema } from "../schemas";
+import {
+  CreateOrderSchema,
+  UpdateOrderStatusSchema,
+  CreatePaymentIntentSchema,
+  ConfirmPaymentSchema,
+} from "../schemas";
 import { generateOrderNumber, createPaymentIntent } from "@/lib/stripe";
-import { getBaptemePrice, finalizeOrder, allocatePaymentToOrderItems } from "@/lib/order-processing";
+import {
+  getBaptemePrice,
+  finalizeOrder,
+  allocatePaymentToOrderItems,
+} from "@/lib/order-processing";
 import { z } from "zod";
 
 const app = new Hono()
@@ -17,13 +29,8 @@ const app = new Hono()
     cartSessionMiddleware,
     async (c) => {
       try {
-        let { customerEmail, appliedGiftCardCodes, appliedGiftCardCode, customerData } = c.req.valid("json");
+        let { customerEmail, customerData } = c.req.valid("json");
         const cartSession = c.get("cartSession") as any;
-
-        // Backward compatibility: convert single code to array
-        if (appliedGiftCardCode && (!appliedGiftCardCodes || appliedGiftCardCodes.length === 0)) {
-          appliedGiftCardCodes = [appliedGiftCardCode];
-        }
 
         // Récupérer les items du panier
         const cartItems = await prisma.cartItem.findMany({
@@ -47,12 +54,12 @@ const app = new Hono()
         // Calculer le total (avec acomptes pour les stages ET baptêmes)
         let subtotal = 0;
         let depositTotal = 0; // Montant à payer aujourd'hui (acomptes)
-        
+
         for (const item of cartItems) {
-          if (item.type === 'STAGE' && item.stage) {
+          if (item.type === "STAGE" && item.stage) {
             const participantData = item.participantData as any;
             const fullPrice = item.stage.price * item.quantity;
-            
+
             if (participantData?.usedGiftVoucherCode) {
               // Réservation avec bon cadeau = gratuit
               subtotal += fullPrice; // Garder le prix pour historique
@@ -63,88 +70,39 @@ const app = new Hono()
               subtotal += fullPrice;
               depositTotal += depositPrice;
             }
-          } else if (item.type === 'BAPTEME' && item.bapteme) {
+          } else if (item.type === "BAPTEME" && item.bapteme) {
             const participantData = item.participantData as any;
-            const basePrice = await getBaptemePrice(participantData.selectedCategory);
+            const basePrice = await getBaptemePrice(
+              participantData.selectedCategory,
+            );
             const videoPrice = participantData.hasVideo ? 25 : 0;
             const fullPrice = (basePrice + videoPrice) * item.quantity;
-            
+
             if (participantData?.usedGiftVoucherCode) {
               // Réservation avec bon cadeau = gratuit
               subtotal += fullPrice; // Garder le prix pour historique
               depositTotal += 0; // Mais ne rien payer
             } else {
               // Réservation normale
-              const depositPrice = (item.bapteme.acomptePrice + videoPrice) * item.quantity;
+              const depositPrice =
+                (item.bapteme.acomptePrice + videoPrice) * item.quantity;
               subtotal += fullPrice;
               depositTotal += depositPrice;
             }
-          } else if (item.type === 'GIFT_CARD') {
-            const amount = item.giftCardAmount || 0;
-            subtotal += amount;
-            depositTotal += amount; // Cartes cadeaux: paiement complet
-          } else if (item.type === 'GIFT_VOUCHER') {
+          } else if (item.type === "GIFT_VOUCHER") {
             const amount = item.giftVoucherAmount || 0;
             subtotal += amount;
             depositTotal += amount; // Bons cadeaux: paiement complet
           }
         }
 
-        // Valider et appliquer les cartes cadeaux (sur le montant de l'acompte)
-        let discountAmount = 0;
-        const validGiftCards: Array<{ giftCard: any; usedAmount: number }> = [];
+        // Les cartes cadeaux ne sont plus gérées à la création de commande
+        // Elles sont traitées comme un type d'item spécial dans le panier.
+        // Seuls les bon cadeaux (GiftVoucher) peuvent réduire le montant à zéro.
+        const discountAmount = 0;
 
-        if (appliedGiftCardCodes && appliedGiftCardCodes.length > 0) {
-          let remainingOrderAmount = depositTotal;
-
-          for (const code of appliedGiftCardCodes) {
-            if (remainingOrderAmount <= 0) break;
-
-            const giftCard = await prisma.giftCard.findUnique({
-              where: { code: code.toUpperCase() },
-            });
-
-            if (!giftCard) {
-              return c.json({
-                success: false,
-                message: `Carte cadeau invalide: ${code}`,
-                data: null,
-              });
-            }
-
-            // Vérifier la date d'expiration (12 mois)
-            const expirationDate = new Date(giftCard.createdAt);
-            expirationDate.setFullYear(expirationDate.getFullYear() + 1);
-
-            if (new Date() > expirationDate) {
-              return c.json({
-                success: false,
-                message: `Carte cadeau expirée: ${code}`,
-                data: null,
-              });
-            }
-
-            // Vérifier le montant restant
-            const availableAmount = giftCard.remainingAmount || giftCard.amount;
-            if (availableAmount <= 0) {
-              return c.json({
-                success: false,
-                message: `Carte cadeau déjà utilisée: ${code}`,
-                data: null,
-              });
-            }
-
-            // Calculer le montant à utiliser de cette carte cadeau
-            const usedAmount = Math.min(availableAmount, remainingOrderAmount);
-            discountAmount += usedAmount;
-            remainingOrderAmount -= usedAmount;
-
-            validGiftCards.push({ giftCard, usedAmount });
-          }
-        }
-
-        const totalAmount = subtotal - discountAmount;
-        const depositAmount = depositTotal - discountAmount; // Montant à payer aujourd'hui
+        const totalAmount = subtotal;
+        const depositAmount = depositTotal; // Montant à payer aujourd'hui
 
         // Créer ou récupérer le client si nécessaire (pour checkout à 0€)
         let client = null;
@@ -158,13 +116,13 @@ const app = new Hono()
             client = await prisma.client.create({
               data: {
                 email: customerEmail,
-                firstName: customerData.firstName || '',
-                lastName: customerData.lastName || '',
-                phone: customerData.phone || '',
-                address: customerData.address || '',
-                postalCode: customerData.postalCode || '',
-                city: customerData.city || '',
-                country: customerData.country || 'France',
+                firstName: customerData.firstName || "",
+                lastName: customerData.lastName || "",
+                phone: customerData.phone || "",
+                address: customerData.address || "",
+                postalCode: customerData.postalCode || "",
+                city: customerData.city || "",
+                country: customerData.country || "France",
               },
             });
           }
@@ -172,170 +130,161 @@ const app = new Hono()
 
         // Créer la commande
         const orderNumber = generateOrderNumber();
-        
+
         const order = await prisma.order.create({
           data: {
             orderNumber,
-            status: depositAmount <= 0 ? 'PAID' : 'PENDING', // PAID si gratuit
+            status: depositAmount <= 0 ? "PAID" : "PENDING", // PAID si gratuit (bon cadeau)
             subtotal,
             discountAmount,
             totalAmount,
             clientId: client?.id, // Lier le client si créé (checkout gratuit)
-            appliedGiftCardId: validGiftCards.length > 0 ? validGiftCards[0].giftCard.id : null,
             orderItems: {
-              create: await Promise.all(cartItems.map(async item => {
-                let unitPrice = 0;
-                let depositAmount: number | null = null;
-                let remainingAmount: number | null = null;
-                let isFullyPaid = false;
-                const participantData = item.participantData as any;
+              create: await Promise.all(
+                cartItems.map(async (item) => {
+                  let unitPrice = 0;
+                  let depositAmount: number | null = null;
+                  let remainingAmount: number | null = null;
+                  let isFullyPaid = false;
+                  const participantData = item.participantData as any;
 
-                if (item.type === 'STAGE' && item.stage) {
-                  unitPrice = item.stage.price;
-                  
-                  if (participantData?.usedGiftVoucherCode) {
-                    // Réservation avec bon cadeau
-                    depositAmount = 0;
-                    remainingAmount = 0;
-                    isFullyPaid = true; // Payé via bon cadeau
-                  } else {
-                    // Réservation normale
-                    const depositPrice = item.stage.acomptePrice;
-                    depositAmount = depositPrice * item.quantity;
-                    remainingAmount = (unitPrice - depositPrice) * item.quantity;
-                    isFullyPaid = false;
-                  }
-                } else if (item.type === 'BAPTEME' && item.bapteme) {
-                  const basePrice = await getBaptemePrice(participantData.selectedCategory);
-                  const videoPrice = participantData.hasVideo ? 25 : 0;
-                  unitPrice = basePrice + videoPrice;
-                  
-                  if (participantData?.usedGiftVoucherCode) {
-                    // Réservation avec bon cadeau
-                    depositAmount = 0;
-                    remainingAmount = 0;
-                    isFullyPaid = true; // Payé via bon cadeau
-                  } else {
-                    // Réservation normale
-                    const depositPrice = item.bapteme.acomptePrice + videoPrice;
-                    depositAmount = depositPrice * item.quantity;
-                    remainingAmount = (basePrice - item.bapteme.acomptePrice) * item.quantity;
-                    isFullyPaid = false;
-                  }
-                } else if (item.type === 'GIFT_CARD') {
-                  unitPrice = item.giftCardAmount || 0;
-                  isFullyPaid = true;
-                } else if (item.type === 'GIFT_VOUCHER') {
-                  unitPrice = item.giftVoucherAmount || 0;
-                  isFullyPaid = true; // Bons cadeaux: paiement complet
-                }
+                  if (item.type === "STAGE" && item.stage) {
+                    unitPrice = item.stage.price;
 
-                return {
-                  type: item.type,
-                  quantity: item.quantity,
-                  unitPrice,
-                  totalPrice: unitPrice * item.quantity,
-                  depositAmount,
-                  remainingAmount,
-                  isFullyPaid,
-                  stageId: item.stageId,
-                  baptemeId: item.baptemeId,
-                  giftCardAmount: item.giftCardAmount,
-                  giftVoucherAmount: item.giftVoucherAmount,
-                  participantData: item.participantData as any,
-                };
-              })),
-            },
-            orderGiftCards: {
-              create: validGiftCards.map(({ giftCard, usedAmount }) => ({
-                giftCardId: giftCard.id,
-                usedAmount,
-              })),
+                    if (participantData?.usedGiftVoucherCode) {
+                      // Réservation avec bon cadeau
+                      depositAmount = 0;
+                      remainingAmount = 0;
+                      isFullyPaid = true; // Payé via bon cadeau
+                    } else {
+                      // Réservation normale
+                      const depositPrice = item.stage.acomptePrice;
+                      depositAmount = depositPrice * item.quantity;
+                      remainingAmount =
+                        (unitPrice - depositPrice) * item.quantity;
+                      isFullyPaid = false;
+                    }
+                  } else if (item.type === "BAPTEME" && item.bapteme) {
+                    const basePrice = await getBaptemePrice(
+                      participantData.selectedCategory,
+                    );
+                    const videoPrice = participantData.hasVideo ? 25 : 0;
+                    unitPrice = basePrice + videoPrice;
+
+                    if (participantData?.usedGiftVoucherCode) {
+                      // Réservation avec bon cadeau
+                      depositAmount = 0;
+                      remainingAmount = 0;
+                      isFullyPaid = true; // Payé via bon cadeau
+                    } else {
+                      // Réservation normale
+                      const depositPrice =
+                        item.bapteme.acomptePrice + videoPrice;
+                      depositAmount = depositPrice * item.quantity;
+                      remainingAmount =
+                        (basePrice - item.bapteme.acomptePrice) * item.quantity;
+                      isFullyPaid = false;
+                    }
+                  } else if (item.type === "GIFT_VOUCHER") {
+                    unitPrice = item.giftVoucherAmount || 0;
+                    isFullyPaid = true; // Bons cadeaux: paiement complet
+                  }
+
+                  return {
+                    type: item.type,
+                    quantity: item.quantity,
+                    unitPrice,
+                    totalPrice: unitPrice * item.quantity,
+                    depositAmount,
+                    remainingAmount,
+                    isFullyPaid,
+                    stageId: item.stageId,
+                    baptemeId: item.baptemeId,
+                    giftVoucherAmount: item.giftVoucherAmount,
+                    participantData: item.participantData as any,
+                  };
+                }),
+              ),
             },
           },
           include: {
             orderItems: true,
-            appliedGiftCard: true,
-            orderGiftCards: {
-              include: {
-                giftCard: true,
-              },
-            },
           },
         });
-
-        // Mettre à jour les cartes cadeaux utilisées
-        for (const { giftCard, usedAmount } of validGiftCards) {
-          const newRemainingAmount = (giftCard.remainingAmount || giftCard.amount) - usedAmount;
-          await prisma.giftCard.update({
-            where: { id: giftCard.id },
-            data: {
-              remainingAmount: newRemainingAmount,
-              isUsed: newRemainingAmount <= 0,
-              usedAt: giftCard.usedAt || new Date(),
-              usedByOrderId: order.id,
-            },
-          });
-        }
 
         // Calculer les détails des paiements restants par stage ET baptême
         const remainingPayments = [
           // Stages
           ...cartItems
-            .filter(item => item.type === 'STAGE' && item.stage)
-            .map(item => ({
-              type: 'STAGE' as const,
+            .filter((item) => item.type === "STAGE" && item.stage)
+            .map((item) => ({
+              type: "STAGE" as const,
               itemId: item.stage!.id,
               itemDate: item.stage!.startDate,
-              remainingAmount: (item.stage!.price - item.stage!.acomptePrice) * item.quantity,
+              remainingAmount:
+                (item.stage!.price - item.stage!.acomptePrice) * item.quantity,
               dueDate: item.stage!.startDate, // À payer avant le début du stage
             })),
           // Baptêmes
-          ...(await Promise.all(cartItems
-            .filter(item => item.type === 'BAPTEME' && item.bapteme)
-            .map(async item => {
-              const participantData = item.participantData as any;
-              const basePrice = await getBaptemePrice(participantData.selectedCategory);
-              const videoPrice = participantData.hasVideo ? 25 : 0;
-              const remaining = basePrice - item.bapteme!.acomptePrice; // Reste du baptême seulement (vidéo déjà payée)
-              return {
-                type: 'BAPTEME' as const,
-                itemId: item.bapteme!.id,
-                itemDate: item.bapteme!.date,
-                remainingAmount: remaining * item.quantity,
-                dueDate: item.bapteme!.date, // À payer le jour du baptême
-              };
-            })))
+          ...(await Promise.all(
+            cartItems
+              .filter((item) => item.type === "BAPTEME" && item.bapteme)
+              .map(async (item) => {
+                const participantData = item.participantData as any;
+                const basePrice = await getBaptemePrice(
+                  participantData.selectedCategory,
+                );
+                const videoPrice = participantData.hasVideo ? 25 : 0;
+                const remaining = basePrice - item.bapteme!.acomptePrice; // Reste du baptême seulement (vidéo déjà payée)
+                return {
+                  type: "BAPTEME" as const,
+                  itemId: item.bapteme!.id,
+                  itemDate: item.bapteme!.date,
+                  remainingAmount: remaining * item.quantity,
+                  dueDate: item.bapteme!.date, // À payer le jour du baptême
+                };
+              }),
+          )),
         ];
 
-        const totalRemainingAmount = remainingPayments.reduce((sum, payment) => sum + payment.remainingAmount, 0);
+        const totalRemainingAmount = remainingPayments.reduce(
+          (sum, payment) => sum + payment.remainingAmount,
+          0,
+        );
 
         // LOGIQUE CONDITIONNELLE SELON LE MONTANT À PAYER
         if (depositAmount === 0) {
           // ========================================
           // CAS 1 : COMMANDE GRATUITE (100% couverte par bon cadeau)
           // ========================================
-          console.log(`[ORDER-CREATE] 🎁 Free order detected (depositAmount = 0€) for order ${order.orderNumber}`);
+          console.log(
+            `[ORDER-CREATE] 🎁 Free order detected (depositAmount = 0€) for order ${order.orderNumber}`,
+          );
 
           // Créer un Payment de type GIFT_VOUCHER pour traçabilité (ne compte pas dans le CA)
-          const totalPaidByVouchers = order.orderItems.reduce((sum: number, item: any) => {
-            if (item.participantData?.usedGiftVoucherCode) {
-              return sum + (item.totalPrice || 0);
-            }
-            return sum;
-          }, 0);
+          const totalPaidByVouchers = order.orderItems.reduce(
+            (sum: number, item: any) => {
+              if (item.participantData?.usedGiftVoucherCode) {
+                return sum + (item.totalPrice || 0);
+              }
+              return sum;
+            },
+            0,
+          );
 
           const payment = await prisma.payment.create({
             data: {
               orderId: order.id,
-              paymentType: 'GIFT_VOUCHER',
-              status: 'SUCCEEDED',
+              paymentType: "GIFT_VOUCHER",
+              status: "SUCCEEDED",
               amount: totalPaidByVouchers, // Montant réel couvert par les bons
-              currency: 'eur',
+              currency: "eur",
             },
           });
 
-          console.log(`[ORDER-CREATE] ✓ GIFT_VOUCHER payment created: ${payment.id} (${payment.amount}€)`);
+          console.log(
+            `[ORDER-CREATE] ✓ GIFT_VOUCHER payment created: ${payment.id} (${payment.amount}€)`,
+          );
 
           // Allouer le paiement aux orderItems
           await allocatePaymentToOrderItems(payment, order.orderItems);
@@ -361,7 +310,9 @@ const app = new Hono()
           // Finaliser la commande (réservations + emails + panier)
           await finalizeOrder(fullOrder, cartSession.sessionId);
 
-          console.log(`[ORDER-CREATE] ✅ Free order ${order.orderNumber} finalized successfully`);
+          console.log(
+            `[ORDER-CREATE] ✅ Free order ${order.orderNumber} finalized successfully`,
+          );
 
           return c.json({
             success: true,
@@ -388,7 +339,9 @@ const app = new Hono()
           // ========================================
           // CAS 2 : COMMANDE PAYANTE (Stripe)
           // ========================================
-          console.log(`[ORDER-CREATE] 💳 Paid order detected (depositAmount = ${depositAmount}€) for order ${order.orderNumber}`);
+          console.log(
+            `[ORDER-CREATE] 💳 Paid order detected (depositAmount = ${depositAmount}€) for order ${order.orderNumber}`,
+          );
 
           // Créer le Payment Intent Stripe pour le montant de l'acompte
           const paymentIntent = await createPaymentIntent({
@@ -404,18 +357,20 @@ const app = new Hono()
           await prisma.payment.create({
             data: {
               orderId: order.id,
-              paymentType: 'STRIPE',
+              paymentType: "STRIPE",
               stripePaymentIntentId: paymentIntent.id,
-              status: 'PENDING',
+              status: "PENDING",
               amount: depositAmount, // Montant de l'acompte
-              currency: 'eur',
+              currency: "eur",
             },
           });
 
           // NE PAS vider le panier ici - il sera vidé lors de la confirmation du paiement via webhook
           // Le panier reste disponible si l'utilisateur ferme la page et revient plus tard
 
-          console.log(`[ORDER-CREATE] ✓ Stripe payment created: ${paymentIntent.id}`);
+          console.log(
+            `[ORDER-CREATE] ✓ Stripe payment created: ${paymentIntent.id}`,
+          );
 
           return c.json({
             success: true,
@@ -443,76 +398,72 @@ const app = new Hono()
             },
           });
         }
-
       } catch (error) {
-        console.error('Erreur création commande:', error);
+        console.error("Erreur création commande:", error);
         return c.json(
           {
             success: false,
-            message: error instanceof Error ? error.message : "Erreur lors de la création de la commande",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Erreur lors de la création de la commande",
             data: null,
           },
-          500
+          500,
         );
       }
-    }
+    },
   )
 
   // GET order by ID
-  .get(
-    "getById/:id",
-    publicAPIMiddleware,
-    async (c) => {
-      try {
-        const orderId = c.req.param("id");
+  .get("getById/:id", publicAPIMiddleware, async (c) => {
+    try {
+      const orderId = c.req.param("id");
 
-        const order = await prisma.order.findUnique({
-          where: { id: orderId },
-          include: {
-            orderItems: {
-              include: {
-                stage: true,
-                bapteme: true,
-                stageBooking: {
-                  include: {
-                    stagiaire: true,
-                  },
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          orderItems: {
+            include: {
+              stage: true,
+              bapteme: true,
+              stageBooking: {
+                include: {
+                  stagiaire: true,
                 },
-                baptemeBooking: {
-                  include: {
-                    stagiaire: true,
-                  },
+              },
+              baptemeBooking: {
+                include: {
+                  stagiaire: true,
                 },
               },
             },
-            appliedGiftCard: true,
-            payments: true,
           },
-        });
+          payments: true,
+        },
+      });
 
-        if (!order) {
-          return c.json({
-            success: false,
-            message: "Commande introuvable",
-            data: null,
-          });
-        }
-
-        return c.json({
-          success: true,
-          data: order,
-        });
-
-      } catch (error) {
-        console.error('Erreur récupération commande:', error);
+      if (!order) {
         return c.json({
           success: false,
-          message: "Erreur lors de la récupération de la commande",
+          message: "Commande introuvable",
           data: null,
         });
       }
+
+      return c.json({
+        success: true,
+        data: order,
+      });
+    } catch (error) {
+      console.error("Erreur récupération commande:", error);
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération de la commande",
+        data: null,
+      });
     }
-  )
+  })
 
   // UPDATE order status (admin only)
   .put(
@@ -537,195 +488,187 @@ const app = new Hono()
           message: `Commande ${order.orderNumber} mise à jour`,
           data: order,
         });
-
       } catch (error) {
-        console.error('Erreur mise à jour commande:', error);
+        console.error("Erreur mise à jour commande:", error);
         return c.json({
           success: false,
           message: "Erreur lors de la mise à jour de la commande",
           data: null,
         });
       }
-    }
+    },
   )
 
   // SEARCH orders (admin only)
-  .get(
-    "search",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        const query = c.req.query("q") || "";
-        
-        if (!query || query.length < 2) {
-          return c.json({
-            success: true,
-            data: [],
-          });
-        }
+  .get("search", adminSessionMiddleware, async (c) => {
+    try {
+      const query = c.req.query("q") || "";
 
-        const orders = await prisma.order.findMany({
-          where: {
-            OR: [
-              {
-                orderNumber: {
-                  contains: query,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                client: {
-                  OR: [
-                    {
-                      firstName: {
-                        contains: query,
-                        mode: 'insensitive',
-                      },
-                    },
-                    {
-                      lastName: {
-                        contains: query,
-                        mode: 'insensitive',
-                      },
-                    },
-                    {
-                      email: {
-                        contains: query,
-                        mode: 'insensitive',
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-          include: {
-            client: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            orderItems: {
-              select: {
-                id: true,
-                type: true,
-                quantity: true,
-                totalPrice: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-          take: 10, // Limiter à 10 résultats
-        });
-
+      if (!query || query.length < 2) {
         return c.json({
           success: true,
-          data: orders,
-        });
-
-      } catch (error) {
-        console.error('Erreur recherche commandes:', error);
-        return c.json({
-          success: false,
-          message: "Erreur lors de la recherche des commandes",
-          data: null,
+          data: [],
         });
       }
-    }
-  )
 
-  // GET all orders (admin only)
-  .get(
-    "getAll",
-    adminSessionMiddleware,
-    async (c) => {
-      try {
-        // Calculate the cutoff time (6 hours ago)
-        const sixHoursAgo = new Date();
-        sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
-
-        const orders = await prisma.order.findMany({
-          where: {
-            OR: [
-              // Include all non-PENDING orders
-              {
-                status: {
-                  not: 'PENDING',
-                },
+      const orders = await prisma.order.findMany({
+        where: {
+          OR: [
+            {
+              orderNumber: {
+                contains: query,
+                mode: "insensitive",
               },
-              // Include PENDING orders updated within the last 6 hours
-              {
-                AND: [
+            },
+            {
+              client: {
+                OR: [
                   {
-                    status: 'PENDING',
+                    firstName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
                   },
                   {
-                    updatedAt: {
-                      gte: sixHoursAgo,
+                    lastName: {
+                      contains: query,
+                      mode: "insensitive",
+                    },
+                  },
+                  {
+                    email: {
+                      contains: query,
+                      mode: "insensitive",
                     },
                   },
                 ],
               },
-            ],
-          },
-          include: {
-            client: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
             },
-            orderItems: {
-              select: {
-                id: true,
-                type: true,
-                quantity: true,
-                totalPrice: true,
-              },
-            },
-            payments: {
-              select: {
-                id: true,
-                status: true,
-                amount: true,
-              },
+          ],
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
             },
           },
-          orderBy: {
-            createdAt: 'desc',
+          orderItems: {
+            select: {
+              id: true,
+              type: true,
+              quantity: true,
+              totalPrice: true,
+            },
           },
-        });
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 10, // Limiter à 10 résultats
+      });
 
-        return c.json({
-          success: true,
-          data: orders,
-        });
-
-      } catch (error) {
-        console.error('Erreur récupération commandes:', error);
-        return c.json({
-          success: false,
-          message: "Erreur lors de la récupération des commandes",
-          data: null,
-        });
-      }
+      return c.json({
+        success: true,
+        data: orders,
+      });
+    } catch (error) {
+      console.error("Erreur recherche commandes:", error);
+      return c.json({
+        success: false,
+        message: "Erreur lors de la recherche des commandes",
+        data: null,
+      });
     }
-  )
+  })
+
+  // GET all orders (admin only)
+  .get("getAll", adminSessionMiddleware, async (c) => {
+    try {
+      // Calculate the cutoff time (6 hours ago)
+      const sixHoursAgo = new Date();
+      sixHoursAgo.setHours(sixHoursAgo.getHours() - 6);
+
+      const orders = await prisma.order.findMany({
+        where: {
+          OR: [
+            // Include all non-PENDING orders
+            {
+              status: {
+                not: "PENDING",
+              },
+            },
+            // Include PENDING orders updated within the last 6 hours
+            {
+              AND: [
+                {
+                  status: "PENDING",
+                },
+                {
+                  updatedAt: {
+                    gte: sixHoursAgo,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        include: {
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          orderItems: {
+            select: {
+              id: true,
+              type: true,
+              quantity: true,
+              totalPrice: true,
+            },
+          },
+          payments: {
+            select: {
+              id: true,
+              status: true,
+              amount: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      return c.json({
+        success: true,
+        data: orders,
+      });
+    } catch (error) {
+      console.error("Erreur récupération commandes:", error);
+      return c.json({
+        success: false,
+        message: "Erreur lors de la récupération des commandes",
+        data: null,
+      });
+    }
+  })
 
   // CONFIRM final payment for an OrderItem (admin only)
   .post(
     "/confirmFinalPayment/:orderItemId",
     adminSessionMiddleware,
-    zValidator("json", z.object({
-      note: z.string().optional(),
-    })),
+    zValidator(
+      "json",
+      z.object({
+        note: z.string().optional(),
+      }),
+    ),
     async (c) => {
       const orderItemId = c.req.param("orderItemId");
       const { note } = c.req.valid("json");
@@ -760,10 +703,11 @@ const app = new Hono()
         }
 
         // 2. Vérifier que c'est un stage ou un baptême
-        if (orderItem.type !== 'STAGE' && orderItem.type !== 'BAPTEME') {
+        if (orderItem.type !== "STAGE" && orderItem.type !== "BAPTEME") {
           return c.json({
             success: false,
-            message: "Seuls les stages et baptêmes nécessitent un paiement final",
+            message:
+              "Seuls les stages et baptêmes nécessitent un paiement final",
             data: null,
           });
         }
@@ -790,35 +734,34 @@ const app = new Hono()
 
         // 5. Vérifier si tous les items de la commande sont entièrement payés
         const allItemsFullyPaid = orderItem.order.orderItems.every(
-          item => item.id === orderItemId || item.isFullyPaid
+          (item) => item.id === orderItemId || item.isFullyPaid,
         );
 
         // 6. Mettre à jour le statut de la commande si nécessaire
         if (allItemsFullyPaid) {
           await prisma.order.update({
             where: { id: orderItem.orderId },
-            data: { status: 'FULLY_PAID' },
+            data: { status: "FULLY_PAID" },
           });
         }
 
         return c.json({
           success: true,
-          message: `Paiement final confirmé. ${allItemsFullyPaid ? 'Commande entièrement payée.' : 'Il reste des articles à payer.'}`,
+          message: `Paiement final confirmé. ${allItemsFullyPaid ? "Commande entièrement payée." : "Il reste des articles à payer."}`,
           data: {
             orderItem: updatedOrderItem,
             orderFullyPaid: allItemsFullyPaid,
           },
         });
-
       } catch (error) {
-        console.error('Erreur confirmation paiement final:', error);
+        console.error("Erreur confirmation paiement final:", error);
         return c.json({
           success: false,
           message: "Erreur lors de la confirmation du paiement final",
           data: null,
         });
       }
-    }
+    },
   );
 
 export default app;
